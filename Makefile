@@ -261,7 +261,7 @@ endif
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 SFML_OBJ_DIR = $(OBJ_DIR)/sfml
 SFML_LIB_DIR=$(SFML_OBJ_DIR)/install/lib/
-SFML_PKG_CONFIG_PATH=$(ROOT_DIR)/$(SFML_OBJ_DIR)/install/pkgconfig
+SFML_PKG_CONFIG_PATH=$(ROOT_DIR)/$(SFML_OBJ_DIR)/install/lib/pkgconfig
 LIBS += -L$(SFML_LIB_DIR)
 SFML_PC="sfml-system sfml-window sfml-graphics"
 SFML_TOKEN=$(SFML_OBJ_DIR)/.sfmlok
@@ -282,8 +282,8 @@ endif
 
 
 ifeq ($(FE_WINDOWS_COMPILE),1)
- _DEP += attract.rc
- _OBJ += attract.res
+ _DEP += attractplus.rc
+ _OBJ += attractplus.res
  ifeq ($(WINDOWS_XP),1)
   FE_FLAGS += -DWINDOWS_XP
  else
