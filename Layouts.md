@@ -358,6 +358,7 @@ Return Value:
 #### `fe.add_surface()` ####
 
     fe.add_surface( w, h )
+    fe.add_surface( x, y, w, h )
 
 Add a surface to the end of Attract-Mode's draw list.  A surface is an off-
 screen texture upon which you can draw other image, artwork, text, listbox
@@ -369,6 +370,10 @@ The default blend mode for surfaces is `BlendMode.Premultiplied`
 
 Parameters:
 
+   * x - the x coordinate of the top left corner of the surface (in layout
+     coordinates).
+   * y - the y coordinate of the top left corner of the surface (in layout
+     coordinates).
    * w - the width of the surface texture (in pixels).
    * h - the height of the surface texture (in pixels).
 
@@ -786,7 +791,7 @@ Parameters:
      containing the selection to retrieve the filename for.  i.e.
      -1=previous filter, 0=current filter.  Default value is 0.
    * flags - flags to control the filename that gets returned.  Can be set
-     to any combination of none or more of the following (i.e. `Art.ImageOnly
+     to any combination of none or more of the following (i.e. `Art.ImagesOnly
      | Art.FullList`):
       - `Art.Default` - return single match, video or image
       - `Art.ImagesOnly` - Override Art.Default, only return an image match (no
@@ -1353,7 +1358,7 @@ Properties:
    * `height` - Get/set the layout height.  Default value is `ScreenHeight`.
    * `font` - Get/set the filename of the font which will be used for
      text and listbox objects in this layout.
-   * `base_rotation` - Get the base orientation of Attract Mode wchich is set
+   * `base_rotation` - Get the base orientation of Attract Mode which is set
      in General Settings. This property cannot be set from the script.
      This can be one of the following values:
       - `RotateScreen.None` (default)
@@ -1361,7 +1366,7 @@ Properties:
       - `RotateScreen.Flip`
       - `RotateScreen.Left`
    * `toggle_rotation` - Get/set the "toggle" orientation of the layout.
-     The toggle rotation is added to the rotation sen in general settings
+     The toggle rotation is added to the rotation set in general settings
      to determine what the actual rotation is at any given time.
      The user can change this value using the Rotation Toggle inputs.
      This can be one of the following values:
@@ -1486,9 +1491,12 @@ Member Functions:
    * `edit_dialog( msg, text )` - Prompt the user to input/edit text.  The
      `msg` parameter is the prompt caption.  `text` is the initial text to be
      edited.  The return value a the string of text as edited by the user.
-   * `splash_message( msg, second_msg="" )` - immediately provide text feedback
-     to the user.  This could be useful during computationally-intensive
-     operations.
+   * `splash_message( msg, replace, footer_msg )`
+   * `splash_message( msg, replace )`
+   * `splash_message( msg )` - immediately provide text feedback to the user.
+     This could be useful during computationally-intensive operations.
+     The `msg` parameter may contain a `$1` placeholder that gets replaced by `replace`.
+     The `footer_msg` text is displayed in the footer.
 
 &nbsp;
 <a name="Display"></a>
@@ -1581,6 +1589,8 @@ Member Functions:
      (see [`fe.add_listbox()`](#add_listbox) for parameters and return value).
    * `add_surface()` - add a surface to the end of this monitor's draw list
      (see [`fe.add_surface()`](#add_surface) for parameters and return value).
+   * `add_rectangle()` - add a rectangle to the end of this monitor's draw list
+     (see [`fe.add_rectangle()`](#add_rectangle) for parameters and return value).
 
 Notes:
 
@@ -1776,6 +1786,9 @@ Member Functions:
    * `add_surface()` - [surface only] add a surface to the end of this
      surface's draw list (see [`fe.add_surface()`](#add_surface) for parameters
      and return value).
+   * `add_rectangle()` - [surface only] add a rectangle to the end of this
+	  surface's draw list (see [`fe.add_rectangle()`](#add_rectangle) for parameters
+	  and return value).
 
 &nbsp;
 <a name="ImageNotes"></a>
@@ -2135,6 +2148,16 @@ Properties:
      Range is [0.0 ... 1.0]. Default value is 0.0, centre is 0.5
    * `rotation_origin_y` - Get/set the y position of the midpoint for rotation.
      Range is [0.0 ... 1.0]. Default value is 0.0, centre is 0.5
+   * `corner_radius` - Get/set the corner radius as a fraction of the smallest side.
+	  This property will preserve corner roundness when set.
+	  Range is [0.0 ... 0.5]. Default value is 0.0.
+   * `corner_radius_x` - Get/set the corner x radius as a fraction of the width.
+	  Range is [0.0 ... 0.5]. Default value is 0.0.
+   * `corner_radius_y` - Get/set the corner y radius as a fraction of the height.
+	  Range is [0.0 ... 0.5]. Default value is 0.0.
+   * `corner_points` - Get/set the number of points used to draw the corner radius.
+	  More points produce smooth curves, while fewer points result in flat bevels.
+	  Range is [1 ... 32]. Default value is 12.
    * `shader` - Get/set the GLSL shader for this rectangle. This can only be set to
      an instance of the class `fe.Shader` (see: `fe.add_shader()`).
    * `zorder` - Get/set the rectangles's order in the applicable draw list.  Objects
@@ -2163,6 +2186,8 @@ Member Functions:
      x and y are in [0.0 ... 1.0] range, centre is ( 0.5, 0.5 )
    * `set_rotation_origin( x, y )` - Set the midpoint for rotation
      x and y are in [0.0 ... 1.0] range, centre is ( 0.5, 0.5 )
+	* `set_corner_radius( x, y )` - Set the corner x and y radius as a fraction of the width and height.
+	  Range is [0.0 ... 0.5].
 
 &nbsp;
 <a name="Sound"></a>

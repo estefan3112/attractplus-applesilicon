@@ -136,6 +136,7 @@ Previous Favourite;次のお気に入り
 Previous Filter;前のフィルター
 Previous Letter;前の文字
 Random Game;任意のゲーム選択
+Reload;リロード
 Remove Input;キー削除
 Replay Last Game;最後にプレイしたゲームを再プレイ
 Right;90°
@@ -220,6 +221,7 @@ _help_control_prev_favourite;前のお気に入りゲームに移動するキー
 _help_control_prev_filter;前のフィルターに移動するキーを設定します
 _help_control_prev_letter;前のアルファベットに移動するキーを設定します
 _help_control_random_game;任意のゲームを選択するキーを設定します
+_help_control_reload;現在のレイアウトを再ロードするコントロールを設定します
 _help_control_replay_last_game;最後にプレイしたゲームを再びプレイするキーを設定します
 _help_control_screen_saver;スクリーンショットを起動するキーを設定します
 _help_control_screenshot;スクリーンショットを撮るキーを設定します
@@ -367,6 +369,7 @@ Joystick $1;Joystick $1
 Joystick Mappings;Joystick Mappings
 Launch Last Game;Launch Last Game
 Layout File;Layout File
+Menu Colour;メニューの色
 Menu Prompt;Menu Prompt
 Menu Style / Layout;Menu Style / Layout
 Next Game;Next Game
@@ -449,4 +452,5 @@ _help_shortcut_delete;Delete this shortcut from the Romlist
 _help_shortcut_label_edit;Edit this shortcut's label
 _help_shortcut_target_edit;Edit this shortcut's target
 _help_startup_mode;Set what should happen when Attract-Mode first starts up
+_help_ui_color;Select the colour to use in Attract-Mode's user interface
 _help_video_decoder;Configure the decoder to use for video playback (if multiple decoders are available)

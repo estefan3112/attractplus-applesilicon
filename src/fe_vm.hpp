@@ -154,6 +154,7 @@ public:
 	void overlay_set_custom_controls( FeText *caption );
 	void overlay_set_custom_controls();
 	void overlay_clear_custom_controls();
+	bool splash_message( const char *, const char *, const char * );
 	bool splash_message( const char *, const char * );
 	bool splash_message( const char * );
 
@@ -190,6 +191,7 @@ public:
 	static FeText *cb_add_text(const char *,int, int, int, int);
 	static FeListBox *cb_add_listbox(int, int, int, int);
 	static FeRectangle *cb_add_rectangle(float, float, float, float);
+	static FeImage *cb_add_surface(float, float, int, int);
 	static FeImage *cb_add_surface(int, int);
 	static FeSound *cb_add_sound(const char *, bool);
 	static FeSound *cb_add_sound(const char *);

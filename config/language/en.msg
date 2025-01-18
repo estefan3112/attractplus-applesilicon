@@ -50,6 +50,7 @@ _help_control_prev_game;Set the control(s) that move to the previous game
 _help_control_prev_letter;Set the control(s) that move to the previous letter
 _help_control_prev_page;Set the control(s) that move the selection down one page
 _help_control_random_game;Set the control(s) that select a random game from the current list
+_help_control_reload;Set the control(s) that reloads the current layout
 _help_control_replay_last_game;Set the control(s) that relaunch the last game played
 _help_control_right;Set the control(s) that move the selection right
 _help_control_screen_saver;Set the control(s) that launch screen saver mode
@@ -162,6 +163,7 @@ _help_sound;Configure sound volumes, sound event mappings and the ambient soundt
 _help_sound_sel;Assign a sound to this event/action
 _help_startup_mode;Set what should happen when Attract-Mode first starts up
 _help_track_usage;Configure whether Attract-Mode should track usage (played time and play count for each game)
+_help_ui_color;Select the colour to use in Attract-Mode's user interface
 _help_video_decoder;Configure the decoder to use for video playback (if multiple decoders are available)
 _help_volume;Valid volume settings are from 0 (mute) to 100
 _help_window_mode;Set whether Attract-Mode fills the screen or runs in a window

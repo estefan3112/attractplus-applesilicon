@@ -115,6 +115,10 @@ override PKG_CONFIG_MXE :=$(subst -,_,$(PKG_CONFIG_MXE))
 override WINDRES := $(TOOLCHAIN)-$(WINDRES)
 endif
 
+# Debian packager doesn't set STRIP when crosscompiling
+ifneq ($(DEB_HOST_GNU_TYPE),)
+override STRIP := $(DEB_HOST_GNU_TYPE)-strip
+endif
 
 prefix ?= /usr/local
 datarootdir=$(prefix)/share
@@ -158,6 +162,7 @@ _DEP =\
 	tp.hpp \
 	fe_text.hpp \
 	fe_listbox.hpp \
+	rounded_rectangle_shape.hpp \
 	fe_rectangle.hpp \
 	fe_vm.hpp \
 	fe_blend.hpp \
@@ -193,6 +198,7 @@ _OBJ =\
 	tp.o \
 	fe_text.o \
 	fe_listbox.o \
+	rounded_rectangle_shape.o \
 	fe_rectangle.o \
 	fe_vm.o \
 	fe_blend.o \
@@ -418,7 +424,7 @@ LIBS += -lfreetype
 ifeq ($(FE_WINDOWS_COMPILE),1)
  LIBS += -lboost_system-mt -lboost_filesystem-mt
 else ifeq ($(FE_MACOSX_COMPILE),1)
- LIBS +=-L$(shell brew --prefix)/lib 
+ LIBS +=-L$(shell brew --prefix)/lib
  LIBS += -lboost_system -lboost_filesystem
 else
  LIBS += -l:libboost_filesystem.a -l:libboost_system.a
@@ -527,13 +533,17 @@ ifeq ($(STATIC),1)
 ifeq ($(FE_WINDOWS_COMPILE),1)
 else ifeq ($(FE_MACOSX_COMPILE),1)
 else
-	$(eval SFML_LIBS += -lGL -lGLU -lm -lz -ludev -lrt)
+		$(eval SFML_LIBS += -lGL -lGLU -lm -lz -ludev -lrt)
 endif
-else
+else ifneq ($(USE_SYSTEM_SFML), 1)
 	# SFML may not generate .pc files, so manually add libs
 	$(eval CFLAGS += $(shell PKG_CONFIG_PATH$(PKG_CONFIG_MXE)="$(SFML_PKG_CONFIG_PATH)" $(PKG_CONFIG) --cflags $(SFML_PC)))
 	$(eval SFML_LIBS += $(shell PKG_CONFIG_PATH$(PKG_CONFIG_MXE)="$(SFML_PKG_CONFIG_PATH)" $(PKG_CONFIG) --libs $(SFML_PC)))
 	#LIBS += -lsfml-graphics -lsfml-window -lsfml-system
+else
+	$(eval CFLAGS += $(shell $(PKG_CONFIG) --cflags $(SFML_PC)))
+	$(eval SFML_LIBS += $(shell $(PKG_CONFIG) --libs $(SFML_PC)))
+	$(info SFML_lIBS=$(SFML_LIBS))
 endif
 	$(eval override LIBS = $(SFML_LIBS) $(LIBS))
 
@@ -549,8 +559,8 @@ $(RES_IMGS_DIR): $(OBJ_DIR)
 	$(MD) $@
 
 headerinfo: sfml
-	$(info flags:$(CFLAGS) $(FE_FLAGS))
-	$(info libs:$(LIBS))
+	$(info flags: $(CFLAGS) $(FE_FLAGS))
+	$(info libs: $(LIBS))
 
 #
 # Expat Library

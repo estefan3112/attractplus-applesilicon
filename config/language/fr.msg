@@ -131,6 +131,7 @@ Previous Filter;Filtre précédent
 Previous Letter;Lettre précédente
 Previous Page;Page Suivante
 Random Game;Jeu au hasard
+Reload;Recharger
 Remove Input;Enlever le contrôle
 Replay Last Game;Rejouer au dernier jeu
 Right;Droite
@@ -213,6 +214,7 @@ _help_control_prev_favourite;Définit le(s) contrôle(s) qui selectionne(nt) le 
 _help_control_prev_filter;Définit le(s) contrôle(s) qui bascule(nt) au filtre précédente
 _help_control_prev_letter;Définit le(s) contrôle(s) qui bascule(nt) à la lettre précédente
 _help_control_random_game;Définit le(s) contrôle(s) qui sélectionne(nt) un jeu aléatoirement dans la liste de rom active
+_help_control_reload;Définit le(s) contrôle(s) qui rechargent la mise en page actuelle
 _help_control_replay_last_game;Définit le(s) contrôle(s) qui relance(nt) le dernier jeu joué
 _help_control_screen_saver;Définit le(s) contrôle(s) qui lance(nt) le mode "économiseur d'écran"
 _help_control_screenshot;Définit le(s) contrôle(s) qui enregistre(nt) une impression écran d'Attract Mode
@@ -367,6 +369,7 @@ Joystick $1;Joystick $1
 Joystick Mappings;Joystick Mappings
 Launch Last Game;Launch Last Game
 Layout File;Layout File
+Menu Colour;Couleur des menus
 Menu Prompt;Menu Prompt
 Menu Style / Layout;Menu Style / Layout
 Next Game;Next Game
@@ -439,4 +442,5 @@ _help_shortcut_delete;Delete this shortcut from the Romlist
 _help_shortcut_label_edit;Edit this shortcut's label
 _help_shortcut_target_edit;Edit this shortcut's target
 _help_startup_mode;Set what should happen when Attract-Mode first starts up
+_help_ui_color;Select the colour to use in Attract-Mode's user interface
 _help_video_decoder;Configure the decoder to use for video playback (if multiple decoders are available)

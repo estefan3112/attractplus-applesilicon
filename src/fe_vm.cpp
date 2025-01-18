@@ -751,7 +751,8 @@ bool FeVM::on_new_layout()
 		.Func( _SC("add_text"), &FeImage::add_text )
 		.Func( _SC("add_listbox"), &FeImage::add_listbox )
 		.Func( _SC("add_rectangle"), &FeImage::add_rectangle )
-		.Func( _SC("add_surface"), &FeImage::add_surface )
+		.Overload<FeImage * (FeImage::*)(float, float, int, int)>(_SC("add_surface"), &FeImage::add_surface)
+		.Overload<FeImage * (FeImage::*)(int, int)>(_SC("add_surface"), &FeImage::add_surface)
 	);
 
 	fe.Bind( _SC("Text"),
@@ -838,6 +839,11 @@ bool FeVM::on_new_layout()
 		.Prop(_SC("outline_green"), &FeRectangle::get_olg, &FeRectangle::set_olg )
 		.Prop(_SC("outline_blue"), &FeRectangle::get_olb, &FeRectangle::set_olb )
 		.Prop(_SC("outline_alpha"), &FeRectangle::get_ola, &FeRectangle::set_ola )
+		.Prop(_SC("corner_points"), &FeRectangle::get_corner_point_count, &FeRectangle::set_corner_point_count )
+		.Prop(_SC("corner_radius_x"), &FeRectangle::get_corner_radius_x, &FeRectangle::set_corner_radius_x )
+		.Prop(_SC("corner_radius_y"), &FeRectangle::get_corner_radius_y, &FeRectangle::set_corner_radius_y )
+		.Prop(_SC("corner_radius"), &FeRectangle::get_corner_radius, &FeRectangle::set_corner_radius )
+		.Overload<void (FeRectangle::*)(float, float)>(_SC("set_corner_radius"), &FeRectangle::set_corner_radius)
 		.Prop(_SC("blend_mode"), &FeRectangle::get_blend_mode, &FeRectangle::set_blend_mode )
 		.Func(_SC("set_outline_rgb"), &FeRectangle::set_olrgb )
 		.Func(_SC("set_anchor"), &FeRectangle::set_anchor )
@@ -890,6 +896,7 @@ bool FeVM::on_new_layout()
 		.Overload<int (FeVM::*)(Array, const char *)>(_SC("list_dialog"), &FeVM::list_dialog)
 		.Overload<int (FeVM::*)(Array)>(_SC("list_dialog"), &FeVM::list_dialog)
 		.Func( _SC("edit_dialog"), &FeVM::edit_dialog )
+		.Overload<bool (FeVM::*)(const char *, const char *, const char *)>( _SC("splash_message"), &FeVM::splash_message )
 		.Overload<bool (FeVM::*)(const char *, const char *)>( _SC("splash_message"), &FeVM::splash_message )
 		.Overload<bool (FeVM::*)(const char *)>( _SC("splash_message"), &FeVM::splash_message )
 	);
@@ -945,7 +952,8 @@ bool FeVM::on_new_layout()
 		.Func( _SC("add_text"), &FePresentableParent::add_text )
 		.Func( _SC("add_listbox"), &FePresentableParent::add_listbox )
 		.Func( _SC("add_rectangle"), &FePresentableParent::add_rectangle )
-		.Func( _SC("add_surface"), &FePresentableParent::add_surface )
+		.Overload<FeImage * (FePresentableParent::*)(float, float, int, int)>(_SC("add_surface"), &FePresentableParent::add_surface)
+		.Overload<FeImage * (FePresentableParent::*)(int, int)>(_SC("add_surface"), &FePresentableParent::add_surface)
 	);
 
 	fe.Bind( _SC("Monitor"),
@@ -981,7 +989,8 @@ bool FeVM::on_new_layout()
 	fe.Overload<FeText* (*)(const char *, int, int, int, int)>(_SC("add_text"), &FeVM::cb_add_text);
 	fe.Func<FeListBox* (*)(int, int, int, int)>(_SC("add_listbox"), &FeVM::cb_add_listbox);
 	fe.Func<FeRectangle* (*)(float, float, float, float)>(_SC("add_rectangle"), &FeVM::cb_add_rectangle);
-	fe.Func<FeImage* (*)(int, int)>(_SC("add_surface"), &FeVM::cb_add_surface);
+	fe.Overload<FeImage* (*)(float, float, int, int)>(_SC("add_surface"), &FeVM::cb_add_surface);
+	fe.Overload<FeImage* (*)(int, int)>(_SC("add_surface"), &FeVM::cb_add_surface);
 	fe.Overload<FeSound* (*)(const char *, bool)>(_SC("add_sound"), &FeVM::cb_add_sound);
 	fe.Overload<FeSound* (*)(const char *)>(_SC("add_sound"), &FeVM::cb_add_sound);
 	fe.Overload<FeShader* (*)(int, const char *, const char *)>(_SC("add_shader"), &FeVM::cb_add_shader);
@@ -1480,15 +1489,20 @@ void FeVM::overlay_clear_custom_controls()
 	m_custom_overlay = false;
 }
 
-bool FeVM::splash_message( const char *msg, const char *aux )
+bool FeVM::splash_message( const char *msg, const char *rep, const char *aux )
 {
-	m_overlay->splash_message( msg, aux );
+	m_overlay->splash_message( msg, rep, aux );
 	return m_overlay->check_for_cancel();
+}
+
+bool FeVM::splash_message( const char *msg, const char *rep )
+{
+	return splash_message( msg, rep, "" );
 }
 
 bool FeVM::splash_message( const char *msg )
 {
-	return splash_message( msg, "" );
+	return splash_message( msg, "", "" );
 }
 
 //
@@ -1637,6 +1651,7 @@ public:
 			//
 			fe.Bind( _SC("Overlay"), Sqrat::Class <FeVM, Sqrat::NoConstructor>()
 				.Prop( _SC("is_up"), &FeVM::overlay_is_on )
+				.Overload<bool (FeVM::*)(const char *, const char *, const char *)>( _SC("splash_message"), &FeVM::splash_message )
 				.Overload<bool (FeVM::*)(const char *, const char *)>( _SC("splash_message"), &FeVM::splash_message )
 				.Overload<bool (FeVM::*)(const char *)>( _SC("splash_message"), &FeVM::splash_message )
 			);
@@ -2168,10 +2183,15 @@ FeRectangle* FeVM::cb_add_rectangle( float x, float y, float w, float h )
 
 FeImage* FeVM::cb_add_surface( int w, int h )
 {
+	return cb_add_surface( 0, 0, w, h );
+}
+
+FeImage* FeVM::cb_add_surface( float x, float y, int w, int h )
+{
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
 	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
 
-	FeImage *ret = fev->add_surface( w, h, fev->m_mon[0] );
+	FeImage *ret = fev->add_surface( x, y, w, h, fev->m_mon[0] );
 
 	// Add the surface to the "fe.obj" array in Squirrel
 	//
