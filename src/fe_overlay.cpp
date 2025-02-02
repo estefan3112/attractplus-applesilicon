@@ -110,7 +110,7 @@ void FeConfigContextImp::input_map_dialog( const std::string &m,
 
 void FeConfigContextImp::tags_dialog()
 {
-	m_feo.tags_dialog();
+	m_feo.tags_dialog( 0, FeInputMap::LAST_COMMAND );
 }
 
 void FeConfigContextImp::update_to_menu(
@@ -538,63 +538,73 @@ int FeOverlay::languages_dialog()
 	return sel;
 }
 
-int FeOverlay::tags_dialog()
+int FeOverlay::tags_dialog( int default_sel, FeInputMap::Command extra_exit )
 {
-	std::vector< std::pair<std::string, bool> > tags_list;
-	m_feSettings.get_current_tags_list( tags_list );
+	int sel = default_sel;
+	bool tags_changed = false;
 
-	std::vector<std::string> list;
-
-	for ( std::vector< std::pair<std::string, bool> >::iterator itr=tags_list.begin();
-			itr!=tags_list.end(); ++itr )
+	// Remain in tags dialog until exited
+	while ( sel >= 0 )
 	{
-		std::string msg;
-		m_feSettings.get_translation(
-				(*itr).second ? "Remove tag: '$1'" : "Add tag: '$1'",
+		std::vector< std::pair<std::string, bool> > tags_list;
+		m_feSettings.get_current_tags_list( tags_list );
+
+		std::vector<std::string> list;
+
+		for ( std::vector< std::pair<std::string, bool> >::iterator itr=tags_list.begin();
+				itr!=tags_list.end(); ++itr )
+		{
+			std::string msg;
+			m_feSettings.get_translation(
+				(*itr).second ? "» $1 «" : "$1",
 				(*itr).first,
 				msg );
 
-		list.push_back( msg );
-	}
+			list.push_back( msg );
+		}
 
-	list.push_back( std::string() );
-	m_feSettings.get_translation( "Create new tag", list.back() );
+		list.push_back( std::string() );
+		m_feSettings.get_translation( "Create new tag", list.back() );
 
-	list.push_back( std::string() );
-	m_feSettings.get_translation( "Back", list.back() );
+		list.push_back( std::string() );
+		m_feSettings.get_translation( "Back", list.back() );
 
-	std::string temp;
-	m_feSettings.get_translation( "Tags", temp );
+		std::string temp;
+		m_feSettings.get_translation( "Tags", temp );
 
-	int sel = common_list_dialog( temp,
-		list, 0,
-		list.size() - 1,
-		FeInputMap::ToggleTags );
+		sel = common_list_dialog( temp, list, sel, -1, extra_exit );
 
-	if ( sel == (int)tags_list.size() )
-	{
-		std::string title;
-		m_feSettings.get_translation( "Enter new tag name", title );
-
-		std::string name;
-		edit_dialog( title, name );
-
-		if ( !name.empty() )
+		if ( sel == list.size() - 1 )
 		{
-			if ( m_feSettings.set_current_tag( name, true ) )
+			sel = -1;
+		}
+		else if ( sel == list.size() - 2 )
+		{
+			std::string title;
+			m_feSettings.get_translation( "Enter new tag name", title );
+
+			std::string name;
+			edit_dialog( title, name );
+
+			if ( !name.empty() && m_feSettings.set_current_tag( name, true ) )
 			{
-				m_fePresent.update_to_new_list( 0, true ); // changing tag status altered our current list
-				m_fePresent.on_transition( ChangedTag, FeRomInfo::Tags );
+				tags_changed = true;
+			}
+		}
+		else if ( sel >= 0 )
+		{
+			if ( m_feSettings.set_current_tag( tags_list[sel].first, !(tags_list[sel].second) ) )
+			{
+				tags_changed = true;
 			}
 		}
 	}
-	else if (( sel >=0 ) && ( sel < (int)tags_list.size() ))
+
+	// Changing tag status altered our current list
+	if ( tags_changed )
 	{
-		if ( m_feSettings.set_current_tag( tags_list[sel].first, !(tags_list[sel].second) ) )
-		{
-			m_fePresent.update_to_new_list( 0, true ); // changing tag status altered our current list
-			m_fePresent.on_transition( ChangedTag, FeRomInfo::Tags );
-		}
+		m_fePresent.update_to_new_list( 0, true );
+		m_fePresent.on_transition( ChangedTag, FeRomInfo::Tags );
 	}
 
 	return sel;
@@ -897,17 +907,17 @@ void FeOverlay::input_map_dialog(
 	}
 }
 
-bool FeOverlay::config_dialog()
+bool FeOverlay::config_dialog( int default_sel, FeInputMap::Command extra_exit )
 {
 	FeConfigMenu m;
 	bool settings_changed=false;
-	if ( display_config_dialog( &m, settings_changed ) < 0 )
+	if ( display_config_dialog( &m, settings_changed, default_sel, extra_exit ) < 0 )
 		m_wnd.close();
 
 	return settings_changed;
 }
 
-bool FeOverlay::edit_game_dialog()
+bool FeOverlay::edit_game_dialog( int default_sel, FeInputMap::Command extra_exit )
 {
 	bool settings_changed=false;
 
@@ -924,7 +934,7 @@ bool FeOverlay::edit_game_dialog()
 			FeDisplayEditMenu m;
 			m.set_display_index( index );
 
-			if ( display_config_dialog( &m, settings_changed ) < 0 )
+			if ( display_config_dialog( &m, settings_changed, default_sel, extra_exit ) < 0 )
 				m_wnd.close();
 			else
 			{
@@ -946,14 +956,14 @@ bool FeOverlay::edit_game_dialog()
 			//
 			FeEditShortcutMenu m;
 
-			if ( display_config_dialog( &m, settings_changed ) < 0 )
+			if ( display_config_dialog( &m, settings_changed, default_sel, extra_exit ) < 0 )
 				m_wnd.close();
 		}
 		else
 		{
 			FeEditGameMenu m;
 
-			if ( display_config_dialog( &m, settings_changed ) < 0 )
+			if ( display_config_dialog( &m, settings_changed, default_sel, extra_exit ) < 0 )
 				m_wnd.close();
 		}
 	}
@@ -963,7 +973,11 @@ bool FeOverlay::edit_game_dialog()
 	return true;
 }
 
-bool FeOverlay::layout_options_dialog()
+bool FeOverlay::layout_options_dialog(
+	bool preview,
+	int &default_sel,
+	FeInputMap::Command extra_exit
+)
 {
 	FeLayoutEditMenu m;
 
@@ -994,10 +1008,13 @@ bool FeOverlay::layout_options_dialog()
 	}
 
 	m.set_layout( layout, per_display, display );
+	m.exit_on_change = preview;
 
 	bool settings_changed=false;
-	if ( display_config_dialog( &m, settings_changed ) < 0 )
+	if ( display_config_dialog( &m, settings_changed, default_sel, extra_exit ) < 0 )
 		m_wnd.close();
+
+	default_sel = m.last_sel;
 
 	if ( settings_changed )
 	{
@@ -1115,6 +1132,7 @@ int FeOverlay::display_config_dialog(
 	ctx.curr_sel = default_sel >= 0 ? default_sel : ctx.default_sel;
 	if ( ctx.curr_sel >= (int)ctx.left_list.size() )
 		ctx.curr_sel = 0;
+	m->last_sel = ctx.curr_sel;
 
 	sdialog.setCustomText( ctx.curr_sel, ctx.left_list );
 	vdialog.setCustomText( ctx.curr_sel, ctx.right_list );
@@ -1137,11 +1155,14 @@ int FeOverlay::display_config_dialog(
 	while ( true )
 	{
 		FeEventLoopCtx c( draw_list, ctx.curr_sel, ctx.exit_sel, ctx.left_list.size() - 1 );
+		c.extra_exit = extra_exit;
 
 		init_event_loop( c );
 
 		while ( event_loop( c ) == false )
 		{
+			m->last_sel = ctx.curr_sel;
+
 			footer.setString( ctx.curr_opt().help_msg );
 
 			// we reset the entire Text because edit mode may
@@ -1201,13 +1222,13 @@ int FeOverlay::display_config_dialog(
 			switch (t)
 			{
 			case Opt::RELOAD:
-				return display_config_dialog( m, parent_setting_changed );
+				return display_config_dialog( m, parent_setting_changed, ctx.curr_sel, extra_exit );
 			case Opt::MENU:
 			case Opt::SUBMENU:
 				if ( sm )
 				{
 					bool submenu_setting_changed( false );
-					int sm_ret = display_config_dialog( sm, submenu_setting_changed );
+					int sm_ret = display_config_dialog( sm, submenu_setting_changed, -1, extra_exit );
 					if ( sm_ret < 0 ) return sm_ret;
 
 					if ( submenu_setting_changed )
@@ -1251,6 +1272,7 @@ int FeOverlay::display_config_dialog(
 					int new_value = original_value;
 
 					FeEventLoopCtx c( draw_list, new_value, -1, ctx.curr_opt().values_list.size() - 1 );
+					c.extra_exit = extra_exit;
 
 					vdialog.setCustomText( new_value, ctx.curr_opt().values_list );
 
@@ -1299,10 +1321,20 @@ int FeOverlay::display_config_dialog(
 			vdialog.setSelBgColor( m_sel_blur_colour );
 
 			// If trigger_reload, save & reload to show ui changes instantly
-			if ( ctx.save_req && ctx.opt_list[ctx.curr_sel].trigger_reload )
+			if ( ctx.save_req )
 			{
-				if ( m->save( ctx ) ) parent_setting_changed = true;
-				return display_config_dialog( m, parent_setting_changed, ctx.curr_sel, extra_exit );
+				if ( m->exit_on_change )
+				{
+					// Save & return so caller can apply changes
+					if ( m->save( ctx ) ) parent_setting_changed = true;
+					return ctx.curr_sel;
+				}
+				else if ( ctx.opt_list[ctx.curr_sel].trigger_reload )
+				{
+					// Save & reload to show ui changes
+					if ( m->save( ctx ) ) parent_setting_changed = true;
+					return display_config_dialog( m, parent_setting_changed, ctx.curr_sel, extra_exit );
+				}
 			}
 		}
 	}
@@ -1369,6 +1401,8 @@ bool FeOverlay::event_loop( FeEventLoopCtx &ctx )
 {
 	const sf::Transform &t = m_fePresent.get_ui_transform();
 
+	clear_menu_command();
+	bool quick_menu = m_feSettings.get_info_bool( FeSettings::QuickMenu );
 	bool redraw=true;
 
 	while ( m_wnd.isOpen() )
@@ -1393,6 +1427,26 @@ bool FeOverlay::event_loop( FeEventLoopCtx &ctx )
 
 			switch( c )
 			{
+			case FeInputMap::Configure:
+				if ( !quick_menu ) break;
+				m_menu_command = c;
+				ctx.sel = ctx.default_sel;
+				return true;
+			case FeInputMap::ToggleTags:
+			case FeInputMap::DisplaysMenu:
+			case FeInputMap::FiltersMenu:
+			case FeInputMap::LayoutOptions:
+			case FeInputMap::EditGame:
+			case FeInputMap::InsertGame:
+			case FeInputMap::ToggleFavourite:
+				if ( !quick_menu || ctx.extra_exit == FeInputMap::Configure ) break;
+				m_menu_command = c;
+				ctx.sel = ctx.default_sel;
+				return true;
+			case FeInputMap::Exit:
+				if ( !quick_menu ) break;
+				ctx.sel = ctx.default_sel;
+				return true;
 			case FeInputMap::Back:
 				ctx.sel = ctx.default_sel;
 				return true;

@@ -103,6 +103,7 @@ Jump to Next Display;Bascule sur la liste de roms suivante
 Language;Langue
 Layout;Thème
 Layout Options;Options du Layout
+Layout Preview;Aperçu de la mise en page
 Left;Gauche
 List Limit;taille maximum de la liste
 Manufacturer;Fabriquant
@@ -276,6 +277,7 @@ _help_plugin_command;Exécutable associé à ce plug-in
 _help_plugin_enabled;Indiquer si ce plug-in est activé
 _help_plugin_sel;Configurer le plug-in
 _help_plugins;Configurer les plug-ins
+_help_quick_menu;Activez le basculement entre les menus à l'aide d'un seul bouton, ce qui élimine le besoin d'un bouton Retour. Permet également de basculer entre les menus ouverts
 _help_rule_comp;Règle de comparaison pour le filtre
 _help_rule_delete;Supprimer cette règle de filtrage
 _help_rule_target;L'attribut du jeu que vous souhaitez filtrer sur la base de
@@ -381,6 +383,7 @@ Please Wait;Please Wait
 Power Saving;Power Saving
 Press Hotkey;Press Hotkey
 Previous Game;Previous Game
+Quick Menu;Menu rapide
 Remove '$1' from Favourites?;Remove '$1' from Favourites?
 Remove tag: '$1';Remove tag: '$1'
 Scrape Videos (MAME only);Scrape Videos (MAME only)
@@ -434,6 +437,7 @@ _help_input_action;
 _help_input_default_action;Set the default behaviour for this control
 _help_joystick_map;Map the frontend's joystick slots to specifically named joystick/gamepad devices attached to your computer (You can use this to force the frontend to always use 'Microsoft X-Box 360 pad' as Joystick 0, for example.)
 _help_layout_file;Some layouts provide multiple layout*.nut files.  Select which layout file to use
+_help_layout_preview;Show layout configuration changes immediately
 _help_multiple_monitors;Enable the use of multiple monitors by Attract-Mode.  Setting this to 'No' may reduce screen flicker when launching games
 _help_power_saving;Helps to save power by only redrawing the screen when it's neccessary. May cause animation stuttering on some layouts, or freezing on Linux
 _help_screen_rotation;Set the base rotation of the screen

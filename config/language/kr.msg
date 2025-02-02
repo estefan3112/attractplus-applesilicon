@@ -145,6 +145,7 @@ Language;언어 설정
 Launch Last Game;마지막 게임 실행
 Layout;레이아웃 이름
 Layout Options;레이아웃 별 옵션
+Layout Preview;레이아웃 미리보기
 Left;270도
 List Limit;목록 크기 제한
 Manufacturer;제작사(Manufacturer)
@@ -179,6 +180,7 @@ Previous Filter;이전 필터로
 Previous Game;이전 게임
 Previous Letter;이전 글자
 Previous Page;이전 페이지
+Quick Menu;퀵메뉴
 Random Game;랜덤 게임 선택
 Reload;새로고침
 Remove '$1' from Favourites?;'$1' 게임을 즐겨하는 목록에서 제거하겠습니까?
@@ -371,6 +373,7 @@ _help_plugin_command;플러그 인의 실행 파일을 지정합니다
 _help_plugin_enabled;플러그 인을 사용할 지 여부를 설정합니다
 _help_plugin_sel;플러그 인을 설정합니다
 _help_plugins;외부 플러그 인을 설정합니다
+_help_quick_menu;단일 버튼 메뉴 토글을 활성화하면 뒤로 버튼이 필요 없게 됩니다. 또한 열려 있는 메뉴 간 전환도 가능합니다.
 _help_rule_comp;필터에 속한 규칙을 설정합니다
 _help_rule_delete;해당 규칙을 삭제합니다
 _help_rule_target;필터가 게임의 어떤 특성을 가지고 걸러낼 지를 설정합니다
@@ -449,5 +452,6 @@ _help_image_cache_mbytes;Configure the maximum size of Attract-Mode's internal i
 _help_input_action;
 _help_joystick_map;Map the frontend's joystick slots to specifically named joystick/gamepad devices attached to your computer (You can use this to force the frontend to always use 'Microsoft X-Box 360 pad' as Joystick 0, for example.)
 _help_layout_file;Some layouts provide multiple layout*.nut files.  Select which layout file to use
+_help_layout_preview;Show layout configuration changes immediately
 _help_power_saving;Helps to save power by only redrawing the screen when it's neccessary. May cause animation stuttering on some layouts, or freezing on Linux
 _help_screen_rotation;Set the base rotation of the screen

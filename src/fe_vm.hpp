@@ -84,7 +84,7 @@ private:
 	};
 
 	FeOverlay *m_overlay;
-	FeSound &m_ambient_sound;
+	FeMusic &m_ambient_sound;
 
 	bool m_redraw_triggered;
 	bool m_sort_zorder_triggered;
@@ -111,13 +111,14 @@ private:
 	static bool internal_do_nut(const std::string &, const std::string &);
 
 public:
-	FeVM( FeSettings &fes, FeWindow &wnd, FeSound &ambient_sound, bool console_input );
+	FeVM( FeSettings &fes, FeWindow &wnd, FeMusic &ambient_sound, bool console_input );
 	~FeVM();
 
 	void set_overlay( FeOverlay *feo );
 
 	void flag_redraw() { m_redraw_triggered = true; };
 	void flag_sort_zorder() { m_sort_zorder_triggered = true; };
+	void post_command( FeInputMap::Command c );
 	bool poll_command( FeInputMap::Command &c, sf::Event &ev, bool &from_ui );
 	void clear(); // override of base class clear()
 
@@ -144,6 +145,7 @@ public:
 	//
 	// overlay functions used from scripts
 	//
+	int list_dialog( Sqrat::Array, const char *, int, int, FeInputMap::Command );
 	int list_dialog( Sqrat::Array, const char *, int, int );
 	int list_dialog( Sqrat::Array, const char *, int );
 	int list_dialog( Sqrat::Array, const char * );
@@ -195,6 +197,7 @@ public:
 	static FeImage *cb_add_surface(int, int);
 	static FeSound *cb_add_sound(const char *, bool);
 	static FeSound *cb_add_sound(const char *);
+	static FeMusic *cb_add_music(const char *);
 	static FeShader *cb_add_shader(int, const char *, const char *);
 	static FeShader *cb_add_shader(int, const char *);
 	static FeShader *cb_add_shader(int);
@@ -231,6 +234,7 @@ public:
 		IsSupportedMedia=32
 	};
 	static bool cb_path_test( const char *, int );
+	static time_t cb_get_file_mtime( const char * );
 
 	static const char *cb_game_info( int,int,int);
 	static const char *cb_game_info(int,int);

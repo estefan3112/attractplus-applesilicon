@@ -110,6 +110,7 @@ Jump to Next Display;次のリストに
 Language;言語
 Layout;レイアウットの名前
 Layout Options;レイアウト別設定
+Layout Preview;レイアウトのプレビュー
 Left;270°
 List Limit;リストのサイズ限度
 Manufacturer;発売元(Manufacturer)
@@ -282,6 +283,7 @@ _help_plugin_command;プラグインのコマンドを設定します
 _help_plugin_enabled;プラグインを使うかを設定します
 _help_plugin_sel;プラグインを設定します
 _help_plugins;外部プラグインを設定します
+_help_quick_menu;ワンボタンメニュー切り替えを有効にすると、戻るボタンが不要になります。また、開いているメニュー間の切り替えも可能になります。
 _help_rule_comp;フィルターのルールを比較する方式を設定します
 _help_rule_delete;このルールを削除します
 _help_rule_target;フィルターが使うゲームのカテゴリーを設定します
@@ -383,6 +385,7 @@ Power Saving;Power Saving
 Press Hotkey;Press Hotkey
 Previous Game;Previous Game
 Previous Page;Previous Page
+Quick Menu;クイックメニュー
 Remove '$1' from Favourites?;Remove '$1' from Favourites?
 Remove tag: '$1';Remove tag: '$1'
 Scrape Fanart;Scrape Fanart
@@ -443,6 +446,7 @@ _help_input_default_action;Set the default behaviour for this control
 _help_intro;Configure intro
 _help_joystick_map;Map the frontend's joystick slots to specifically named joystick/gamepad devices attached to your computer (You can use this to force the frontend to always use 'Microsoft X-Box 360 pad' as Joystick 0, for example.)
 _help_layout_file;Some layouts provide multiple layout*.nut files.  Select which layout file to use
+_help_layout_preview;Show layout configuration changes immediately
 _help_multiple_monitors;Enable the use of multiple monitors by Attract-Mode.  Setting this to 'No' may reduce screen flicker when launching games
 _help_power_saving;Helps to save power by only redrawing the screen when it's neccessary. May cause animation stuttering on some layouts, or freezing on Linux
 _help_scrape_vids;Set whether game videos should be downloaded when scraping

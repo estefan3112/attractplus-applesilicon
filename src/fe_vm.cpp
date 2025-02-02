@@ -279,7 +279,7 @@ const char *FeVM::transitionTypeStrings[] =
 		NULL
 };
 
-FeVM::FeVM( FeSettings &fes, FeWindow &wnd, FeSound &ambient_sound, bool console_input )
+FeVM::FeVM( FeSettings &fes, FeWindow &wnd, FeMusic &ambient_sound, bool console_input )
 	: FePresent( &fes, wnd ),
 	m_overlay( NULL ),
 	m_ambient_sound( ambient_sound ),
@@ -338,6 +338,11 @@ FeVM::~FeVM()
 void FeVM::set_overlay( FeOverlay *feo )
 {
 	m_overlay = feo;
+}
+
+void FeVM::post_command( FeInputMap::Command c )
+{
+	m_posted_commands.push( c );
 }
 
 bool FeVM::poll_command( FeInputMap::Command &c, sf::Event &ev, bool &from_ui )
@@ -726,6 +731,7 @@ bool FeVM::on_new_layout()
 		.Prop(_SC("smooth"), &FeImage::get_smooth, &FeImage::set_smooth )
 		.Prop(_SC("blend_mode"), &FeImage::get_blend_mode, &FeImage::set_blend_mode )
 		.Prop(_SC("mipmap"), &FeImage::get_mipmap, &FeImage::set_mipmap )
+		.Prop(_SC("volume"), &FeImage::get_volume, &FeImage::set_volume )
 		.Func(_SC("set_anchor"), &FeImage::set_anchor )
 		// "set_origin" function deprecated as of 3.0.5, use the set_rotation_origin function instead
 		.Func(_SC("set_origin"), &FeImage::set_rotation_origin )
@@ -844,6 +850,10 @@ bool FeVM::on_new_layout()
 		.Prop(_SC("corner_radius_y"), &FeRectangle::get_corner_radius_y, &FeRectangle::set_corner_radius_y )
 		.Prop(_SC("corner_radius"), &FeRectangle::get_corner_radius, &FeRectangle::set_corner_radius )
 		.Overload<void (FeRectangle::*)(float, float)>(_SC("set_corner_radius"), &FeRectangle::set_corner_radius)
+		.Prop(_SC("corner_ratio_x"), &FeRectangle::get_corner_ratio_x, &FeRectangle::set_corner_ratio_x )
+		.Prop(_SC("corner_ratio_y"), &FeRectangle::get_corner_ratio_y, &FeRectangle::set_corner_ratio_y )
+		.Prop(_SC("corner_ratio"), &FeRectangle::get_corner_ratio, &FeRectangle::set_corner_ratio )
+		.Overload<void (FeRectangle::*)(float, float)>(_SC("set_corner_ratio"), &FeRectangle::set_corner_ratio)
 		.Prop(_SC("blend_mode"), &FeRectangle::get_blend_mode, &FeRectangle::set_blend_mode )
 		.Func(_SC("set_outline_rgb"), &FeRectangle::set_olrgb )
 		.Func(_SC("set_anchor"), &FeRectangle::set_anchor )
@@ -909,9 +919,23 @@ bool FeVM::on_new_layout()
 		.Prop( _SC("x"), &FeSound::get_x, &FeSound::set_x )
 		.Prop( _SC("y"), &FeSound::get_y, &FeSound::set_y )
 		.Prop( _SC("z"), &FeSound::get_z, &FeSound::set_z )
-		.Prop(_SC("duration"), &FeSound::get_duration )
-		.Prop(_SC("time"), &FeSound::get_time )
-		.Func( _SC("get_metadata"), &FeSound::get_metadata )
+		.Prop( _SC("duration"), &FeSound::get_duration )
+		.Prop( _SC("time"), &FeSound::get_time )
+		.Prop( _SC("volume"), &FeSound::get_volume, &FeSound::set_volume )
+	);
+
+	fe.Bind( _SC("Music"), Class <FeMusic, NoConstructor>()
+		.Prop( _SC("file_name"), &FeMusic::get_file_name, &FeMusic::set_file_name )
+		.Prop( _SC("playing"), &FeMusic::get_playing, &FeMusic::set_playing )
+		.Prop( _SC("loop"), &FeMusic::get_loop, &FeMusic::set_loop )
+		.Prop( _SC("pitch"), &FeMusic::get_pitch, &FeMusic::set_pitch )
+		.Prop( _SC("x"), &FeMusic::get_x, &FeMusic::set_x )
+		.Prop( _SC("y"), &FeMusic::get_y, &FeMusic::set_y )
+		.Prop( _SC("z"), &FeMusic::get_z, &FeMusic::set_z )
+		.Prop( _SC("duration"), &FeMusic::get_duration )
+		.Prop( _SC("time"), &FeMusic::get_time )
+		.Prop( _SC("volume"), &FeMusic::get_volume, &FeMusic::set_volume )
+		.Func( _SC("get_metadata"), &FeMusic::get_metadata )
 	);
 
 	fe.Bind( _SC("Shader"), Class <FeShader, NoConstructor>()
@@ -993,6 +1017,7 @@ bool FeVM::on_new_layout()
 	fe.Overload<FeImage* (*)(int, int)>(_SC("add_surface"), &FeVM::cb_add_surface);
 	fe.Overload<FeSound* (*)(const char *, bool)>(_SC("add_sound"), &FeVM::cb_add_sound);
 	fe.Overload<FeSound* (*)(const char *)>(_SC("add_sound"), &FeVM::cb_add_sound);
+	fe.Overload<FeMusic* (*)(const char *)>(_SC("add_music"), &FeVM::cb_add_music);
 	fe.Overload<FeShader* (*)(int, const char *, const char *)>(_SC("add_shader"), &FeVM::cb_add_shader);
 	fe.Overload<FeShader* (*)(int, const char *)>(_SC("add_shader"), &FeVM::cb_add_shader);
 	fe.Overload<FeShader* (*)(int)>(_SC("add_shader"), &FeVM::cb_add_shader);
@@ -1025,6 +1050,7 @@ bool FeVM::on_new_layout()
 	fe.Func<bool (*)(const char *, const char *)>(_SC("plugin_command_bg"), &FeVM::cb_plugin_command_bg);
 	fe.Func<const char* (*)(const char *)>(_SC("path_expand"), &FeVM::cb_path_expand);
 	fe.Func<bool (*)(const char *, int)>(_SC("path_test"), &FeVM::cb_path_test);
+	fe.Func<time_t (*)(const char *)>(_SC("get_file_mtime"), &FeVM::cb_get_file_mtime);
 	fe.Func<Table (*)()>(_SC("get_config"), &FeVM::cb_get_config);
 	fe.Func<void (*)(const char *)>(_SC("signal"), &FeVM::cb_signal);
 	fe.Overload<void (*)(int, bool, bool)>(_SC("set_display"), &FeVM::cb_set_display);
@@ -1398,7 +1424,13 @@ bool FeVM::script_handle_event( FeInputMap::Command c )
 	return false;
 }
 
-int FeVM::list_dialog( Sqrat::Array t, const char *title, int default_sel, int cancel_sel )
+int FeVM::list_dialog(
+	Sqrat::Array t,
+	const char *title,
+	int default_sel,
+	int cancel_sel,
+	FeInputMap::Command extra_exit
+)
 {
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
 
@@ -1416,37 +1448,54 @@ int FeVM::list_dialog( Sqrat::Array t, const char *title, int default_sel, int c
 		list_entries.push_back( value );
 	}
 
+	int retval;
+
 	if ( list_entries.size() > 2 )
 	{
-		return m_overlay->common_list_dialog(
+		retval = m_overlay->common_list_dialog(
 				std::string( title ),
 				list_entries,
 				default_sel,
-				cancel_sel );
+				cancel_sel,
+				extra_exit );
 	}
 	else
 	{
-		return m_overlay->common_basic_dialog(
+		retval = m_overlay->common_basic_dialog(
 				std::string( title ),
 				list_entries,
 				default_sel,
-				cancel_sel );
+				cancel_sel,
+				extra_exit );
 	}
+
+	if ( m_overlay->get_menu_command() > 0 )
+	{
+		post_command( m_overlay->get_menu_command() );
+		m_overlay->clear_menu_command();
+	}
+
+	return retval;
+}
+
+int FeVM::list_dialog( Sqrat::Array t, const char *title, int default_sel, int cancel_sel )
+{
+	return list_dialog( t, title, default_sel, cancel_sel, FeInputMap::LAST_COMMAND );
 }
 
 int FeVM::list_dialog( Sqrat::Array t, const char *title, int default_sel )
 {
-	return list_dialog( t, title, default_sel, -1 );
+	return list_dialog( t, title, default_sel, -1, FeInputMap::LAST_COMMAND );
 }
 
 int FeVM::list_dialog( Sqrat::Array t, const char *title )
 {
-	return list_dialog( t, title, 0, -1 );
+	return list_dialog( t, title, 0, -1, FeInputMap::LAST_COMMAND );
 }
 
 int FeVM::list_dialog( Sqrat::Array t )
 {
-	return list_dialog( t, NULL, 0, -1 );
+	return list_dialog( t, NULL, 0, -1, FeInputMap::LAST_COMMAND );
 }
 
 const char *FeVM::edit_dialog( const char *msg, const char *txt )
@@ -1725,6 +1774,7 @@ public:
 			fe.Func<void (*)(const char *)>(_SC("log"), &FeVM::print_to_console);
 			fe.Func<const char* (*)(const char *)>(_SC("path_expand"), &FeVM::cb_path_expand);
 			fe.Func<bool (*)(const char *, int)>(_SC("path_test"), &FeVM::cb_path_test);
+			fe.Func<time_t (*)(const char *)>(_SC("get_file_mtime"), &FeVM::cb_get_file_mtime);
 			fe.Overload<const char *(*)(const char *)>(_SC("get_text"), &FeVM::cb_get_text);
 		}
 
@@ -2204,18 +2254,28 @@ FeImage* FeVM::cb_add_surface( float x, float y, int w, int h )
 
 FeSound* FeVM::cb_add_sound( const char *s, bool reuse )
 {
+	FeLog() << "! NOTE: reuse parameter in fe.add_sound is deprecated." << std::endl;
+
+	return cb_add_sound( s );
+}
+
+FeSound* FeVM::cb_add_sound( const char *s )
+{
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
 	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
 
-	return fev->add_sound( s, reuse );
+	return fev->add_sound( s );
 	//
 	// We assume the script will keep a reference to the sound
 	//
 }
 
-FeSound* FeVM::cb_add_sound( const char *s )
+FeMusic* FeVM::cb_add_music( const char *s )
 {
-	return cb_add_sound( s, true );
+	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
+	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
+
+	return fev->add_music( s );
 }
 
 FeShader* FeVM::cb_add_shader( int type, const char *shader1, const char *shader2 )
@@ -2474,6 +2534,11 @@ bool FeVM::cb_path_test( const char *path, int flag )
 	}
 }
 
+time_t FeVM::cb_get_file_mtime( const char *file )
+{
+	return file_mtime( file );
+}
+
 const char *FeVM::cb_game_info( int index, int offset, int filter_offset )
 {
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
@@ -2671,6 +2736,12 @@ void FeVM::cb_signal( const char *sig )
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
 	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
 
+	//
+	// Prevent signal processing when the overlay is on
+	//
+	if ( fev->m_overlay->overlay_is_on() )
+		return;
+
 	FeInputMap::Command c = FeInputMap::string_to_command( sig );
 	if ( c != FeInputMap::LAST_COMMAND )
 	{
@@ -2678,7 +2749,7 @@ void FeVM::cb_signal( const char *sig )
 		// Post the command so it can be handled the next time we are
 		// processing events...
 		//
-		fev->m_posted_commands.push( c );
+		fev->post_command( c );
 		return;
 	}
 
@@ -2707,11 +2778,11 @@ void FeVM::cb_signal( const char *sig )
 		fev->m_window.on_exit();
 		fev->m_window.initial_create();
 		fev->init_monitors();
-		fev->m_posted_commands.push( FeInputMap::Reload );
+		fev->post_command( FeInputMap::Reload );
 		break;
 
 	case 1: // "reload"
-		fev->m_posted_commands.push( FeInputMap::Reload );
+		fev->post_command( FeInputMap::Reload );
 		break;
 
 	default:
@@ -2733,7 +2804,7 @@ void FeVM::cb_set_display( int idx, bool stack_previous, bool reload )
 		idx = 0;
 
 	if ( fes->set_display( idx, stack_previous ) || reload )
-		fev->m_posted_commands.push( FeInputMap::Reload );
+		fev->post_command( FeInputMap::Reload );
 	else
 		fev->update_to_new_list( 0, true );
 }

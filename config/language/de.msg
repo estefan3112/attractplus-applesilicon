@@ -108,6 +108,7 @@ Jump to Next Display;Springe zur nächsten Liste
 Language;Sprache
 Layout;Thema
 Layout Options;Themen Optionen
+Layout Preview;Layoutvorschau
 Left;Links
 List Limit;Limit für die Liste
 Manufacturer;Hersteller
@@ -288,6 +289,7 @@ _help_plugin_command;Die ausführbare Datei, welche mit diesem Plug-in verknüpf
 _help_plugin_enabled;Festlegen, ob dieses Plug-in aktiviert ist
 _help_plugin_sel;Konfiguriere Plug-in
 _help_plugins;Konfiguriere verfügbare Plug-ins
+_help_quick_menu;Ermöglicht das Umschalten des Menüs mit nur einer Taste, sodass keine Zurück-Taste mehr erforderlich ist. Ermöglicht auch das Umschalten zwischen geöffneten Menüs
 _help_rule_comp;Vergleichstyp für diesen Filter
 _help_rule_delete;Diese Filterregel löschen
 _help_rule_target;Das Spiel-Informationsattribut nach welchem du filtern möchtest
@@ -377,6 +379,7 @@ Pause Hotkey;Pause Tastenkombination
 Please Wait;bitte warten
 Press Hotkey;betätige die Tastenkombination
 Previous Game;vorheriges Spiel
+Quick Menu;Schnellmenü
 Remove '$1' from Favourites?;Entferne '$1' aus den Favoriten?
 Remove tag: '$1';Entferne Etikett: '$1'
 Scrape Fanart;Scrape Fanart
@@ -428,6 +431,7 @@ _help_input_default_action;Setze ein Standardverhalten für diese Eingabe
 _help_joystick_map;Hier kannst du das Frontend zwingen bestimmte Joystick ports immer denselben Joysticks/Gamepads zuzuweisen (So kannst du zum Beispiel 'Microsoft X-Box 360 pad' immer als Joystick 0 verwenden.)
 _help_language;Wähle die Sprache in der Attract-Mode angezeigt wird
 _help_layout_file;Manche Themen haben mehrere .NUT Dateien. Wähle welche standardgemäß verwendet werden soll
+_help_layout_preview;Zeigen Sie Änderungen an der Layoutkonfiguration sofort an
 _help_multiple_monitors;Wähle ob Attract-Mode mehrere Monitore verwendet. Ist 'No' gewählt, kann das Flackern beim Start einiger Spiele reduzieren
 _help_shortcut_artwork_name_edit;Hier kannst du Bilddateien einer Verknüpfung zuordnen. Das Frontend wird versuchen Bilddateien mit diesem Namen zu laden wenn die jeweilige Verknüpfung angezeigt wird
 _help_shortcut_delete;Lösche diese Verknüpfung aus der Romliste

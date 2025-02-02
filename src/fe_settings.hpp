@@ -128,6 +128,7 @@ public:
 		HideBrackets,
 		GroupClones,
 		StartupMode,
+		QuickMenu,
 		ConfirmFavourites,
 		ConfirmExit,
 		MouseThreshold,
@@ -137,6 +138,7 @@ public:
 		AntiAliasing,
 		Anisotropic,
 		FilterWrapMode,
+		LayoutPreview,
 		TrackUsage,
 		MultiMon,
 		SmoothImages,
@@ -227,6 +229,8 @@ private:
 	StartupModeType m_startup_mode;
 	bool m_confirm_favs;
 	bool m_confirm_exit;
+	bool m_layout_preview;
+	bool m_quick_menu;
 	bool m_track_usage;
 	bool m_multimon;
 	WindowType m_window_mode;
@@ -261,6 +265,8 @@ private:
 	int process_setting( const std::string &,
 		const std::string &,
 		const std::string & );
+
+	void validate_romlist();
 
 	void init_display();
 	void load_state();

@@ -22,6 +22,7 @@ Contents
       * [`fe.add_rectangle()`](#add_rectangle) 🔶
       * [`fe.add_shader()`](#add_shader)
       * [`fe.add_sound()`](#add_sound)
+      * [`fe.add_music()`](#add_music) 🔶
       * [`fe.add_ticks_callback()`](#add_ticks_callback)
       * [`fe.add_transition_callback()`](#add_transition_callback)
       * [`fe.game_info()`](#game_info)
@@ -38,6 +39,7 @@ Contents
       * [`fe.plugin_command_bg()`](#plugin_command_bg)
       * [`fe.path_expand()`](#path_expand)
       * [`fe.path_test()`](#path_test)
+      * [`fe.get_file_mtime()`](#get_file_mtime) 🔶
       * [`fe.get_config()`](#get_config)
       * [`fe.get_text()`](#get_text)
       * [`fe.get_url()`](#get_url) 🔶
@@ -69,6 +71,7 @@ Contents
       * [`fe.ListBox`](#ListBox)
       * [`fe.Rectangle`](#Rectangle) 🔶
       * [`fe.Sound`](#Sound)
+      * [`fe.Music`](#Music) 🔶
       * [`fe.Shader`](#Shader)
    * [Constants](#constants)
 
@@ -246,7 +249,7 @@ fe.add_image( "[!strip_man]", 0, 0 );
 
 // Add a text that will display a copyright message if both
 // the manufacturer name and a year are present.  Otherwise,
-// just show the Manufactuer name.
+// just show the Manufacturer name.
 //
 function well_formatted()
 {
@@ -358,7 +361,7 @@ Return Value:
 #### `fe.add_surface()` ####
 
     fe.add_surface( w, h )
-    fe.add_surface( x, y, w, h )
+    fe.add_surface( x, y, w, h ) 🔶
 
 Add a surface to the end of Attract-Mode's draw list.  A surface is an off-
 screen texture upon which you can draw other image, artwork, text, listbox
@@ -457,7 +460,7 @@ Return Value:
 &nbsp;
 <a name="add_rectangle"></a>
 
-#### `fe.add_rectangle()` 🔶
+#### `fe.add_rectangle()` 🔶 ####
 
     fe.add_rectangle( x, y, w, h )
 
@@ -550,22 +553,41 @@ void main()
 
 #### `fe.add_sound()` ####
 
-    fe.add_sound( name, reuse )
     fe.add_sound( name )
 
-Add an audio file that can then be played by Attract-Mode.
+Add a sound file that can then be played by Attract-Mode.
+For short sounds, stored in RAM. For playing long audio tracks use [`fe.add_music()`](#add_music)
 
 Parameters:
 
-   * name - the name of the audio file.  If a relative path is provided,
+   * name - the name of the sound file.  If a relative path is provided,
      it is treated as relative to the directory for the layout/plugin that
      called this function.
-   * reuse - [bool] if set to true, reuse any previously added sound that
-     has the same name.  Default value is true.
 
 Return Value:
 
    * An instance of the class [`fe.Sound`](#Sound) which can be used to
+     interact with the sound.
+
+&nbsp;
+<a name="add_music"></a>
+
+#### `fe.add_music()` 🔶 ####
+
+    fe.add_music( name )
+
+Add an audio track that can then be played by Attract-Mode.
+For long audio tracks, streamed from disk. For playing short sounds use [`fe.add_sound()`](#add_sound)
+
+Parameters:
+
+   * name - the name of the audio track file.  If a relative path is provided,
+     it is treated as relative to the directory for the layout/plugin that
+     called this function.
+
+Return Value:
+
+   * An instance of the class [`fe.Music`](#Music) which can be used to
      interact with the sound.
 
 &nbsp;
@@ -1079,7 +1101,7 @@ Parameters:
         {
         }
 
-     If provided, this function will get called repeatedely with chunks of the
+     If provided, this function will get called repeatedly with chunks of the
      command output in `op`.  NOTE: `op` is not necessarily aligned with the
      start and the end of the lines of output from the command.  In any one
      call `op` may contain data from multiple lines and that may begin or end
@@ -1153,6 +1175,23 @@ Return Value:
    * (boolean) result.
 
 &nbsp;
+<a name="get_file_mtime"></a>
+
+#### `fe.get_file_mtime()` 🔶 ####
+
+    fe.get_file_mtime( filename )
+
+Returns the modified time of the given file.
+
+Parameters:
+
+   * filename - the file to get the modified time of.
+
+Return Value:
+
+   * An integer containing the GMT timestamp.
+
+&nbsp;
 <a name="get_config"></a>
 
 #### `fe.get_config()` ####
@@ -1199,7 +1238,7 @@ Return Value:
 &nbsp;
 <a name="get_url"></a>
 
-#### `fe.get_url()` 🔶
+#### `fe.get_url()` 🔶 ####
 
     fe.get_url( url, file_path )
 
@@ -1215,7 +1254,7 @@ Parameters:
 &nbsp;
 <a name="log"></a>
 
-#### `fe.log()` 🔶
+#### `fe.log()` 🔶 ####
 
     fe.log( text )
 
@@ -1235,8 +1274,8 @@ Objects and Variables
 
 #### `fe.ambient_sound` ####
 
-`fe.ambient_sound` is an instance of the `fe.Sound` class and can be used to
-control the ambient sound track.
+`fe.ambient_sound` is an instance of the `fe.Music` class and can be used to
+control the ambient audio track.
 
 &nbsp;
 <a name="layout"></a>
@@ -1378,7 +1417,7 @@ Properties:
      Page" or "Previous Page" button is pressed.
    * `preserve_aspect_ratio` - Get/set whether the overall layout aspect ratio
      should be preserved by the frontend.  Default value is false.
-   * `time` - Get the number of millseconds that the layout has been showing.
+   * `time` - Get the number of milliseconds that the layout has been showing.
    * `mouse_pointer` 🔶 When set to true mouse pointer will be visible.
 
 Member Functions:
@@ -1419,7 +1458,7 @@ Properties:
      cleared or the user navigates away from the display/filter.
    * `size` - Get the size of the current game list.  If a search rule has
      been applied, this will be the number of matches found (if > 0)
-   * `clones_list` 🔶 Returns 'true' if the curent list contains game clones.
+   * `clones_list` 🔶 Returns 'true' if the current list contains game clones.
 
 &nbsp;
 <a name="ImageCache"></a>
@@ -1744,6 +1783,7 @@ Properties:
      The default value is `false`.  It's advised to force anisotropic filtering in
      the display driver settings if the Image with auto generated mipmap is scaled
      by the ratio that is not isotropic.
+   * `volume` 🔶 Get/set the volume of played video. Range is [0 ... 100]
    * `repeat` 🔶 Enables texture repeat when set to true. Default value is false.
      To see the effect `subimg_width/height` must be set larger than `texture_width/height`
    * `clear` 🔶 [surface only] When set to false surface is not cleared
@@ -1885,7 +1925,7 @@ Properties:
    * `bg_alpha` - Get/set alpha level for text background. Range is [0 ...
      255].  Default value is 0 (transparent).
    * `char_size` - Get/set the forced character size.  If this is <= 0
-     then Attract-Mode will autosize based on `height`.  Default value is -1.
+     then Attract-Mode will auto-size based on `height`.  Default value is -1.
    * `glyph_size` - Get the height in pixels of the capital letter.
      Useful if you want to set the textbox height to match the letter height.
    * `char_spacing` - Get/set the spacing factor between letters.  Default value is 1.0
@@ -1929,7 +1969,7 @@ Properties:
    * `font` - Get/set the filename of the font used for this text.
      If not set default font is used.
    * `margin` - Get/set the margin spacing in pixels to sides of the text.
-     Default value is `-1` which calcualtes the margin based on the .char_size.
+     Default value is `-1` which calculates the margin based on the .char_size.
    * `shader` - Get/set the GLSL shader for this text. This can only be set to
      an instance of the class `fe.Shader` (see: `fe.add_shader()`).
    * `zorder` - Get/set the Text's order in the applicable draw list.  Objects
@@ -2012,7 +2052,7 @@ Properties:
      will return the number of options available in the overlay dialog.
      This property is updated during `Transition.ShowOverlay`
    * `char_size` - Get/set the forced character size.  If this is <= 0
-     then Attract-Mode will autosize based on the value of `height`/`rows`.
+     then Attract-Mode will auto-size based on the value of `height`/`rows`.
      Default value is -1.
    * `glyph_size` - Get the height in pixels of the capital letter.
    * `char_spacing` - Get/set the spacing factor between letters.  Default value is 1.0
@@ -2047,7 +2087,7 @@ Properties:
    * `font` - Get/set the filename of the font used for this listbox.
      If not set default font is used.
    * `margin` - Get/set the margin spacing in pixels to sides of the text.
-     Default value is `-1` which calcualtes the margin based on the .char_size.
+     Default value is `-1` which calculates the margin based on the .char_size.
    * `format_string` - Get/set the format for the text to display in each list
      entry. Magic tokens can be used here, see [Magic Tokens](#magic) for more
      information.  If empty, game titles will be displayed (i.e. the same
@@ -2148,16 +2188,23 @@ Properties:
      Range is [0.0 ... 1.0]. Default value is 0.0, centre is 0.5
    * `rotation_origin_y` - Get/set the y position of the midpoint for rotation.
      Range is [0.0 ... 1.0]. Default value is 0.0, centre is 0.5
-   * `corner_radius` - Get/set the corner radius as a fraction of the smallest side.
-	  This property will preserve corner roundness when set.
-	  Range is [0.0 ... 0.5]. Default value is 0.0.
-   * `corner_radius_x` - Get/set the corner x radius as a fraction of the width.
-	  Range is [0.0 ... 0.5]. Default value is 0.0.
-   * `corner_radius_y` - Get/set the corner y radius as a fraction of the height.
-	  Range is [0.0 ... 0.5]. Default value is 0.0.
+   * `corner_radius` - Get/set the corner radius (in layout coordinates).
+     This property will adjust the radius to preserve corner roundness when set.
+     Default value is 0.0.
+   * `corner_radius_x` - Get/set the corner x radius (in layout coordinates).
+     Default value is 0.0.
+   * `corner_radius_y` - Get/set the corner y radius (in layout coordinates).
+     Default value is 0.0.
+   * `corner_ratio` - Get/set the corner radius as a fraction of the smallest side.
+     This property will adjust the radius to preserve corner roundness when set.
+     Range is [0.0 ... 0.5]. Default value is 0.0.
+   * `corner_ratio_x` - Get/set the corner x radius as a fraction of the width.
+     Range is [0.0 ... 0.5]. Default value is 0.0.
+   * `corner_ratio_y` - Get/set the corner y radius as a fraction of the height.
+     Range is [0.0 ... 0.5]. Default value is 0.0.
    * `corner_points` - Get/set the number of points used to draw the corner radius.
-	  More points produce smooth curves, while fewer points result in flat bevels.
-	  Range is [1 ... 32]. Default value is 12.
+     More points produce smooth curves, while fewer points result in flat bevels.
+     Range is [1 ... 32]. Default value is 12.
    * `shader` - Get/set the GLSL shader for this rectangle. This can only be set to
      an instance of the class `fe.Shader` (see: `fe.add_shader()`).
    * `zorder` - Get/set the rectangles's order in the applicable draw list.  Objects
@@ -2186,29 +2233,53 @@ Member Functions:
      x and y are in [0.0 ... 1.0] range, centre is ( 0.5, 0.5 )
    * `set_rotation_origin( x, y )` - Set the midpoint for rotation
      x and y are in [0.0 ... 1.0] range, centre is ( 0.5, 0.5 )
-	* `set_corner_radius( x, y )` - Set the corner x and y radius as a fraction of the width and height.
-	  Range is [0.0 ... 0.5].
+   * `set_corner_radius( x, y )` - Set the corner x and y radius (in layout coordinates).
+   * `set_corner_ratio( x, y )` - Set the corner x and y radius as a fraction of the
+     width and height.  Range is [0.0 ... 0.5].
 
 &nbsp;
 <a name="Sound"></a>
 
 #### `fe.Sound` ####
 
+The class representing a sound object.  Instances of this class are returned
+by the [`fe.add_sound()`](#add_sound) function.  This class cannot be otherwise
+instantiated in a script.
+
+Properties:
+
+   * `file_name` - Get/set the sound filename.
+   * `volume` - Get/set the volume of played sound. Range is [0 ... 100] 🔶
+   * `playing` - Get/set whether the sound is currently playing (boolean).
+   * `loop` - Get/set whether the sound should be looped (boolean).
+   * `pitch` - Get/set the sound pitch (float). Default value is 1.
+   * `x` - Get/set the x position of the sound.  Default value is 0.
+   * `y` - Get/set the y position of the sound.  Default value is 0.
+   * `z` - Get/set the z position of the sound.  Default value is 0.
+   * `duration` - Get the sound duration (in milliseconds).
+   * `time` - Get the time that the sound is current at (in
+     milliseconds).
+
+&nbsp;
+<a name="Music"></a>
+
+#### `fe.Music` 🔶 ####
+
 The class representing an audio track.  Instances of this class are returned
-by the [`fe.add_sound()`](#add_sound) function.  This is also the class for the
+by the [`fe.add_music()`](#add_music) function.  This is also the class for the
 `fe.ambient_sound` object.  Object of this class cannot be otherwise
 instantiated in a script.
 
 Properties:
 
-   * `file_name` - Get/set the audio filename.  If file_name is contained in
-     an archive, this string should formatted: "<archive_name>|<filename>"
-   * `playing` - Get/set whether the track is currently playing (boolean).
-   * `loop` - Get/set whether the track should be looped (boolean).
-   * `pitch` - Get/set the audio pitch (float). Default value is 1.
-   * `x` - Get/set the x position of the sound.  Default value is 0.
-   * `y` - Get/set the y position of the sound.  Default value is 0.
-   * `z` - Get/set the z position of the sound.  Default value is 0.
+   * `file_name` - Get/set the audio track filename.
+   * `volume` - Get/set the volume of played audio track. Range is [0 ... 100]
+   * `playing` - Get/set whether the audio track is currently playing (boolean).
+   * `loop` - Get/set whether the audio track should be looped (boolean).
+   * `pitch` - Get/set the audio track pitch (float). Default value is 1.
+   * `x` - Get/set the x position of the audio track.  Default value is 0.
+   * `y` - Get/set the y position of the audio track.  Default value is 0.
+   * `z` - Get/set the z position of the audio track.  Default value is 0.
    * `duration` - Get the audio track duration (in milliseconds).
    * `time` - Get the time that the audio track is current at (in
      milliseconds).

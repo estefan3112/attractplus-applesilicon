@@ -23,6 +23,7 @@
 #include "fe_util.hpp"
 #include "fe_settings.hpp"
 #include "fe_present.hpp"
+#include "fe_cache.hpp"
 #include "image_loader.hpp"
 #include "zip.hpp"
 #include <iostream>
@@ -310,6 +311,8 @@ FeSettings::FeSettings( const std::string &config_path )
 	m_startup_mode( ShowLastSelection ),
 	m_confirm_favs( true ),
 	m_confirm_exit( true ),
+	m_layout_preview( false ),
+	m_quick_menu( false ),
 	m_track_usage( true ),
 	m_multimon( false ),
 #if defined(SFML_SYSTEM_LINUX) || defined(FORCE_FULLSCREEN)
@@ -359,6 +362,7 @@ FeSettings::FeSettings( const std::string &config_path )
 			(m_config_path[m_config_path.size()-1] != '/') )
 		m_config_path += '/';
 
+	FeCache::set_config_path( m_config_path );
 }
 
 void FeSettings::clear()
@@ -442,6 +446,7 @@ const char *FeSettings::configSettingStrings[] =
 	"hide_brackets",
 	"group_clones",
 	"startup_mode",
+	"quick_menu",
 	"confirm_favourites",
 	"confirm_exit",
 	"mouse_threshold",
@@ -451,6 +456,7 @@ const char *FeSettings::configSettingStrings[] =
 	"anti_aliasing",
 	"anisotropic",
 	"filter_wrap_mode",
+	"layout_preview",
 	"track_usage",
 	"multiple_monitors",
 	"smooth_images",
@@ -692,12 +698,18 @@ void FeSettings::init_display()
 			list_path = temp;
 	}
 
-	if ( m_rl.load_romlist( list_path,
-				romlist_name,
-				m_displays[m_current_display],
-				m_group_clones,
-				m_track_usage ) == false )
+	if (
+		m_rl.load_romlist(
+			list_path,
+			romlist_name,
+			m_displays[m_current_display],
+			m_group_clones,
+			m_track_usage
+		) == false
+	)
+	{
 		FeLog() << "Error opening romlist: " << romlist_name << std::endl;
+	}
 
 	// Setup m_current_layout_params with all the parameters for our current layout, including
 	// the 'per_display' layout parameters that are stored separately but that get merged in here
@@ -2396,6 +2408,18 @@ bool FeSettings::update_stats( int play_count, int play_time )
 	bool fixed = m_rl.fix_filters( m_displays[m_current_display], FeRomInfo::PlayedCount );
 	fixed |= m_rl.fix_filters( m_displays[m_current_display], FeRomInfo::PlayedTime );
 
+	// Invalidate the cache for all displays using stats in its rules/sort
+	std::string romlist_name = m_displays[m_current_display].get_romlist_name();
+	for ( int i=0; i<m_displays.size(); i++ )
+	{
+		if ( m_displays[i].get_romlist_name() == romlist_name )
+		{
+			FeCache::invalidate_rominfo( m_displays[i], FeRomInfo::PlayedCount );
+			FeCache::invalidate_rominfo( m_displays[i], FeRomInfo::PlayedTime );
+		}
+	}
+	FeCache::save_romlist_cache( m_displays[m_current_display], m_rl );
+
 	if ( fixed && ( &m_rl.lookup( filter_index, rom_index ) != rom ))
 	{
 		// Updating the stats actually moved the index of our current
@@ -2849,6 +2873,8 @@ const std::string FeSettings::get_info( int index ) const
 	case GroupClones:
 	case ConfirmFavourites:
 	case ConfirmExit:
+	case LayoutPreview:
+	case QuickMenu:
 	case TrackUsage:
 	case MultiMon:
 	case SmoothImages:
@@ -2901,6 +2927,10 @@ bool FeSettings::get_info_bool( int index ) const
 		return m_confirm_favs;
 	case ConfirmExit:
 		return m_confirm_exit;
+	case LayoutPreview:
+		return m_layout_preview;
+	case QuickMenu:
+		return m_quick_menu;
 	case TrackUsage:
 		return m_track_usage;
 	case MultiMon:
@@ -3002,6 +3032,10 @@ bool FeSettings::set_info( int index, const std::string &value )
 		m_confirm_exit = config_str_to_bool( value );
 		break;
 
+	case QuickMenu:
+		m_quick_menu = config_str_to_bool( value );
+		break;
+
 	case MouseThreshold:
 		m_mouse_thresh = as_int( value );
 		if ( m_mouse_thresh > 100 )
@@ -3094,6 +3128,10 @@ bool FeSettings::set_info( int index, const std::string &value )
 			if ( filterWrapTokens[i] == NULL )
 				return false;
 		}
+		break;
+
+	case LayoutPreview:
+		m_layout_preview = config_str_to_bool( value );
 		break;
 
 	case TrackUsage:
