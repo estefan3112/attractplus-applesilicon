@@ -201,10 +201,6 @@ int main(int argc, char *argv[])
 				break;
 
 			case FeSettings::ShowDisplaysMenu:
-				// we do a double load of the layout on startup if there is custom display menu
-				// so we suppress the extra transition signals that get triggered here
-				feVM.load_layout( true, !feSettings.get_info( FeSettings::MenuLayout ).empty() );
-				FeVM::cb_signal( "displays_menu" );
 				break;
 
 			default:
@@ -554,24 +550,18 @@ int main(int argc, char *argv[])
 				move_triggered = FeInputMap::LAST_COMMAND;
 				move_last_triggered = 0;
 
+				feVM.load_layout( true );
 
 				switch ( feSettings.get_startup_mode() )
 				{
 				case FeSettings::LaunchLastGame:
-					feVM.load_layout( true );
 					feSettings.select_last_launch();
 					launch_game=true;
 					break;
 
 				case FeSettings::ShowDisplaysMenu:
-					// we do a double load of the layout on startup if there is custom display menu
-					// so we suppress the extra transition signals that get triggered here
-					feVM.load_layout( true, !feSettings.get_info( FeSettings::MenuLayout ).empty() );
-					FeVM::cb_signal( "displays_menu" );
-					break;
-
-				default:
-					feVM.load_layout( true );
+					if ( feSettings.get_info( FeSettings::MenuLayout ).empty() )
+						FeVM::cb_signal( "displays_menu" );
 					break;
 				}
 
@@ -992,7 +982,10 @@ int main(int argc, char *argv[])
 						// returning true then we trigger the "End Navigation" transition now
 						//
 						if ( move_triggered != FeInputMap::LAST_COMMAND )
-							feVM.on_end_navigation();
+						{
+							feVM.update_to( EndNavigation, false );
+							feVM.on_transition( EndNavigation, 0 );
+						}
 
 						move_state = FeInputMap::LAST_COMMAND;
 						move_triggered = FeInputMap::LAST_COMMAND;
@@ -1034,6 +1027,7 @@ int main(int argc, char *argv[])
 
 						switch ( move_triggered )
 						{
+						// Key repeat. First press in FePresent::handle_event()
 						case FeInputMap::PrevGame: step = -step; break;
 						case FeInputMap::NextGame: break; // do nothing
 						case FeInputMap::PrevPage: step *= -feVM.get_page_size(); break;
@@ -1094,7 +1088,10 @@ int main(int argc, char *argv[])
 				// "End Navigation" stuff now
 				//
 				if ( move_triggered != FeInputMap::LAST_COMMAND )
-					feVM.on_end_navigation();
+				{
+					feVM.update_to( EndNavigation, false );
+					feVM.on_transition( EndNavigation, 0 );
+				}
 
 				move_state = FeInputMap::LAST_COMMAND;
 				move_triggered = FeInputMap::LAST_COMMAND;
