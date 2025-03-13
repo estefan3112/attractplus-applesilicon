@@ -26,91 +26,63 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
-#include <SFML/System/Android/ResourceStream.hpp>
 #include <SFML/System/Android/Activity.hpp>
-#include <SFML/System/Lock.hpp>
+#include <SFML/System/Android/ResourceStream.hpp>
+
+#include <mutex>
 
 
-namespace sf
-{
-namespace priv
+namespace sf::priv
 {
 
 ////////////////////////////////////////////////////////////
-ResourceStream::ResourceStream(const std::string& filename) :
-m_file (NULL)
+ResourceStream::ResourceStream(const std::filesystem::path& filename)
 {
-    ActivityStates& states = getActivity();
-    Lock lock(states.mutex);
-    m_file = AAssetManager_open(states.activity->assetManager, filename.c_str(), AASSET_MODE_UNKNOWN);
+    ActivityStates&       states = getActivity();
+    const std::lock_guard lock(states.mutex);
+    m_file.reset(AAssetManager_open(states.activity->assetManager, filename.c_str(), AASSET_MODE_UNKNOWN));
+    assert(m_file && "Failed to initialize ResourceStream file");
 }
 
 
 ////////////////////////////////////////////////////////////
-ResourceStream::~ResourceStream()
+std::optional<std::size_t> ResourceStream::read(void* data, std::size_t size)
 {
-    if (m_file)
-    {
-        AAsset_close(m_file);
-    }
+    const auto numBytesRead = AAsset_read(m_file.get(), data, size);
+    if (numBytesRead < 0)
+        return std::nullopt;
+    return numBytesRead;
 }
 
 
 ////////////////////////////////////////////////////////////
-Int64 ResourceStream::read(void *data, Int64 size)
+std::optional<std::size_t> ResourceStream::seek(std::size_t position)
 {
-    if (m_file)
-    {
-        return AAsset_read(m_file, data, static_cast<size_t>(size));
-    }
-    else
-    {
-        return -1;
-    }
+    const auto newPosition = AAsset_seek(m_file.get(), static_cast<off_t>(position), SEEK_SET);
+    if (newPosition < 0)
+        return std::nullopt;
+    return newPosition;
 }
 
 
 ////////////////////////////////////////////////////////////
-Int64 ResourceStream::seek(Int64 position)
+std::optional<std::size_t> ResourceStream::tell()
 {
-    if (m_file)
-    {
-        return AAsset_seek(m_file, static_cast<off_t>(position), SEEK_SET);
-    }
-    else
-    {
-        return -1;
-    }
+    return getSize().value() - static_cast<std::size_t>(AAsset_getRemainingLength(m_file.get()));
 }
 
 
 ////////////////////////////////////////////////////////////
-Int64 ResourceStream::tell()
+std::optional<std::size_t> ResourceStream::getSize()
 {
-    if (m_file)
-    {
-        return getSize() - AAsset_getRemainingLength(m_file);
-    }
-    else
-    {
-        return -1;
-    }
+    return AAsset_getLength(m_file.get());
 }
 
 
 ////////////////////////////////////////////////////////////
-Int64 ResourceStream::getSize()
+void ResourceStream::AAssetDeleter::operator()(AAsset* file)
 {
-    if (m_file)
-    {
-        return AAsset_getLength(m_file);
-    }
-    else
-    {
-        return -1;
-    }
+    AAsset_close(file);
 }
 
-
-} // namespace priv
-} // namespace sf
+} // namespace sf::priv

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -25,122 +25,144 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
+#include <SFML/System/Exception.hpp>
 #include <SFML/System/FileInputStream.hpp>
 #ifdef SFML_SYSTEM_ANDROID
+#include <SFML/System/Android/Activity.hpp>
 #include <SFML/System/Android/ResourceStream.hpp>
 #endif
+#include <memory>
 
+#include <cstddef>
 
 namespace sf
 {
 ////////////////////////////////////////////////////////////
-FileInputStream::FileInputStream()
-: m_file(NULL)
+void FileInputStream::FileCloser::operator()(std::FILE* file)
 {
-
+    std::fclose(file);
 }
 
 
 ////////////////////////////////////////////////////////////
-FileInputStream::~FileInputStream()
+FileInputStream::FileInputStream() = default;
+
+
+////////////////////////////////////////////////////////////
+FileInputStream::FileInputStream(const std::filesystem::path& filename)
 {
-#ifdef SFML_SYSTEM_ANDROID
-    if (m_file)
-        delete m_file;
-#else
-    if (m_file)
-        std::fclose(m_file);
-#endif
+    if (!open(filename))
+        throw sf::Exception("Failed to open file input stream");
 }
 
 
 ////////////////////////////////////////////////////////////
-bool FileInputStream::open(const std::string& filename)
-{
-#ifdef SFML_SYSTEM_ANDROID
-    if (m_file)
-        delete m_file;
-    m_file = new priv::ResourceStream(filename);
-    return m_file->tell() != -1;
-#else
-    if (m_file)
-        std::fclose(m_file);
-
-    m_file = std::fopen(filename.c_str(), "rb");
-
-    return m_file != NULL;
-#endif
-}
+FileInputStream::~FileInputStream() = default;
 
 
 ////////////////////////////////////////////////////////////
-Int64 FileInputStream::read(void* data, Int64 size)
-{
-#ifdef SFML_SYSTEM_ANDROID
-    return m_file->read(data, size);
-#else
-    if (m_file)
-        return static_cast<Int64>(std::fread(data, 1, static_cast<std::size_t>(size), m_file));
-    else
-        return -1;
-#endif
-}
+FileInputStream::FileInputStream(FileInputStream&&) noexcept = default;
 
 
 ////////////////////////////////////////////////////////////
-Int64 FileInputStream::seek(Int64 position)
+FileInputStream& FileInputStream::operator=(FileInputStream&&) noexcept = default;
+
+
+////////////////////////////////////////////////////////////
+bool FileInputStream::open(const std::filesystem::path& filename)
 {
 #ifdef SFML_SYSTEM_ANDROID
-    return m_file->seek(position);
-#else
-    if (m_file)
+    if (priv::getActivityStatesPtr() != nullptr)
     {
-        if (std::fseek(m_file, static_cast<long>(position), SEEK_SET))
-            return -1;
-
-        return tell();
-    }
-    else
-    {
-        return -1;
+        m_androidFile = std::make_unique<priv::ResourceStream>(filename);
+        return m_androidFile->tell().has_value();
     }
 #endif
+#ifdef SFML_SYSTEM_WINDOWS
+    m_file.reset(_wfopen(filename.c_str(), L"rb"));
+#else
+    m_file.reset(std::fopen(filename.c_str(), "rb"));
+#endif
+    return m_file != nullptr;
 }
 
 
 ////////////////////////////////////////////////////////////
-Int64 FileInputStream::tell()
+std::optional<std::size_t> FileInputStream::read(void* data, std::size_t size)
 {
 #ifdef SFML_SYSTEM_ANDROID
-    return m_file->tell();
-#else
-    if (m_file)
-        return std::ftell(m_file);
-    else
-        return -1;
+    if (priv::getActivityStatesPtr() != nullptr)
+    {
+        if (!m_androidFile)
+            return std::nullopt;
+        return m_androidFile->read(data, size);
+    }
 #endif
+    if (!m_file)
+        return std::nullopt;
+    return std::fread(data, 1, size, m_file.get());
 }
 
 
 ////////////////////////////////////////////////////////////
-Int64 FileInputStream::getSize()
+std::optional<std::size_t> FileInputStream::seek(std::size_t position)
 {
 #ifdef SFML_SYSTEM_ANDROID
-    return m_file->getSize();
-#else
-    if (m_file)
+    if (priv::getActivityStatesPtr() != nullptr)
     {
-        Int64 position = tell();
-        std::fseek(m_file, 0, SEEK_END);
-        Int64 size = tell();
-        seek(position);
-        return size;
-    }
-    else
-    {
-        return -1;
+        if (!m_androidFile)
+            return std::nullopt;
+        return m_androidFile->seek(position);
     }
 #endif
+    if (!m_file)
+        return std::nullopt;
+    if (std::fseek(m_file.get(), static_cast<long>(position), SEEK_SET))
+        return std::nullopt;
+
+    return tell();
+}
+
+
+////////////////////////////////////////////////////////////
+std::optional<std::size_t> FileInputStream::tell()
+{
+#ifdef SFML_SYSTEM_ANDROID
+    if (priv::getActivityStatesPtr() != nullptr)
+    {
+        if (!m_androidFile)
+            return std::nullopt;
+        return m_androidFile->tell();
+    }
+#endif
+    if (!m_file)
+        return std::nullopt;
+    const auto position = std::ftell(m_file.get());
+    return position < 0 ? std::nullopt : std::optional<std::size_t>(position);
+}
+
+
+////////////////////////////////////////////////////////////
+std::optional<std::size_t> FileInputStream::getSize()
+{
+#ifdef SFML_SYSTEM_ANDROID
+    if (priv::getActivityStatesPtr() != nullptr)
+    {
+        if (!m_androidFile)
+            return std::nullopt;
+        return m_androidFile->getSize();
+    }
+#endif
+    if (!m_file)
+        return std::nullopt;
+    const auto position = tell().value();
+    std::fseek(m_file.get(), 0, SEEK_END);
+    const std::optional size = tell();
+
+    if (!seek(position).has_value())
+        return std::nullopt;
+
+    return size;
 }
 
 } // namespace sf

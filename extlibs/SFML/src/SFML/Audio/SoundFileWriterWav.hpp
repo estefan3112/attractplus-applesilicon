@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -22,20 +22,21 @@
 //
 ////////////////////////////////////////////////////////////
 
-#ifndef SFML_SOUNDFILEWRITERWAV_HPP
-#define SFML_SOUNDFILEWRITERWAV_HPP
+#pragma once
 
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/Audio/SoundFileWriter.hpp>
+
+#include <array>
+#include <filesystem>
 #include <fstream>
-#include <string>
+
+#include <cstdint>
 
 
-namespace sf
-{
-namespace priv
+namespace sf::priv
 {
 ////////////////////////////////////////////////////////////
 /// \brief Implementation of sound file writer that handles wav files
@@ -44,30 +45,21 @@ namespace priv
 class SoundFileWriterWav : public SoundFileWriter
 {
 public:
-
     ////////////////////////////////////////////////////////////
     /// \brief Check if this writer can handle a file on disk
     ///
     /// \param filename Path of the sound file to check
     ///
-    /// \return True if the file can be written by this writer
+    /// \return `true` if the file can be written by this writer
     ///
     ////////////////////////////////////////////////////////////
-    static bool check(const std::string& filename);
-
-public:
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Default constructor
-    ///
-    ////////////////////////////////////////////////////////////
-    SoundFileWriterWav();
+    [[nodiscard]] static bool check(const std::filesystem::path& filename);
 
     ////////////////////////////////////////////////////////////
     /// \brief Destructor
     ///
     ////////////////////////////////////////////////////////////
-    ~SoundFileWriterWav();
+    ~SoundFileWriterWav() override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Open a sound file for writing
@@ -75,11 +67,15 @@ public:
     /// \param filename     Path of the file to open
     /// \param sampleRate   Sample rate of the sound
     /// \param channelCount Number of channels of the sound
+    /// \param channelMap   Map of position in sample frame to sound channel
     ///
-    /// \return True if the file was successfully opened
+    /// \return `true` if the file was successfully opened
     ///
     ////////////////////////////////////////////////////////////
-    virtual bool open(const std::string& filename, unsigned int sampleRate, unsigned int channelCount);
+    [[nodiscard]] bool open(const std::filesystem::path&     filename,
+                            unsigned int                     sampleRate,
+                            unsigned int                     channelCount,
+                            const std::vector<SoundChannel>& channelMap) override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Write audio samples to the open file
@@ -88,20 +84,18 @@ public:
     /// \param count   Number of samples to write
     ///
     ////////////////////////////////////////////////////////////
-    virtual void write(const Int16* samples, Uint64 count);
+    void write(const std::int16_t* samples, std::uint64_t count) override;
 
 private:
-
     ////////////////////////////////////////////////////////////
     /// \brief Write the header of the open file
     ///
     /// \param sampleRate   Sample rate of the sound
     /// \param channelCount Number of channels of the sound
-    ///
-    /// \return True on success, false on error
+    /// \param channelMask  Channel mask bits if we are writing extensible header
     ///
     ////////////////////////////////////////////////////////////
-    bool writeHeader(unsigned int sampleRate, unsigned int channelCount);
+    void writeHeader(unsigned int sampleRate, unsigned int channelCount, unsigned int channelMask);
 
     ////////////////////////////////////////////////////////////
     /// \brief Close the file
@@ -112,12 +106,9 @@ private:
     ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
-    std::ofstream m_file;         //!< File stream to write to
+    std::ofstream               m_file;           //!< File stream to write to
+    unsigned int                m_channelCount{}; //!< Channel count of the sound being written
+    std::array<std::size_t, 18> m_remapTable{};   //!< Table we use to remap source to target channel order
 };
 
-} // namespace priv
-
-} // namespace sf
-
-
-#endif // SFML_SOUNDFILEWRITERWAV_HPP
+} // namespace sf::priv

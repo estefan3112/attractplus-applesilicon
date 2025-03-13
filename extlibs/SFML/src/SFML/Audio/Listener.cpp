@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -25,8 +25,8 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
-#include <SFML/Audio/Listener.hpp>
 #include <SFML/Audio/AudioDevice.hpp>
+#include <SFML/Audio/Listener.hpp>
 
 
 namespace sf
@@ -46,13 +46,6 @@ float Listener::getGlobalVolume()
 
 
 ////////////////////////////////////////////////////////////
-void Listener::setPosition(float x, float y, float z)
-{
-    setPosition(Vector3f(x, y, z));
-}
-
-
-////////////////////////////////////////////////////////////
 void Listener::setPosition(const Vector3f& position)
 {
     priv::AudioDevice::setPosition(position);
@@ -63,13 +56,6 @@ void Listener::setPosition(const Vector3f& position)
 Vector3f Listener::getPosition()
 {
     return priv::AudioDevice::getPosition();
-}
-
-
-////////////////////////////////////////////////////////////
-void Listener::setDirection(float x, float y, float z)
-{
-    setDirection(Vector3f(x, y, z));
 }
 
 
@@ -88,9 +74,30 @@ Vector3f Listener::getDirection()
 
 
 ////////////////////////////////////////////////////////////
-void Listener::setUpVector(float x, float y, float z)
+void Listener::setVelocity(const Vector3f& velocity)
 {
-    setUpVector(Vector3f(x, y, z));
+    priv::AudioDevice::setVelocity(velocity);
+}
+
+
+////////////////////////////////////////////////////////////
+Vector3f Listener::getVelocity()
+{
+    return priv::AudioDevice::getVelocity();
+}
+
+
+////////////////////////////////////////////////////////////
+void Listener::setCone(const Listener::Cone& cone)
+{
+    priv::AudioDevice::setCone(cone);
+}
+
+
+////////////////////////////////////////////////////////////
+Listener::Cone Listener::getCone()
+{
+    return priv::AudioDevice::getCone();
 }
 
 

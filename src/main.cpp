@@ -173,13 +173,13 @@ int main(int argc, char *argv[])
 	soundsys.sound_event( FeInputMap::EventStartup );
 
 	bool redraw=true, has_focus=true;
-	int guard_joyid=-1, guard_axis=-1;
+	std::optional<sf::Event> joy_guard;
 
 	// variables used to track movement when a key is held down
 	FeInputMap::Command move_state( FeInputMap::LAST_COMMAND ); // command mapped to the move
 	FeInputMap::Command move_triggered( FeInputMap::LAST_COMMAND ); // "repeatable" command triggered on move (if any)
 	sf::Clock move_timer;
-	sf::Event move_event;
+	std::optional<sf::Event> move_event;
 	int move_last_triggered( 0 );
 
 	// go straight into config mode if there are no lists configured for
@@ -201,6 +201,12 @@ int main(int argc, char *argv[])
 				break;
 
 			case FeSettings::ShowDisplaysMenu:
+				if ( feSettings.get_info( FeSettings::MenuLayout ).empty() )
+				{
+					feSettings.set_display( feSettings.get_actual_display_index() );
+					feVM.load_layout( true );
+					FeVM::cb_signal( "displays_menu" );
+				}
 				break;
 
 			default:
@@ -241,6 +247,9 @@ int main(int argc, char *argv[])
 					window.initial_create();
 					feVM.init_monitors();
 				}
+
+				if ( feSettings.get_info( FeSettings::MenuLayout ).empty() )
+					feSettings.set_display( feSettings.get_actual_display_index() );
 
 				feVM.load_layout();
 			}
@@ -336,21 +345,22 @@ int main(int argc, char *argv[])
 		}
 
 		FeInputMap::Command c;
-		sf::Event ev;
+		std::optional<sf::Event> ev;
 		bool from_ui;
 		while ( feVM.poll_command( c, ev, from_ui ) )
 		{
-			//
-			// Special case handling based on event type
-			//
-			switch ( ev.type )
+			if ( ev.has_value() )
 			{
-				case sf::Event::Closed:
+				//
+				// Special case handling based on event type
+				//
+				if ( ev->is<sf::Event::Closed>() )
 					exit_selected = true;
-					break;
 
-				case sf::Event::MouseMoved:
-					if ( feSettings.test_mouse_reset( ev.mouseMove.x, ev.mouseMove.y ))
+				else if ( ev->is<sf::Event::MouseMoved>() )
+				{
+					const auto* mov = ev->getIf<sf::Event::MouseMoved>();
+					if ( mov && feSettings.test_mouse_reset( mov->position.x, mov->position.y ))
 					{
 						// We reset the mouse if we are capturing it and it has moved
 						// outside of its bounding box
@@ -358,11 +368,12 @@ int main(int argc, char *argv[])
 						sf::Vector2u s = window.get_win().getSize();
 						sf::Mouse::setPosition( sf::Vector2i( s.x / 2, s.y / 2 ), window.get_win() );
 					}
-					break;
+				}
 
-				case sf::Event::KeyReleased:
-				case sf::Event::MouseButtonReleased:
-				case sf::Event::JoystickButtonReleased:
+				else if ( ev->is<sf::Event::KeyReleased>() ||
+							ev->is<sf::Event::MouseButtonReleased>() ||
+							ev->is<sf::Event::JoystickButtonReleased>() )
+				{
 					//
 					// We always want to reset the screen saver on these events,
 					// even if they aren't mapped otherwise (mapped events cause
@@ -371,51 +382,54 @@ int main(int argc, char *argv[])
 					if (( c == FeInputMap::LAST_COMMAND )
 							&& ( feVM.reset_screen_saver() ))
 						redraw = true;
-					break;
+				}
 
-				case sf::Event::GainedFocus:
+				else if ( ev->is<sf::Event::FocusGained>() )
+				{
 					redraw = true;
-					break;
+				}
 
-				case sf::Event::Resized:
-        			window.get_win().setView( sf::View( sf::FloatRect( 0, 0, ev.size.width, ev.size.height )));
-					feVM.init_monitors();
-					feVM.load_layout();
-					redraw = true;
-					break;
-
-				case sf::Event::JoystickMoved:
-					if ( c != FeInputMap::LAST_COMMAND )
+				else if ( ev->is<sf::Event::Resized>() )
+				{
+					const auto* resize = ev->getIf<sf::Event::Resized>();
+					if ( resize )
 					{
-						// Only allow one mapped "Joystick Moved" input through at a time
-						//
-						if ( guard_joyid != -1 )
-							continue;
-
-						guard_joyid = ev.joystickMove.joystickId;
-						guard_axis = ev.joystickMove.axis;
+						window.get_win().setView( sf::View( sf::FloatRect({ 0, 0 }, { static_cast<float>( resize->size.x ), static_cast<float>( resize->size.y )})));
+						feVM.init_monitors();
+						feVM.load_layout();
+						redraw = true;
 					}
-					break;
+				}
 
-				case sf::Event::JoystickConnected:
-				case sf::Event::JoystickDisconnected:
+				else if ( ev->is<sf::Event::JoystickMoved>() )
+				{
+					// Set the guard if there's a command mapped to this movement
+					if ( c != FeInputMap::LAST_COMMAND )
+						joy_guard = ev;
+
+					// Skip only if no command AND we have an active guard
+					else if ( joy_guard.has_value() && joy_guard->is<sf::Event::JoystickMoved>() )
+						continue;
+				}
+
+				else if ( ev->is<sf::Event::JoystickConnected>() ||
+							ev->is<sf::Event::JoystickDisconnected>() )
+				{
 					feSettings.on_joystick_connect();
-					break;
-
-				case sf::Event::Count:
-				default:
-					break;
+				}
 			}
 
 			// Test if we need to keep the joystick axis guard up
 			//
-			if (( guard_joyid >= 0 )
-				&& ( std::abs( sf::Joystick::getAxisPosition(
-					guard_joyid, (sf::Joystick::Axis)guard_axis ))
-						< feSettings.get_joy_thresh() ))
+			if ( joy_guard.has_value() && joy_guard->is<sf::Event::JoystickMoved>() )
 			{
-				guard_joyid = -1;
-				guard_axis = -1;
+				const auto* mov = joy_guard->getIf<sf::Event::JoystickMoved>();
+				if ( mov )
+				{
+					float pos = sf::Joystick::getAxisPosition( mov->joystickId, mov->axis );
+					if ( std::abs( pos ) < feSettings.get_joy_thresh() )
+						joy_guard = std::nullopt;
+				}
 			}
 
 			// Nothing further to do if there is no command or if we are in the process
@@ -550,6 +564,9 @@ int main(int argc, char *argv[])
 				move_triggered = FeInputMap::LAST_COMMAND;
 				move_last_triggered = 0;
 
+				if ( feSettings.get_info( FeSettings::MenuLayout ).empty() )
+					feSettings.set_display( feSettings.get_actual_display_index() );
+
 				feVM.load_layout( true );
 
 				switch ( feSettings.get_startup_mode() )
@@ -641,10 +658,10 @@ int main(int argc, char *argv[])
 
 						sf::RenderWindow &w = window.get_win();
 						sf::Texture texture;
-						texture.create( w.getSize().x, w.getSize().y );
-						texture.update( w );
+						if ( texture.resize({ w.getSize().x, w.getSize().y }))
+							texture.update( w );
 						sf::Image sshot_img = texture.copyToImage();
-						sshot_img.saveToFile( filename );
+						bool ret = sshot_img.saveToFile( filename );
 					}
 					break;
 
@@ -932,39 +949,33 @@ int main(int argc, char *argv[])
 		{
 			bool cont=false;
 
-			switch ( move_event.type )
+			if ( move_event->is<sf::Event::KeyPressed>() )
 			{
-			case sf::Event::KeyPressed:
-				if ( sf::Keyboard::isKeyPressed( move_event.key.code ) )
+				const auto* key = move_event->getIf<sf::Event::KeyPressed>();
+				if ( key && sf::Keyboard::isKeyPressed( key->code ))
 					cont=true;
-				break;
+			}
 
-			case sf::Event::MouseButtonPressed:
-				if ( sf::Mouse::isButtonPressed( move_event.mouseButton.button ) )
+			else if ( move_event->is<sf::Event::MouseButtonPressed>() )
+			{
+				const auto* btn = move_event->getIf<sf::Event::MouseButtonPressed>();
+				if ( sf::Mouse::isButtonPressed( btn->button ))
 					cont=true;
-				break;
+			}
 
-			case sf::Event::JoystickButtonPressed:
-				if ( sf::Joystick::isButtonPressed(
-						move_event.joystickButton.joystickId,
-						move_event.joystickButton.button ) )
+			else if ( move_event->is<sf::Event::JoystickButtonPressed>() )
+			{
+				const auto* btn = move_event->getIf<sf::Event::JoystickButtonPressed>();
+				if ( sf::Joystick::isButtonPressed( btn->joystickId, btn->button ))
 					cont=true;
-				break;
+			}
 
-			case sf::Event::JoystickMoved:
-				{
-					sf::Joystick::update();
-
-					float pos = sf::Joystick::getAxisPosition(
-							move_event.joystickMove.joystickId,
-							move_event.joystickMove.axis );
-					if ( std::abs( pos ) > feSettings.get_joy_thresh() )
-						cont=true;
-				}
-				break;
-
-			default:
-				break;
+			else if ( move_event->is<sf::Event::JoystickMoved>() )
+			{
+				const auto* mov = move_event->getIf<sf::Event::JoystickMoved>();
+				float pos = sf::Joystick::getAxisPosition( mov->joystickId,	mov->axis );
+				if ( std::abs( pos ) > feSettings.get_joy_thresh() )
+					cont=true;
 			}
 
 			if ( cont )

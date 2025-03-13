@@ -141,12 +141,11 @@ void FeWindow::display()
 {
 	m_window->display();
 
-	// Starting from Windows Vista all non fullscreen window modes
+	// Starting from Windows Vista all window modes
 	// go through DWM, so we have to flush here to sync to the DMW's v-sync
 	// to avoid stuttering.
 #if defined(SFML_SYSTEM_WINDOWS) && !defined(WINDOWS_XP)
-	if ( m_win_mode != FeSettings::Fullscreen )
-		DwmFlush();
+	DwmFlush();
 #endif
 }
 
@@ -166,10 +165,22 @@ void FeWindow::initial_create()
 #if defined(SFML_SYSTEM_WINDOWS) && !defined(WINDOWS_XP)
 		sf::Style::None,       // FeSettings::Fullscreen
 #else
-		sf::Style::Fullscreen, // FeSettings::Fullscreen
+		sf::Style::None,       // FeSettings::Fullscreen
 #endif
 		sf::Style::Default,    // FeSettings::Window
 		sf::Style::None        // FeSettings::WindowNoBorder
+	};
+
+	sf::State state_map[4] =
+	{
+		sf::State::Windowed,   // FeSettings::Default
+#if defined(SFML_SYSTEM_WINDOWS) && !defined(WINDOWS_XP)
+		sf::State::Windowed,   // FeSettings::Fullscreen
+#else
+		sf::State::Fullscreen, // FeSettings::Fullscreen
+#endif
+		sf::State::Windowed,   // FeSettings::Window
+		sf::State::Windowed    // FeSettings::WindowNoBorder
 	};
 
 	sf::VideoMode vm = sf::VideoMode::getDesktopMode(); // width/height/bpp of OpenGL surface to create
@@ -195,7 +206,7 @@ void FeWindow::initial_create()
 		// (it is positioned to accomodate window decoration that isn't there).  setPosition()
 		// doesn't work
 		//
-		get_x11_primary_screen_size( vm.width, vm.height );
+		get_x11_primary_screen_size( vm.size.x, vm.size.y );
 	}
 	else
 	{
@@ -204,7 +215,7 @@ void FeWindow::initial_create()
 		// keeping it though because it has been needed historically (earlier versions of SFML,
 		// other window managers etc) and it seems to lead to the same results
 		//
-		get_x11_multimon_geometry( wpos.x, wpos.y, vm.width, vm.height );
+		get_x11_multimon_geometry( wpos.x, wpos.y, vm.size.x, vm.size.y );
 	}
 
 #elif defined(SFML_SYSTEM_WINDOWS)
@@ -225,7 +236,7 @@ void FeWindow::initial_create()
 	// Windows API call to undo the WS_POPUP Style.  Seems to require a ShowWindow() call
 	// afterwards to take effect:
 	//
-	//		SetWindowLongPtr( getSystemHandle(), GWL_STYLE,
+	//		SetWindowLongPtr( getNativeHandle(), GWL_STYLE,
 	//			WS_BORDER | WS_CLIPCHILDREN | WS_CLIPSIBLINGS );
 	//
 
@@ -253,11 +264,11 @@ void FeWindow::initial_create()
 		wpos.x = GetSystemMetrics( SM_XVIRTUALSCREEN );
 		wpos.y = GetSystemMetrics( SM_YVIRTUALSCREEN );
 
-		vm.width = GetSystemMetrics( SM_CXVIRTUALSCREEN );
-		vm.height = GetSystemMetrics( SM_CYVIRTUALSCREEN );
+		vm.size.x = GetSystemMetrics( SM_CXVIRTUALSCREEN );
+		vm.size.y = GetSystemMetrics( SM_CYVIRTUALSCREEN );
 	}
 
-	sf::Vector2i screen_size( vm.width, vm.height );
+	sf::Vector2i screen_size( vm.size.x, vm.size.y );
 
 	// Some Windows users are reporting emulators hanging/failing to get focus when launched
 	// from 'fullscreen' (fullscreen mode, fillscreen where window dimensions = screen dimensions)
@@ -274,8 +285,8 @@ void FeWindow::initial_create()
 	{
 		wpos.x -= 1;
 		wpos.y -= 1;
-		vm.width += 2;
-		vm.height += 2;
+		vm.size.x += 2;
+		vm.size.y += 2;
 	}
 
 #endif
@@ -292,11 +303,11 @@ void FeWindow::initial_create()
 		win_pos.load_from_file( m_fes.get_config_dir() + FeWindowPosition::FILENAME );
 
 		wpos = win_pos.m_pos;
-		vm.width = win_pos.m_size.x;
-		vm.height = win_pos.m_size.y;
+		vm.size.x = win_pos.m_size.x;
+		vm.size.y = win_pos.m_size.y;
 	}
 
-	sf::Vector2u wsize( vm.width, vm.height );
+	sf::Vector2u wsize( vm.size.x, vm.size.y );
 
 #if defined(SFML_SYSTEM_WINDOWS)
 
@@ -312,8 +323,8 @@ void FeWindow::initial_create()
 	// In this case we simply set the window mode to Fullscreen to correctly trigger other logic.
 	//
 	if (( m_win_mode == FeSettings::WindowNoBorder )
-		&& ( screen_size.x == vm.width )
-		&& ( screen_size.y == vm.height ))
+		&& ( screen_size.x == vm.size.x )
+		&& ( screen_size.y == vm.size.y ))
 		{
 			FeLog() << "Borderless window size matches the display resolution. Switching to Fullscreen mode." << std::endl;
 			m_win_mode = FeSettings::Fullscreen;
@@ -329,8 +340,8 @@ void FeWindow::initial_create()
 	//
 	if ( m_win_mode == FeSettings::Fullscreen )
 	{
-		m_blackout.create(sf::VideoMode(16, 16, 24), "", sf::Style::None);
-		m_blackout.setSize( sf::Vector2u( vm.width + 2, vm.height + 2 ));
+		m_blackout.create( sf::VideoMode({ 16, 16 }, 24 ), "", sf::Style::None );
+		m_blackout.setSize( sf::Vector2u( vm.size.x + 2, vm.size.y + 2 ));
 		m_blackout.setPosition( sf::Vector2i( -1, -1 ));
 		m_blackout.setVerticalSyncEnabled(true);
 		m_blackout.setKeyRepeatEnabled(false);
@@ -338,8 +349,8 @@ void FeWindow::initial_create()
 
 
 		// We hide the black window from the task bar and the alt+tab switcher
-		int style = GetWindowLongPtr(m_blackout.getSystemHandle(), GWL_EXSTYLE );
-		SetWindowLongPtr( m_blackout.getSystemHandle(), GWL_EXSTYLE, style | WS_EX_TOOLWINDOW );
+		int style = GetWindowLongPtr(m_blackout.getNativeHandle(), GWL_EXSTYLE );
+		SetWindowLongPtr( m_blackout.getNativeHandle(), GWL_EXSTYLE, style | WS_EX_TOOLWINDOW );
 		m_blackout.clear();
 		m_blackout.display();
 	}
@@ -349,9 +360,9 @@ void FeWindow::initial_create()
 	// Create window
 	//
 	sf::ContextSettings ctx;
-	ctx.antialiasingLevel = m_fes.get_antialiasing();
+	ctx.antiAliasingLevel = m_fes.get_antialiasing();
 
-	m_window->create( vm, "Attract-Mode Plus", style_map[ m_win_mode ], ctx );
+	m_window->create( vm, "Attract-Mode Plus", style_map[ m_win_mode ], state_map[ m_win_mode ], ctx );
 
 	// On Windows Vista and above all non fullscreen window modes
 	// go through DWM. We have to disable vsync
@@ -367,8 +378,8 @@ void FeWindow::initial_create()
 
 #ifndef SFML_SYSTEM_MACOS
     sf::Image icon;
-    icon.loadFromMemory( attractplus_icon, sizeof( attractplus_icon ));
-    m_window->setIcon( icon.getSize().y, icon.getSize().y, icon.getPixelsPtr() );
+    if ( icon.loadFromMemory( attractplus_icon, sizeof( attractplus_icon )))
+    	m_window->setIcon({ icon.getSize().y, icon.getSize().y }, icon.getPixelsPtr() );
 #endif
 	// We need to clear and display here before calling setSize and setPosition
 	// to avoid a white window flash on launching Attract Mode.
@@ -385,7 +396,7 @@ void FeWindow::initial_create()
 
 #if defined(USE_XLIB)
 	if ( m_win_mode == FeSettings::Default )
-		set_x11_fullscreen_state( m_window->getSystemHandle() );
+		set_x11_fullscreen_state( m_window->getNativeHandle() );
 #endif
 
 	// Known issue: Linux Mint 18.3 Cinnamon w/ SFML 2.5.1, position isn't being set
@@ -394,10 +405,10 @@ void FeWindow::initial_create()
 
 	FeDebug() << "Created Attract-Mode Window: " << wsize.x << "x" << wsize.y << " @ "
 		<< wpos.x << "," << wpos.y << " [OpenGL surface: "
-		<< vm.width << "x" << vm.height << " bpp=" << vm.bitsPerPixel << "]" << std::endl;
+		<< vm.size.x << "x" << vm.size.y << " bpp=" << vm.bitsPerPixel << "]" << std::endl;
 
 #if defined(SFML_SYSTEM_WINDOWS)
-	set_win32_foreground_window( m_window->getSystemHandle(), HWND_TOP );
+	set_win32_foreground_window( m_window->getNativeHandle(), HWND_TOP );
 #endif
 
 	m_fes.init_mouse_capture( wsize.x, wsize.y );
@@ -432,10 +443,9 @@ void wait_callback( void *o )
 
 	if ( win->isOpen() )
 	{
-		sf::Event ev;
-		while ( win->pollEvent( ev ) )
+		while ( const std::optional ev = win->pollEvent() )
 		{
-			if ( ev.type == sf::Event::Closed )
+			if ( ev.has_value() && ev->is<sf::Event::Closed>() )
 				return;
 		}
 	}
@@ -483,7 +493,11 @@ bool FeWindow::run()
 	opt.exit_hotkey = emu->get_info( FeEmulatorInfo::Exit_hotkey );
 	opt.pause_hotkey = emu->get_info( FeEmulatorInfo::Pause_hotkey );
 	opt.joy_thresh = m_fes.get_joy_thresh();
+#if defined (USE_DRM)
+	opt.launch_cb = NULL; // In DRM we're closing the window before launching the emulator
+#else
 	opt.launch_cb = (( nbm_wait <= 0 ) ? launch_callback : NULL );
+#endif
 	opt.wait_cb = wait_callback;
 	opt.launch_opaque = this;
 
@@ -501,14 +515,14 @@ bool FeWindow::run()
 #if defined(SFML_SYSTEM_WINDOWS)
 	if ( m_win_mode == FeSettings::Fullscreen )
 	{
-		set_win32_foreground_window( m_window->getSystemHandle(), HWND_BOTTOM );
+		set_win32_foreground_window( m_window->getNativeHandle(), HWND_BOTTOM );
 		m_blackout.display();
 		m_window->setVisible( false );
-		set_win32_foreground_window( m_blackout.getSystemHandle(), HWND_TOP );
+		set_win32_foreground_window( m_blackout.getNativeHandle(), HWND_TOP );
 	}
 	else
 	{
-		set_win32_foreground_window( m_window->getSystemHandle(), HWND_TOP );
+		set_win32_foreground_window( m_window->getNativeHandle(), HWND_TOP );
 		if ( !is_multimon_config( m_fes ))
 			clear();
 		display();
@@ -573,11 +587,9 @@ bool FeWindow::run()
 
 		while ( !done_wait && isOpen() )
 		{
-			sf::Event ev;
-
-			while (pollEvent(ev))
+			while ( const std::optional ev = pollEvent() )
 			{
-				if ( ev.type == sf::Event::Closed )
+				if ( ev.has_value() && ev->is<sf::Event::Closed>() )
 					return false;
 			}
 
@@ -625,7 +637,7 @@ bool FeWindow::run()
  #endif
 	}
  #if defined(USE_XLIB)
-	set_x11_foreground_window( m_window->getSystemHandle() );
+	set_x11_foreground_window( m_window->getNativeHandle() );
  #endif
 
 #elif defined(SFML_SYSTEM_MACOS)
@@ -644,10 +656,10 @@ bool FeWindow::run()
 			clear();
 			display();
 		}
-		set_win32_foreground_window( m_window->getSystemHandle(), HWND_TOP );
+		set_win32_foreground_window( m_window->getNativeHandle(), HWND_TOP );
 	}
 	else
-		set_win32_foreground_window( m_window->getSystemHandle(), HWND_TOP );
+		set_win32_foreground_window( m_window->getNativeHandle(), HWND_TOP );
 #endif
 
 	if ( m_fes.get_info_bool( FeSettings::MoveMouseOnLaunch ) )
@@ -655,11 +667,10 @@ bool FeWindow::run()
 
 	// Empty the window event queue, so we don't go triggering other
 	// right away after running an emulator
-	sf::Event ev;
 
-	while (isOpen() && pollEvent(ev))
+	while ( const std::optional ev = pollEvent() )
 	{
-		if ( ev.type == sf::Event::Closed )
+		if ( ev->is<sf::Event::Closed>() )
 			return false;
 	}
 
@@ -697,6 +708,7 @@ sf::RenderWindow &FeWindow::get_win()
 void FeWindow::close()
 {
 	if ( m_window )
+		m_window->display(); // Crashing on Linux workaround
 		m_window->close();
 }
 
@@ -728,10 +740,7 @@ void FeWindow::draw( const sf::Drawable &d, const sf::RenderStates &r )
 		m_window->draw( d, r );
 }
 
-bool FeWindow::pollEvent( sf::Event &e )
+const std::optional<sf::Event> FeWindow::pollEvent()
 {
-	if ( m_window )
-		return m_window->pollEvent( e );
-
-	return false;
+	return m_window->pollEvent();
 }

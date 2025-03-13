@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -27,18 +27,18 @@
 ////////////////////////////////////////////////////////////
 #include <SFML/Network/Socket.hpp>
 #include <SFML/Network/SocketImpl.hpp>
+
 #include <SFML/System/Err.hpp>
+
+#include <ostream>
+#include <utility>
 
 
 namespace sf
 {
 ////////////////////////////////////////////////////////////
-Socket::Socket(Type type) :
-m_type      (type),
-m_socket    (priv::SocketImpl::invalidSocket()),
-m_isBlocking(true)
+Socket::Socket(Type type) : m_type(type), m_socket(priv::SocketImpl::invalidSocket())
 {
-
 }
 
 
@@ -47,6 +47,30 @@ Socket::~Socket()
 {
     // Close the socket before it gets destructed
     close();
+}
+
+
+////////////////////////////////////////////////////////////
+Socket::Socket(Socket&& socket) noexcept :
+m_type(socket.m_type),
+m_socket(std::exchange(socket.m_socket, priv::SocketImpl::invalidSocket())),
+m_isBlocking(socket.m_isBlocking)
+{
+}
+
+
+////////////////////////////////////////////////////////////
+Socket& Socket::operator=(Socket&& socket) noexcept
+{
+    if (&socket == this)
+        return *this;
+
+    close();
+
+    m_type       = socket.m_type;
+    m_socket     = std::exchange(socket.m_socket, priv::SocketImpl::invalidSocket());
+    m_isBlocking = socket.m_isBlocking;
+    return *this;
 }
 
 
@@ -69,7 +93,7 @@ bool Socket::isBlocking() const
 
 
 ////////////////////////////////////////////////////////////
-SocketHandle Socket::getHandle() const
+SocketHandle Socket::getNativeHandle() const
 {
     return m_socket;
 }
@@ -81,7 +105,7 @@ void Socket::create()
     // Don't create the socket if it already exists
     if (m_socket == priv::SocketImpl::invalidSocket())
     {
-        SocketHandle handle = socket(PF_INET, m_type == Tcp ? SOCK_STREAM : SOCK_DGRAM, 0);
+        const SocketHandle handle = socket(PF_INET, m_type == Type::Tcp ? SOCK_STREAM : SOCK_DGRAM, 0);
 
         if (handle == priv::SocketImpl::invalidSocket())
         {
@@ -106,7 +130,7 @@ void Socket::create(SocketHandle handle)
         // Set the current blocking state
         setBlocking(m_isBlocking);
 
-        if (m_type == Tcp)
+        if (m_type == Type::Tcp)
         {
             // Disable the Nagle algorithm (i.e. removes buffering of TCP packets)
             int yes = 1;
@@ -116,13 +140,13 @@ void Socket::create(SocketHandle handle)
                       << "all your TCP packets will be buffered" << std::endl;
             }
 
-            // On Mac OS X, disable the SIGPIPE signal on disconnection
-            #ifdef SFML_SYSTEM_MACOS
-                if (setsockopt(m_socket, SOL_SOCKET, SO_NOSIGPIPE, reinterpret_cast<char*>(&yes), sizeof(yes)) == -1)
-                {
-                    err() << "Failed to set socket option \"SO_NOSIGPIPE\"" << std::endl;
-                }
-            #endif
+// On macOS, disable the SIGPIPE signal on disconnection
+#ifdef SFML_SYSTEM_MACOS
+            if (setsockopt(m_socket, SOL_SOCKET, SO_NOSIGPIPE, reinterpret_cast<char*>(&yes), sizeof(yes)) == -1)
+            {
+                err() << "Failed to set socket option \"SO_NOSIGPIPE\"" << std::endl;
+            }
+#endif
         }
         else
         {

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -26,54 +26,38 @@
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/Graphics/View.hpp>
+
+#include <cassert>
 #include <cmath>
 
 
 namespace sf
 {
 ////////////////////////////////////////////////////////////
-View::View() :
-m_center             (),
-m_size               (),
-m_rotation           (0),
-m_viewport           (0, 0, 1, 1),
-m_transformUpdated   (false),
-m_invTransformUpdated(false)
+View::View(const FloatRect& rectangle) : m_center(rectangle.getCenter()), m_size(rectangle.size)
 {
-    reset(FloatRect(0, 0, 1000, 1000));
 }
 
 
 ////////////////////////////////////////////////////////////
-View::View(const FloatRect& rectangle) :
-m_center             (),
-m_size               (),
-m_rotation           (0),
-m_viewport           (0, 0, 1, 1),
-m_transformUpdated   (false),
-m_invTransformUpdated(false)
+View::View(Vector2f center, Vector2f size) : m_center(center), m_size(size)
 {
-    reset(rectangle);
 }
 
 
 ////////////////////////////////////////////////////////////
-View::View(const Vector2f& center, const Vector2f& size) :
-m_center             (center),
-m_size               (size),
-m_rotation           (0),
-m_viewport           (0, 0, 1, 1),
-m_transformUpdated   (false),
-m_invTransformUpdated(false)
+void View::setCenter(Vector2f center)
 {
-
+    m_center              = center;
+    m_transformUpdated    = false;
+    m_invTransformUpdated = false;
 }
 
+
 ////////////////////////////////////////////////////////////
-void View::setCenter(float x, float y)
+void View::setSize(Vector2f size)
 {
-    m_center.x = x;
-    m_center.y = y;
+    m_size = size;
 
     m_transformUpdated    = false;
     m_invTransformUpdated = false;
@@ -81,36 +65,9 @@ void View::setCenter(float x, float y)
 
 
 ////////////////////////////////////////////////////////////
-void View::setCenter(const Vector2f& center)
+void View::setRotation(Angle angle)
 {
-    setCenter(center.x, center.y);
-}
-
-
-////////////////////////////////////////////////////////////
-void View::setSize(float width, float height)
-{
-    m_size.x = width;
-    m_size.y = height;
-
-    m_transformUpdated    = false;
-    m_invTransformUpdated = false;
-}
-
-
-////////////////////////////////////////////////////////////
-void View::setSize(const Vector2f& size)
-{
-    setSize(size.x, size.y);
-}
-
-
-////////////////////////////////////////////////////////////
-void View::setRotation(float angle)
-{
-    m_rotation = std::fmod(angle, 360.f);
-    if (m_rotation < 0)
-        m_rotation += 360.f;
+    m_rotation = angle.wrapUnsigned();
 
     m_transformUpdated    = false;
     m_invTransformUpdated = false;
@@ -125,35 +82,35 @@ void View::setViewport(const FloatRect& viewport)
 
 
 ////////////////////////////////////////////////////////////
-void View::reset(const FloatRect& rectangle)
+void View::setScissor(const FloatRect& scissor)
 {
-    m_center.x = rectangle.left + rectangle.width / 2.f;
-    m_center.y = rectangle.top + rectangle.height / 2.f;
-    m_size.x   = rectangle.width;
-    m_size.y   = rectangle.height;
-    m_rotation = 0;
+    assert(scissor.position.x >= 0.0f && scissor.position.x <= 1.0f && "scissor.position.x must lie within [0, 1]");
+    assert(scissor.position.y >= 0.0f && scissor.position.y <= 1.0f && "scissor.position.y must lie within [0, 1]");
+    assert(scissor.size.x >= 0.0f && "scissor.size.x must lie within [0, 1]");
+    assert(scissor.size.y >= 0.0f && "scissor.size.y must lie within [0, 1]");
+    assert(scissor.position.x + scissor.size.x <= 1.0f && "scissor.position.x + scissor.size.x must lie within [0, 1]");
+    assert(scissor.position.y + scissor.size.y <= 1.0f && "scissor.position.y + scissor.size.y must lie within [0, 1]");
 
-    m_transformUpdated    = false;
-    m_invTransformUpdated = false;
+    m_scissor = scissor;
 }
 
 
 ////////////////////////////////////////////////////////////
-const Vector2f& View::getCenter() const
+Vector2f View::getCenter() const
 {
     return m_center;
 }
 
 
 ////////////////////////////////////////////////////////////
-const Vector2f& View::getSize() const
+Vector2f View::getSize() const
 {
     return m_size;
 }
 
 
 ////////////////////////////////////////////////////////////
-float View::getRotation() const
+Angle View::getRotation() const
 {
     return m_rotation;
 }
@@ -167,21 +124,21 @@ const FloatRect& View::getViewport() const
 
 
 ////////////////////////////////////////////////////////////
-void View::move(float offsetX, float offsetY)
+const FloatRect& View::getScissor() const
 {
-    setCenter(m_center.x + offsetX, m_center.y + offsetY);
+    return m_scissor;
 }
 
 
 ////////////////////////////////////////////////////////////
-void View::move(const Vector2f& offset)
+void View::move(Vector2f offset)
 {
     setCenter(m_center + offset);
 }
 
 
 ////////////////////////////////////////////////////////////
-void View::rotate(float angle)
+void View::rotate(Angle angle)
 {
     setRotation(m_rotation + angle);
 }
@@ -190,7 +147,7 @@ void View::rotate(float angle)
 ////////////////////////////////////////////////////////////
 void View::zoom(float factor)
 {
-    setSize(m_size.x * factor, m_size.y * factor);
+    setSize(m_size * factor);
 }
 
 
@@ -201,22 +158,24 @@ const Transform& View::getTransform() const
     if (!m_transformUpdated)
     {
         // Rotation components
-        float angle  = m_rotation * 3.141592654f / 180.f;
-        float cosine = std::cos(angle);
-        float sine   = std::sin(angle);
-        float tx     = -m_center.x * cosine - m_center.y * sine + m_center.x;
-        float ty     =  m_center.x * sine - m_center.y * cosine + m_center.y;
+        const float angle  = m_rotation.asRadians();
+        const float cosine = std::cos(angle);
+        const float sine   = std::sin(angle);
+        const float tx     = -m_center.x * cosine - m_center.y * sine + m_center.x;
+        const float ty     = m_center.x * sine - m_center.y * cosine + m_center.y;
 
         // Projection components
-        float a =  2.f / m_size.x;
-        float b = -2.f / m_size.y;
-        float c = -a * m_center.x;
-        float d = -b * m_center.y;
+        const float a = 2.f / m_size.x;
+        const float b = -2.f / m_size.y;
+        const float c = -a * m_center.x;
+        const float d = -b * m_center.y;
 
         // Rebuild the projection matrix
+        // clang-format off
         m_transform = Transform( a * cosine, a * sine,   a * tx + c,
                                 -b * sine,   b * cosine, b * ty + d,
                                  0.f,        0.f,        1.f);
+        // clang-format on
         m_transformUpdated = true;
     }
 
@@ -230,7 +189,7 @@ const Transform& View::getInverseTransform() const
     // Recompute the matrix if needed
     if (!m_invTransformUpdated)
     {
-        m_inverseTransform = getTransform().getInverse();
+        m_inverseTransform    = getTransform().getInverse();
         m_invTransformUpdated = true;
     }
 

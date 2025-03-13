@@ -26,14 +26,14 @@
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/Window/VideoModeImpl.hpp>
-#include <SFML/System/Android/Activity.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <SFML/System/Sleep.hpp>
-#include <SFML/System/Lock.hpp>
 
-namespace sf
-{
-namespace priv
+#include <SFML/System/Android/Activity.hpp>
+#include <SFML/System/Sleep.hpp>
+#include <SFML/System/Vector2.hpp>
+
+#include <mutex>
+
+namespace sf::priv
 {
 ////////////////////////////////////////////////////////////
 std::vector<VideoMode> VideoModeImpl::getFullscreenModes()
@@ -41,18 +41,11 @@ std::vector<VideoMode> VideoModeImpl::getFullscreenModes()
     // Get the activity states
     priv::ActivityStates& states = priv::getActivity();
 
-    VideoMode desktop;
-
-    {
-        Lock lock(states.mutex);
-        desktop = VideoMode(static_cast<unsigned int>(states.fullScreenSize.x), static_cast<unsigned int>(states.fullScreenSize.y));
-    }
+    const std::lock_guard lock(states.mutex);
+    const auto            desktop = VideoMode(Vector2u(states.fullScreenSize));
 
     // Return both portrait and landscape resolutions
-    std::vector<VideoMode> modes;
-    modes.push_back(desktop);
-    modes.push_back(VideoMode(desktop.height, desktop.width, desktop.bitsPerPixel));
-    return modes;
+    return {desktop, VideoMode(Vector2u(desktop.size.y, desktop.size.x), desktop.bitsPerPixel)};
 }
 
 
@@ -61,11 +54,9 @@ VideoMode VideoModeImpl::getDesktopMode()
 {
     // Get the activity states
     priv::ActivityStates& states = priv::getActivity();
-    Lock lock(states.mutex);
+    const std::lock_guard lock(states.mutex);
 
-    return VideoMode(static_cast<unsigned int>(states.screenSize.x), static_cast<unsigned int>(states.screenSize.y));
+    return VideoMode(Vector2u(states.screenSize));
 }
 
-} // namespace priv
-
-} // namespace sf
+} // namespace sf::priv

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -26,43 +26,23 @@
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/Audio/SoundFileWriterOgg.hpp>
+
 #include <SFML/System/Err.hpp>
+#include <SFML/System/Utils.hpp>
+
 #include <algorithm>
-#include <cctype>
-#include <cstdlib>
+#include <ostream>
+#include <random>
+
 #include <cassert>
 
 
-namespace
-{
-    unsigned char toLower(unsigned char character)
-    {
-        return static_cast<unsigned char>(std::tolower(character));
-    }
-}
-
-namespace sf
-{
-namespace priv
+namespace sf::priv
 {
 ////////////////////////////////////////////////////////////
-bool SoundFileWriterOgg::check(const std::string& filename)
+bool SoundFileWriterOgg::check(const std::filesystem::path& filename)
 {
-    std::string extension = filename.substr(filename.find_last_of('.') + 1);
-    std::transform(extension.begin(), extension.end(), extension.begin(), toLower);
-
-    return extension == "ogg";
-}
-
-
-////////////////////////////////////////////////////////////
-SoundFileWriterOgg::SoundFileWriterOgg() :
-m_channelCount(0),
-m_file        (),
-m_ogg         (),
-m_vorbis      (),
-m_state       ()
-{
+    return toLower(filename.extension().string()) == ".ogg";
 }
 
 
@@ -74,13 +54,88 @@ SoundFileWriterOgg::~SoundFileWriterOgg()
 
 
 ////////////////////////////////////////////////////////////
-bool SoundFileWriterOgg::open(const std::string& filename, unsigned int sampleRate, unsigned int channelCount)
+bool SoundFileWriterOgg::open(const std::filesystem::path&     filename,
+                              unsigned int                     sampleRate,
+                              unsigned int                     channelCount,
+                              const std::vector<SoundChannel>& channelMap)
 {
+    std::vector<SoundChannel> targetChannelMap;
+
+    // For Vorbis channel mapping refer to: https://xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-810004.3.9
+    switch (channelCount)
+    {
+        case 0:
+            err() << "No channels to write to Vorbis file" << std::endl;
+            return false;
+        case 1:
+            targetChannelMap = {SoundChannel::Mono};
+            break;
+        case 2:
+            targetChannelMap = {SoundChannel::FrontLeft, SoundChannel::FrontRight};
+            break;
+        case 3:
+            targetChannelMap = {SoundChannel::FrontLeft, SoundChannel::FrontCenter, SoundChannel::FrontRight};
+            break;
+        case 4:
+            targetChannelMap = {SoundChannel::FrontLeft, SoundChannel::FrontRight, SoundChannel::BackLeft, SoundChannel::BackRight};
+            break;
+        case 5:
+            targetChannelMap = {SoundChannel::FrontLeft,
+                                SoundChannel::FrontCenter,
+                                SoundChannel::FrontRight,
+                                SoundChannel::BackLeft,
+                                SoundChannel::BackRight};
+            break;
+        case 6:
+            targetChannelMap = {SoundChannel::FrontLeft,
+                                SoundChannel::FrontCenter,
+                                SoundChannel::FrontRight,
+                                SoundChannel::BackLeft,
+                                SoundChannel::BackRight,
+                                SoundChannel::LowFrequencyEffects};
+            break;
+        case 7:
+            targetChannelMap = {SoundChannel::FrontLeft,
+                                SoundChannel::FrontCenter,
+                                SoundChannel::FrontRight,
+                                SoundChannel::SideLeft,
+                                SoundChannel::SideRight,
+                                SoundChannel::BackCenter,
+                                SoundChannel::LowFrequencyEffects};
+            break;
+        case 8:
+            targetChannelMap = {SoundChannel::FrontLeft,
+                                SoundChannel::FrontCenter,
+                                SoundChannel::FrontRight,
+                                SoundChannel::SideLeft,
+                                SoundChannel::SideRight,
+                                SoundChannel::BackLeft,
+                                SoundChannel::BackRight,
+                                SoundChannel::LowFrequencyEffects};
+            break;
+        default:
+            err() << "Vorbis files with more than 8 channels not supported" << std::endl;
+            return false;
+    }
+
+    // Check if the channel map contains channels that we cannot remap to a mapping supported by FLAC
+    if (!std::is_permutation(channelMap.begin(), channelMap.end(), targetChannelMap.begin()))
+    {
+        err() << "Provided channel map cannot be reordered to a channel map supported by Vorbis" << std::endl;
+        return false;
+    }
+
+    // Build the remap table
+    for (auto i = 0u; i < channelCount; ++i)
+        m_remapTable[i] = static_cast<std::size_t>(
+            std::find(channelMap.begin(), channelMap.end(), targetChannelMap[i]) - channelMap.begin());
+
     // Save the channel count
     m_channelCount = channelCount;
 
     // Initialize the ogg/vorbis stream
-    ogg_stream_init(&m_ogg, std::rand());
+    static std::mt19937 rng(std::random_device{}());
+    ogg_stream_init(&m_ogg, std::uniform_int_distribution(0, std::numeric_limits<int>::max())(rng));
     vorbis_info_init(&m_vorbis);
 
     // Setup the encoder: VBR, automatic bitrate management
@@ -88,17 +143,18 @@ bool SoundFileWriterOgg::open(const std::string& filename, unsigned int sampleRa
     int status = vorbis_encode_init_vbr(&m_vorbis, static_cast<long>(channelCount), static_cast<long>(sampleRate), 0.4f);
     if (status < 0)
     {
-        err() << "Failed to write ogg/vorbis file \"" << filename << "\" (unsupported bitrate)" << std::endl;
+        err() << "Failed to write ogg/vorbis file (unsupported bitrate)\n"
+              << formatDebugPathInfo(filename) << std::endl;
         close();
         return false;
     }
     vorbis_analysis_init(&m_state, &m_vorbis);
 
     // Open the file after the vorbis setup is ok
-    m_file.open(filename.c_str(), std::ios::binary);
+    m_file.open(filename, std::ios::binary);
     if (!m_file)
     {
-        err() << "Failed to write ogg/vorbis file \"" << filename << "\" (cannot open file)" << std::endl;
+        err() << "Failed to write ogg/vorbis file (cannot open file)\n" << formatDebugPathInfo(filename) << std::endl;
         close();
         return false;
     }
@@ -108,12 +164,15 @@ bool SoundFileWriterOgg::open(const std::string& filename, unsigned int sampleRa
     vorbis_comment_init(&comment);
 
     // Generate the header packets
-    ogg_packet header, headerComm, headerCode;
+    ogg_packet header;
+    ogg_packet headerComm;
+    ogg_packet headerCode;
     status = vorbis_analysis_headerout(&m_state, &comment, &header, &headerComm, &headerCode);
     vorbis_comment_clear(&comment);
     if (status < 0)
     {
-        err() << "Failed to write ogg/vorbis file \"" << filename << "\" (cannot generate the headers)" << std::endl;
+        err() << "Failed to write ogg/vorbis file (cannot generate the headers)\n"
+              << formatDebugPathInfo(filename) << std::endl;
         close();
         return false;
     }
@@ -136,10 +195,10 @@ bool SoundFileWriterOgg::open(const std::string& filename, unsigned int sampleRa
 
 
 ////////////////////////////////////////////////////////////
-void SoundFileWriterOgg::write(const Int16* samples, Uint64 count)
+void SoundFileWriterOgg::write(const std::int16_t* samples, std::uint64_t count)
 {
     // Vorbis has issues with buffers that are too large, so we ask for 64K
-    static const int bufferSize = 65536;
+    constexpr int bufferSize = 65536;
 
     // A frame contains a sample from each channel
     int frameCount = static_cast<int>(count / m_channelCount);
@@ -148,12 +207,16 @@ void SoundFileWriterOgg::write(const Int16* samples, Uint64 count)
     {
         // Prepare a buffer to hold our samples
         float** buffer = vorbis_analysis_buffer(&m_state, bufferSize);
-        assert(buffer);
+        assert(buffer && "Vorbis buffer failed to allocate");
 
-        // Write the samples to the buffer, converted to float
+        // Write the samples to the buffer, converted to float and remapped to target channels
         for (int i = 0; i < std::min(frameCount, bufferSize); ++i)
+        {
             for (unsigned int j = 0; j < m_channelCount; ++j)
-                buffer[j][i] = *samples++ / 32767.0f;
+                buffer[j][i] = samples[m_remapTable[j]] / 32767.0f;
+
+            samples += m_channelCount;
+        }
 
         // Tell the library how many samples we've written
         vorbis_analysis_wrote(&m_state, std::min(frameCount, bufferSize));
@@ -175,7 +238,7 @@ void SoundFileWriterOgg::flushBlocks()
     while (vorbis_analysis_blockout(&m_state, &block) == 1)
     {
         // Let the automatic bitrate management do its job
-        vorbis_analysis(&block, NULL);
+        vorbis_analysis(&block, nullptr);
         vorbis_bitrate_addblock(&block);
 
         // Get new packets from the bitrate management engine
@@ -219,6 +282,4 @@ void SoundFileWriterOgg::close()
     vorbis_info_clear(&m_vorbis);
 }
 
-} // namespace priv
-
-} // namespace sf
+} // namespace sf::priv

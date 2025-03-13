@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -27,13 +27,12 @@
 ////////////////////////////////////////////////////////////
 #include <SFML/Window/Unix/KeySymToUnicodeMapping.hpp>
 
-namespace sf
-{
-namespace priv
+namespace sf::priv
 {
 
-Uint32 keysymToUnicode(KeySym keysym)
+char32_t keysymToUnicode(KeySym keysym)
 {
+    // clang-format off
     switch (keysym)
     {
         case 0xff08: return 0x0008; // BackSpace
@@ -1395,9 +1394,7 @@ Uint32 keysymToUnicode(KeySym keysym)
         case 0x0ef7: return 0x318e; // Hangul_AraeAE
         default:     return 0;
     }
+    // clang-format on
 }
 
-
-} // namespace priv
-
-} // namespace sf
+} // namespace sf::priv

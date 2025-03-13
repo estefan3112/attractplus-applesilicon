@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -25,24 +25,16 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
-#include <SFML/Graphics/VertexArray.hpp>
 #include <SFML/Graphics/RenderTarget.hpp>
+#include <SFML/Graphics/VertexArray.hpp>
+
+#include <cassert>
 
 
 namespace sf
 {
 ////////////////////////////////////////////////////////////
-VertexArray::VertexArray() :
-m_vertices     (),
-m_primitiveType(Points)
-{
-}
-
-
-////////////////////////////////////////////////////////////
-VertexArray::VertexArray(PrimitiveType type, std::size_t vertexCount) :
-m_vertices     (vertexCount),
-m_primitiveType(type)
+VertexArray::VertexArray(PrimitiveType type, std::size_t vertexCount) : m_vertices(vertexCount), m_primitiveType(type)
 {
 }
 
@@ -55,15 +47,17 @@ std::size_t VertexArray::getVertexCount() const
 
 
 ////////////////////////////////////////////////////////////
-Vertex& VertexArray::operator [](std::size_t index)
+Vertex& VertexArray::operator[](std::size_t index)
 {
+    assert(index < m_vertices.size() && "Index is out of bounds");
     return m_vertices[index];
 }
 
 
 ////////////////////////////////////////////////////////////
-const Vertex& VertexArray::operator [](std::size_t index) const
+const Vertex& VertexArray::operator[](std::size_t index) const
 {
+    assert(index < m_vertices.size() && "Index is out of bounds");
     return m_vertices[index];
 }
 
@@ -115,7 +109,7 @@ FloatRect VertexArray::getBounds() const
 
         for (std::size_t i = 1; i < m_vertices.size(); ++i)
         {
-            Vector2f position = m_vertices[i].position;
+            const Vector2f position = m_vertices[i].position;
 
             // Update left and right
             if (position.x < left)
@@ -130,13 +124,11 @@ FloatRect VertexArray::getBounds() const
                 bottom = position.y;
         }
 
-        return FloatRect(left, top, right - left, bottom - top);
+        return {{left, top}, {right - left, bottom - top}};
     }
-    else
-    {
-        // Array is empty
-        return FloatRect();
-    }
+
+    // Array is empty
+    return {};
 }
 
 
@@ -144,7 +136,7 @@ FloatRect VertexArray::getBounds() const
 void VertexArray::draw(RenderTarget& target, RenderStates states) const
 {
     if (!m_vertices.empty())
-        target.draw(&m_vertices[0], m_vertices.size(), m_primitiveType, states);
+        target.draw(m_vertices.data(), m_vertices.size(), m_primitiveType, states);
 }
 
 } // namespace sf

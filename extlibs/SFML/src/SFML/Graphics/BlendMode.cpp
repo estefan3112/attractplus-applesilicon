@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -33,71 +33,64 @@ namespace sf
 ////////////////////////////////////////////////////////////
 // Commonly used blending modes
 ////////////////////////////////////////////////////////////
-const BlendMode BlendAlpha(BlendMode::SrcAlpha, BlendMode::OneMinusSrcAlpha, BlendMode::Add,
-                           BlendMode::One, BlendMode::OneMinusSrcAlpha, BlendMode::Add);
-const BlendMode BlendAdd(BlendMode::SrcAlpha, BlendMode::One, BlendMode::Add,
-                         BlendMode::One, BlendMode::One, BlendMode::Add);
-const BlendMode BlendMultiply(BlendMode::DstColor, BlendMode::Zero, BlendMode::Add);
-const BlendMode BlendMin(BlendMode::One, BlendMode::One, BlendMode::Min);
-const BlendMode BlendMax(BlendMode::One, BlendMode::One, BlendMode::Max);
-const BlendMode BlendNone(BlendMode::One, BlendMode::Zero, BlendMode::Add);
-
-
-////////////////////////////////////////////////////////////
-BlendMode::BlendMode() :
-colorSrcFactor(BlendMode::SrcAlpha),
-colorDstFactor(BlendMode::OneMinusSrcAlpha),
-colorEquation (BlendMode::Add),
-alphaSrcFactor(BlendMode::One),
-alphaDstFactor(BlendMode::OneMinusSrcAlpha),
-alphaEquation (BlendMode::Add)
-{
-
-}
+const BlendMode BlendAlpha(BlendMode::Factor::SrcAlpha,
+                           BlendMode::Factor::OneMinusSrcAlpha,
+                           BlendMode::Equation::Add,
+                           BlendMode::Factor::One,
+                           BlendMode::Factor::OneMinusSrcAlpha,
+                           BlendMode::Equation::Add);
+const BlendMode BlendAdd(BlendMode::Factor::SrcAlpha,
+                         BlendMode::Factor::One,
+                         BlendMode::Equation::Add,
+                         BlendMode::Factor::One,
+                         BlendMode::Factor::One,
+                         BlendMode::Equation::Add);
+const BlendMode BlendMultiply(BlendMode::Factor::DstColor, BlendMode::Factor::Zero, BlendMode::Equation::Add);
+const BlendMode BlendMin(BlendMode::Factor::One, BlendMode::Factor::One, BlendMode::Equation::Min);
+const BlendMode BlendMax(BlendMode::Factor::One, BlendMode::Factor::One, BlendMode::Equation::Max);
+const BlendMode BlendNone(BlendMode::Factor::One, BlendMode::Factor::Zero, BlendMode::Equation::Add);
 
 
 ////////////////////////////////////////////////////////////
 BlendMode::BlendMode(Factor sourceFactor, Factor destinationFactor, Equation blendEquation) :
 colorSrcFactor(sourceFactor),
 colorDstFactor(destinationFactor),
-colorEquation (blendEquation),
+colorEquation(blendEquation),
 alphaSrcFactor(sourceFactor),
 alphaDstFactor(destinationFactor),
-alphaEquation (blendEquation)
+alphaEquation(blendEquation)
 {
-
 }
 
 
 ////////////////////////////////////////////////////////////
-BlendMode::BlendMode(Factor colorSourceFactor, Factor colorDestinationFactor,
-                     Equation colorBlendEquation, Factor alphaSourceFactor,
-                     Factor alphaDestinationFactor, Equation alphaBlendEquation) :
+BlendMode::BlendMode(Factor   colorSourceFactor,
+                     Factor   colorDestinationFactor,
+                     Equation colorBlendEquation,
+                     Factor   alphaSourceFactor,
+                     Factor   alphaDestinationFactor,
+                     Equation alphaBlendEquation) :
 colorSrcFactor(colorSourceFactor),
 colorDstFactor(colorDestinationFactor),
-colorEquation (colorBlendEquation),
+colorEquation(colorBlendEquation),
 alphaSrcFactor(alphaSourceFactor),
 alphaDstFactor(alphaDestinationFactor),
-alphaEquation (alphaBlendEquation)
+alphaEquation(alphaBlendEquation)
 {
-
 }
 
 
 ////////////////////////////////////////////////////////////
-bool operator ==(const BlendMode& left, const BlendMode& right)
+bool operator==(const BlendMode& left, const BlendMode& right)
 {
-    return (left.colorSrcFactor == right.colorSrcFactor) &&
-           (left.colorDstFactor == right.colorDstFactor) &&
-           (left.colorEquation  == right.colorEquation)  &&
-           (left.alphaSrcFactor == right.alphaSrcFactor) &&
-           (left.alphaDstFactor == right.alphaDstFactor) &&
-           (left.alphaEquation  == right.alphaEquation);
+    return (left.colorSrcFactor == right.colorSrcFactor) && (left.colorDstFactor == right.colorDstFactor) &&
+           (left.colorEquation == right.colorEquation) && (left.alphaSrcFactor == right.alphaSrcFactor) &&
+           (left.alphaDstFactor == right.alphaDstFactor) && (left.alphaEquation == right.alphaEquation);
 }
 
 
 ////////////////////////////////////////////////////////////
-bool operator !=(const BlendMode& left, const BlendMode& right)
+bool operator!=(const BlendMode& left, const BlendMode& right)
 {
     return !(left == right);
 }

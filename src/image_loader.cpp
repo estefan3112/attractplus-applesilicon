@@ -46,20 +46,26 @@
 namespace
 {
 	// stb_image callbacks that operate on a sf::InputStream
-	int read(void* user, char* data, int size)
+	int read( void* user, char* data, int size )
 	{
-		sf::InputStream* stream = static_cast<sf::InputStream*>(user);
-		return static_cast<int>(stream->read(data, size));
+		sf::InputStream* stream = static_cast<sf::InputStream*>( user );
+		auto result = stream->read( data, size );
+		return result.value_or(0);
 	}
-	void skip(void* user, int size)
+
+	void skip( void* user, int size )
 	{
-		sf::InputStream* stream = static_cast<sf::InputStream*>(user);
-		stream->seek(stream->tell() + size);
+		sf::InputStream* stream = static_cast<sf::InputStream*>( user );
+		auto position = stream->tell().value_or(0);
+		stream->seek( position + static_cast<std::size_t>( size ));
 	}
-	int eof(void* user)
+
+	int eof( void* user )
 	{
-		sf::InputStream* stream = static_cast<sf::InputStream*>(user);
-		return stream->tell() >= stream->getSize();
+		sf::InputStream* stream = static_cast<sf::InputStream*>( user );
+		auto pos = stream->tell().value_or(0);
+		auto size = stream->getSize().value_or(0);
+		return ( pos >= size ) ? 1 : 0;
 	}
 	std::recursive_mutex g_mutex;
 
@@ -240,9 +246,9 @@ public:
 
 				// Load image pixel data
 				stbi_io_callbacks cb;
-				cb.read = &read;
+				cb.read = reinterpret_cast<int(*)( void*, char*, int )>( &read );
 				cb.skip = &skip;
-				cb.eof = &eof;
+				cb.eof = reinterpret_cast<int(*)( void* )>( &eof );
 
 				unsigned char *data = stbi_load_from_callbacks( &cb, e.second->m_stream,
 					&(e.second->m_width), &(e.second->m_height), &ignored, STBI_rgb_alpha );
@@ -254,6 +260,10 @@ public:
 					std::lock_guard<std::recursive_mutex> l( g_mutex );
 					e.second->m_data = data;
 					e.second->m_loaded = true;
+
+					// Delete and null the stream after loading data
+					delete e.second->m_stream;
+					e.second->m_stream = nullptr;
 
 					if ( e.second->dec_ref() )
 						delete e.second;
@@ -414,7 +424,7 @@ FeImageLoader::~FeImageLoader()
 
 bool FeImageLoader::load_image_from_file( const std::string &fn, FeImageLoaderEntry **e )
 {
-	sf::InputStream *fs = new FeFileInputStream( fn );
+	sf::FileInputStream *fs = new sf::FileInputStream( fn );
 	return internal_load_image( fn, fs, e );
 }
 
@@ -447,9 +457,9 @@ bool FeImageLoader::internal_load_image( const std::string &key, sf::InputStream
 
 	// load image dimensions now
 	stbi_io_callbacks cb;
-	cb.read = &read;
+	cb.read = reinterpret_cast<int(*)( void*, char*, int )>( &read );
 	cb.skip = &skip;
-	cb.eof = &eof;
+	cb.eof = reinterpret_cast<int(*)( void* )>( &eof );
 
 	int retval=false;
 	int ignored;
@@ -460,6 +470,10 @@ bool FeImageLoader::internal_load_image( const std::string &key, sf::InputStream
 			&(temp_e->m_width), &(temp_e->m_height), &ignored, STBI_rgb_alpha );
 
 		temp_e->m_loaded = true;
+
+		// Delete and null the stream after loading data
+		delete temp_e->m_stream;
+		temp_e->m_stream = nullptr;
 
 		if ( !temp_e->m_data )
 		{
@@ -481,9 +495,18 @@ bool FeImageLoader::internal_load_image( const std::string &key, sf::InputStream
 		m_imp->m_bg_loader.add( key, temp_e );
 	}
 
-	// add to cache
+	// Add to cache
+	// Skip adding to cache if the image is larger than the cache size
 	if ( !err && m_imp->m_cache )
-		m_imp->m_cache->put( key, temp_e );
+	{
+		size_t imageSize = temp_e->get_bytes();
+		size_t cacheSize = m_imp->m_cache->get_max_size();
+
+		if ( imageSize > cacheSize )
+			FeDebug() << "Image " << key << " is larger than the cache size" << std::endl;
+		else
+			m_imp->m_cache->put( key, temp_e );
+	}
 
 	{
 		std::lock_guard<std::recursive_mutex> l( g_mutex );

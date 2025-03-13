@@ -22,82 +22,82 @@
 //
 ////////////////////////////////////////////////////////////
 
-#ifndef SFML_ACTIVITY_HPP
-#define SFML_ACTIVITY_HPP
+#pragma once
 
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
-#include <SFML/Window/Event.hpp>
 #include <SFML/Window/EglContext.hpp>
-#include <SFML/System/Mutex.hpp>
-#include <android/native_activity.h>
+#include <SFML/Window/Event.hpp>
+
+#include <SFML/System/EnumArray.hpp>
+
 #include <android/configuration.h>
-#include <vector>
-#include <map>
-#include <string>
+#include <android/native_activity.h>
+
 #include <fstream>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include <cstddef>
 
 class SFML_SYSTEM_API LogcatStream : public std::streambuf
 {
 public:
-    LogcatStream();
+    LogcatStream() = default;
 
-    std::streambuf::int_type overflow (std::streambuf::int_type c);
+    std::streambuf::int_type overflow(std::streambuf::int_type c) override;
 
 private:
     std::string m_message;
 };
 
-namespace sf
-{
-namespace priv
+namespace sf::priv
 {
 struct ActivityStates
 {
-    ANativeActivity* activity;
-    ANativeWindow* window;
+    ANativeActivity* activity{};
+    ANativeWindow*   window{};
 
-    ALooper*        looper;
-    AInputQueue*    inputQueue;
-    AConfiguration* config;
+    ALooper*        looper{};
+    AInputQueue*    inputQueue{};
+    AConfiguration* config{};
 
-    EGLDisplay display;
-    EglContext* context;
+    EGLDisplay  display{};
+    EglContext* context{};
 
-    void* savedState;
-    size_t savedStateSize;
+    std::vector<std::byte> savedState;
 
-    Mutex mutex;
+    std::recursive_mutex mutex;
 
-    void (*forwardEvent)(const Event& event);
-    int (*processEvent)(int fd, int events, void* data);
+    void (*forwardEvent)(const Event& event){};
+    int (*processEvent)(int fd, int events, void* data){};
 
-    std::map<int, Vector2i> touchEvents;
-    Vector2i mousePosition;
-    bool isButtonPressed[Mouse::ButtonCount];
+    std::unordered_map<int, Vector2i>                  touchEvents;
+    Vector2i                                           mousePosition;
+    EnumArray<Mouse::Button, bool, Mouse::ButtonCount> isButtonPressed{};
 
-    bool mainOver;
+    bool mainOver{};
 
     Vector2i screenSize;
     Vector2i fullScreenSize;
 
-    bool initialized;
-    bool terminated;
+    bool initialized{};
+    bool terminated{};
 
-    bool fullscreen;
+    bool fullscreen{};
 
-    bool updated;
+    bool updated{};
 
     LogcatStream logcat;
 };
 
 SFML_SYSTEM_API ActivityStates*& getActivityStatesPtr();
+
 SFML_SYSTEM_API void resetActivity(ActivityStates* initializedStates);
+
 SFML_SYSTEM_API ActivityStates& getActivity();
 
-} // namespace priv
-} // namespace sf
-
-
-#endif // SFML_ACTIVITY_HPP
+} // namespace sf::priv

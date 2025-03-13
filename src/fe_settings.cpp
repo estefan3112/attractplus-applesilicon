@@ -34,6 +34,7 @@
 #include <cstring>
 #include <iomanip>
 #include <algorithm>
+#include <random>
 #include <stdlib.h>
 #include <cctype>
 
@@ -307,6 +308,7 @@ FeSettings::FeSettings( const std::string &config_path )
 	m_mouse_thresh( 10 ),
 	m_current_search_index( 0 ),
 	m_current_display_index( 0 ),
+	m_actual_display_index( 0 ),
 	m_displays_menu_exit( true ),
 	m_hide_brackets( false ),
 	m_group_clones( false ),
@@ -365,6 +367,7 @@ FeSettings::FeSettings( const std::string &config_path )
 		m_config_path += '/';
 
 	FeCache::set_config_path( m_config_path );
+	FeCache::set_displays( &m_displays );
 }
 
 void FeSettings::clear()
@@ -764,7 +767,7 @@ void FeSettings::save_state()
 		display_idx = m_display_stack.front();
 
 	if ( display_idx < 0 )
-		display_idx = m_current_display_index;
+		display_idx = m_actual_display_index;
 
 	m_rl.save_state();
 
@@ -815,6 +818,7 @@ void FeSettings::load_state()
 		token_helper( line, pos, tok, ";" );
 
 		m_current_display = as_int( tok );
+		m_actual_display_index = m_current_display;
 
 		token_helper( line, pos, tok, ";" );
 
@@ -902,9 +906,12 @@ void FeSettings::load_state()
 	}
 }
 
-FeInputMap::Command FeSettings::map_input( const sf::Event &e )
+FeInputMap::Command FeSettings::map_input( const std::optional<sf::Event> &e )
 {
-	return m_inputmap.map_input( e, m_mousecap_rect, m_joy_thresh );
+	if ( e.has_value() )
+		return m_inputmap.map_input( e.value(), m_mousecap_rect, m_joy_thresh );
+	else
+		return FeInputMap::LAST_COMMAND;
 }
 
 FeInputMap::Command FeSettings::input_conflict_check( const FeInputMapEntry &e )
@@ -939,15 +946,15 @@ void FeSettings::init_mouse_capture( int window_x, int window_y )
 	int centre_x = window_x / 2;
 	int centre_y = window_y / 2;
 
-	m_mousecap_rect.left = centre_x - radius;
-	m_mousecap_rect.top = centre_y - radius;
-	m_mousecap_rect.width = radius * 2;
-	m_mousecap_rect.height = radius * 2;
+	m_mousecap_rect.position.x = centre_x - radius;
+	m_mousecap_rect.position.y = centre_y - radius;
+	m_mousecap_rect.size.x = radius * 2;
+	m_mousecap_rect.size.y = radius * 2;
 }
 
 bool FeSettings::test_mouse_reset( int mouse_x, int mouse_y ) const
 {
-	return (( m_inputmap.has_mouse_moves() ) && ( !m_mousecap_rect.contains( mouse_x, mouse_y ) ));
+	return (( m_inputmap.has_mouse_moves() ) && ( !m_mousecap_rect.contains({ mouse_x, mouse_y })));
 }
 
 int FeSettings::get_filter_index_from_offset( int offset ) const
@@ -1493,6 +1500,9 @@ int FeSettings::display_menu_get_current_selection_as_absolute_display_index()
 
 bool FeSettings::set_display( int index, bool stack_previous )
 {
+	if ( m_displays.size() == 0 )
+		return false;
+
 	std::string old_path, old_file;
 
 	get_path( Layout, old_path, old_file );
@@ -1527,6 +1537,9 @@ bool FeSettings::set_display( int index, bool stack_previous )
 	}
 
 	m_current_display = index;
+
+	if ( m_current_display != -1 )
+		m_actual_display_index = m_current_display;
 
 	m_rl.save_state();
 	init_display();
@@ -1609,6 +1622,11 @@ bool FeSettings::navigate_filter( int step )
 int FeSettings::get_current_display_index() const
 {
 	return m_current_display;
+}
+
+int FeSettings::get_actual_display_index() const
+{
+	return m_actual_display_index;
 }
 
 int FeSettings::get_display_index_from_name( const std::string &n ) const
@@ -2420,17 +2438,10 @@ bool FeSettings::update_stats( int play_count, int play_time )
 	bool fixed = m_rl.fix_filters( m_displays[m_current_display], FeRomInfo::PlayedCount );
 	fixed |= m_rl.fix_filters( m_displays[m_current_display], FeRomInfo::PlayedTime );
 
-	// Invalidate the cache for all displays using stats in its rules/sort
+	// Invalidate all cache files using stats in their rules
 	std::string romlist_name = m_displays[m_current_display].get_romlist_name();
-	for ( int i=0; i<m_displays.size(); i++ )
-	{
-		if ( m_displays[i].get_romlist_name() == romlist_name )
-		{
-			FeCache::invalidate_rominfo( m_displays[i], FeRomInfo::PlayedCount );
-			FeCache::invalidate_rominfo( m_displays[i], FeRomInfo::PlayedTime );
-		}
-	}
-	FeCache::save_romlist_cache( m_displays[m_current_display], m_rl );
+	FeCache::invalidate_rominfo( romlist_name, FeRomInfo::PlayedCount );
+	FeCache::invalidate_rominfo( romlist_name, FeRomInfo::PlayedTime );
 
 	if ( fixed && ( &m_rl.lookup( filter_index, rom_index ) != rom ))
 	{
@@ -3104,7 +3115,7 @@ bool FeSettings::set_info( int index, const std::string &value )
 
 	case AntiAliasing:
 		// Limit to the maximum antialiasing level supported by the system but not greater than 8
-		m_antialiasing = std::min( std::min( as_int( value ), static_cast<int>( sf::RenderTexture::getMaximumAntialiasingLevel() )), 8 );
+		m_antialiasing = std::min( std::min( as_int( value ), static_cast<int>( sf::RenderTexture::getMaximumAntiAliasingLevel() )), 8 );
 
 		// Check if it's a power of 2 and if it's greater than 1
 		if ( m_antialiasing > 1 && !( m_antialiasing & ( m_antialiasing - 1 )))
@@ -3884,8 +3895,9 @@ bool gather_artwork_filenames(
 			}
 #endif
 
-			std::random_shuffle( vid_contents.begin(), vid_contents.end() );
-			std::random_shuffle( img_contents.begin(), img_contents.end() );
+			std::mt19937 rnd{ std::random_device{}() };
+			std::shuffle( vid_contents.begin(), vid_contents.end(), rnd );
+			std::shuffle( img_contents.begin(), img_contents.end(), rnd );
 
 			images.insert( images.end(), img_contents.begin(), img_contents.end() );
 			vids.insert( vids.end(), vid_contents.begin(), vid_contents.end() );

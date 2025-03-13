@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2023 Andrew Mickelson
+// Copyright (C) 2024 Andrew Mickelson
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -25,29 +25,23 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
-#include <SFML/Window/VideoModeImpl.hpp>
 #include <SFML/Window/DRM/DRMContext.hpp>
+#include <SFML/Window/VideoModeImpl.hpp>
+
 #include <SFML/System/Err.hpp>
 
 
-namespace sf
-{
-namespace priv
+namespace sf::priv
 {
 ////////////////////////////////////////////////////////////
 std::vector<VideoMode> VideoModeImpl::getFullscreenModes()
 {
     std::vector<VideoMode> modes;
 
-    Drm& drm = sf::priv::DRMContext::getDRM();
-    drmModeConnectorPtr conn = drm.savedConnector;
-
-    if (conn)
+    if (const auto* conn = DRMContext::getDRM().savedConnector)
     {
         for (int i = 0; i < conn->count_modes; i++)
-            modes.push_back(
-                VideoMode(conn->modes[i].hdisplay,
-                    conn->modes[i].vdisplay));
+            modes.push_back(VideoMode({conn->modes[i].hdisplay, conn->modes[i].vdisplay}));
     }
     else
         modes.push_back(getDesktopMode());
@@ -59,17 +53,9 @@ std::vector<VideoMode> VideoModeImpl::getFullscreenModes()
 ////////////////////////////////////////////////////////////
 VideoMode VideoModeImpl::getDesktopMode()
 {
-    Drm& drm = sf::priv::DRMContext::getDRM();
-    drmModeModeInfoPtr ptr = drm.mode;
-    if (!ptr) // if no mode has been set, return the original mode we started with
-        ptr = &drm.originalCrtc->mode;
-
-    if (ptr)
-        return VideoMode(ptr->hdisplay, ptr->vdisplay);
-    else
-        return VideoMode(0, 0);
+    const Drm&               drm = DRMContext::getDRM();
+    const drmModeModeInfoPtr ptr = drm.mode ? drm.mode : &drm.originalCrtc->mode;
+    return VideoMode({ptr->hdisplay, ptr->vdisplay});
 }
 
-} // namespace priv
-
-} // namespace sf
+} // namespace sf::priv

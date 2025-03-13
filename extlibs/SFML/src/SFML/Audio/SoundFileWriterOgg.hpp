@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -22,20 +22,23 @@
 //
 ////////////////////////////////////////////////////////////
 
-#ifndef SFML_SOUNDFILEWRITEROGG_HPP
-#define SFML_SOUNDFILEWRITEROGG_HPP
+#pragma once
 
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/Audio/SoundFileWriter.hpp>
+
 #include <vorbis/vorbisenc.h>
+
+#include <array>
+#include <filesystem>
 #include <fstream>
 
+#include <cstdint>
 
-namespace sf
-{
-namespace priv
+
+namespace sf::priv
 {
 ////////////////////////////////////////////////////////////
 /// \brief Implementation of sound file writer that handles OGG/Vorbis files
@@ -44,30 +47,21 @@ namespace priv
 class SoundFileWriterOgg : public SoundFileWriter
 {
 public:
-
     ////////////////////////////////////////////////////////////
     /// \brief Check if this writer can handle a file on disk
     ///
     /// \param filename Path of the sound file to check
     ///
-    /// \return True if the file can be written by this writer
+    /// \return `true` if the file can be written by this writer
     ///
     ////////////////////////////////////////////////////////////
-    static bool check(const std::string& filename);
-
-public:
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Default constructor
-    ///
-    ////////////////////////////////////////////////////////////
-    SoundFileWriterOgg();
+    [[nodiscard]] static bool check(const std::filesystem::path& filename);
 
     ////////////////////////////////////////////////////////////
     /// \brief Destructor
     ///
     ////////////////////////////////////////////////////////////
-    ~SoundFileWriterOgg();
+    ~SoundFileWriterOgg() override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Open a sound file for writing
@@ -75,11 +69,15 @@ public:
     /// \param filename     Path of the file to open
     /// \param sampleRate   Sample rate of the sound
     /// \param channelCount Number of channels of the sound
+    /// \param channelMap   Map of position in sample frame to sound channel
     ///
-    /// \return True if the file was successfully opened
+    /// \return `true` if the file was successfully opened
     ///
     ////////////////////////////////////////////////////////////
-    virtual bool open(const std::string& filename, unsigned int sampleRate, unsigned int channelCount);
+    [[nodiscard]] bool open(const std::filesystem::path&     filename,
+                            unsigned int                     sampleRate,
+                            unsigned int                     channelCount,
+                            const std::vector<SoundChannel>& channelMap) override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Write audio samples to the open file
@@ -88,10 +86,9 @@ public:
     /// \param count   Number of samples to write
     ///
     ////////////////////////////////////////////////////////////
-    virtual void write(const Int16* samples, Uint64 count);
+    void write(const std::int16_t* samples, std::uint64_t count) override;
 
 private:
-
     ////////////////////////////////////////////////////////////
     /// \brief Flush blocks produced by the ogg stream, if any
     ///
@@ -107,16 +104,12 @@ private:
     ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
-    unsigned int     m_channelCount; // channel count of the sound being written
-    std::ofstream    m_file;         // output file
-    ogg_stream_state m_ogg;          // ogg stream
-    vorbis_info      m_vorbis;       // vorbis handle
-    vorbis_dsp_state m_state;        // current encoding state
+    unsigned int               m_channelCount{}; //!< Channel count of the sound being written
+    std::array<std::size_t, 8> m_remapTable{};   //!< Table we use to remap source to target channel order
+    std::ofstream              m_file;           //!< Output file
+    ogg_stream_state           m_ogg{};          //!< OGG stream
+    vorbis_info                m_vorbis{};       //!< Vorbis handle
+    vorbis_dsp_state           m_state{};        //!< Current encoding state
 };
 
-} // namespace priv
-
-} // namespace sf
-
-
-#endif // SFML_SOUNDFILEWRITEROGG_HPP
+} // namespace sf::priv

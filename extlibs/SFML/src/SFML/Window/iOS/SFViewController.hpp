@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -22,8 +22,7 @@
 //
 ////////////////////////////////////////////////////////////
 
-#ifndef SFML_SFVIEWCONTROLLER_HPP
-#define SFML_SFVIEWCONTROLLER_HPP
+#pragma once
 
 ////////////////////////////////////////////////////////////
 // Headers
@@ -42,7 +41,7 @@
 ///
 /// \param interfaceOrientation Orientation to check
 ///
-/// \return True if auto-rotation is supported, false otherwise
+/// \return `true` if auto-rotation is supported, `false` otherwise
 ///
 ////////////////////////////////////////////////////////////
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation;
@@ -50,7 +49,7 @@
 ////////////////////////////////////////////////////////////
 /// \brief Tells if the controller supports auto-rotation (iOS >= 6)
 ///
-/// \return True if auto-rotation is supported, false otherwise
+/// \return `true` if auto-rotation is supported, `false` otherwise
 ///
 ////////////////////////////////////////////////////////////
 - (BOOL)shouldAutorotate;
@@ -58,8 +57,6 @@
 ////////////////////////////////////////////////////////////
 // Member data
 ////////////////////////////////////////////////////////////
-@property (nonatomic) bool orientationCanChange; ///< Tells whether the controller's view can rotate or not
+@property(nonatomic) bool orientationCanChange; ///< Tells whether the controller's view can rotate or not
 
 @end
-
-#endif // SFML_SFVIEWCONTROLLER_HPP

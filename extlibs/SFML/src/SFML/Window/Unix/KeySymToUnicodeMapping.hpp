@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -22,18 +22,16 @@
 //
 ////////////////////////////////////////////////////////////
 
-#ifndef SFML_KEYSYMTOUNICODEMAPPING_HPP
-#define SFML_KEYSYMTOUNICODEMAPPING_HPP
+#pragma once
 
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
-#include <SFML/Config.hpp> // sf::Uint32
 #include <X11/X.h> // KeySym
 
-namespace sf
-{
-namespace priv
+#include <cstdint>
+
+namespace sf::priv
 {
 
 ////////////////////////////////////////////////////////////
@@ -51,10 +49,6 @@ namespace priv
 /// \return corresponding UTF-32
 ///
 ////////////////////////////////////////////////////////////
-Uint32 keysymToUnicode(KeySym keysym);
+char32_t keysymToUnicode(KeySym keysym);
 
-} // namespace priv
-
-} // namespace sf
-
-#endif // SFML_KEYSYMTOUNICODEMAPPING_HPP
+} // namespace sf::priv

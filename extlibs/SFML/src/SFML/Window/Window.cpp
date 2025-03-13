@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -25,101 +25,73 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
-#include <SFML/Window/Window.hpp>
 #include <SFML/Window/GlContext.hpp>
+#include <SFML/Window/Window.hpp>
 #include <SFML/Window/WindowImpl.hpp>
-#include <SFML/System/Sleep.hpp>
+
 #include <SFML/System/Err.hpp>
+#include <SFML/System/Sleep.hpp>
+
+#include <ostream>
 
 
 namespace sf
 {
 ////////////////////////////////////////////////////////////
-Window::Window() :
-m_context       (NULL),
-m_frameTimeLimit(Time::Zero)
-{
+Window::Window() = default;
 
+
+////////////////////////////////////////////////////////////
+Window::Window(VideoMode mode, const String& title, std::uint32_t style, State state, const ContextSettings& settings)
+{
+    Window::create(mode, title, style, state, settings);
 }
 
 
 ////////////////////////////////////////////////////////////
-Window::Window(VideoMode mode, const String& title, Uint32 style, const ContextSettings& settings) :
-m_context       (NULL),
-m_frameTimeLimit(Time::Zero)
+Window::Window(VideoMode mode, const String& title, State state, const ContextSettings& settings)
 {
-    Window::create(mode, title, style, settings);
+    Window::create(mode, title, sf::Style::Default, state, settings);
 }
 
 
 ////////////////////////////////////////////////////////////
-Window::Window(WindowHandle handle, const ContextSettings& settings) :
-m_context       (NULL),
-m_frameTimeLimit(Time::Zero)
+Window::Window(WindowHandle handle, const ContextSettings& settings)
 {
     Window::create(handle, settings);
 }
 
 
 ////////////////////////////////////////////////////////////
-Window::~Window()
+Window::~Window() = default;
+
+
+////////////////////////////////////////////////////////////
+Window::Window(Window&&) noexcept = default;
+
+
+////////////////////////////////////////////////////////////
+Window& Window::operator=(Window&&) noexcept = default;
+
+
+////////////////////////////////////////////////////////////
+void Window::create(VideoMode mode, const String& title, std::uint32_t style, State state)
 {
-    close();
+    Window::create(mode, title, style, state, ContextSettings{});
 }
 
 
 ////////////////////////////////////////////////////////////
-void Window::create(VideoMode mode, const String& title, Uint32 style)
+void Window::create(VideoMode mode, const String& title, std::uint32_t style, State state, const ContextSettings& settings)
 {
-    Window::create(mode, title, style, ContextSettings());
-}
-
-
-////////////////////////////////////////////////////////////
-void Window::create(VideoMode mode, const String& title, Uint32 style, const ContextSettings& settings)
-{
-    // Destroy the previous window implementation
+    // Ensure the open window is closed first
     close();
-
-    // Fullscreen style requires some tests
-    if (style & Style::Fullscreen)
-    {
-        // Make sure there's not already a fullscreen window (only one is allowed)
-        if (getFullscreenWindow())
-        {
-            err() << "Creating two fullscreen windows is not allowed, switching to windowed mode" << std::endl;
-            style &= ~static_cast<Uint32>(Style::Fullscreen);
-        }
-        else
-        {
-            // Make sure that the chosen video mode is compatible
-            if (!mode.isValid())
-            {
-                err() << "The requested video mode is not available, switching to a valid mode" << std::endl;
-                mode = VideoMode::getFullscreenModes()[0];
-            }
-
-            // Update the fullscreen window
-            setFullscreenWindow(this);
-        }
-    }
-
-    // Check validity of style according to the underlying platform
-    #if defined(SFML_SYSTEM_IOS) || defined(SFML_SYSTEM_ANDROID)
-        if (style & Style::Fullscreen)
-            style &= ~static_cast<Uint32>(Style::Titlebar);
-        else
-            style |= Style::Titlebar;
-    #else
-        if ((style & Style::Close) || (style & Style::Resize))
-            style |= Style::Titlebar;
-    #endif
 
     // Recreate the window implementation
-    m_impl = priv::WindowImpl::create(mode, title, style, settings);
+    m_impl = priv::WindowImpl::create(mode, title, style, state, settings);
 
     // Recreate the context
-    m_context = priv::GlContext::create(settings, m_impl, mode.bitsPerPixel);
+    m_context = priv::GlContext::create(settings, *m_impl, mode.bitsPerPixel);
 
     // Perform common initializations
     initialize();
@@ -127,23 +99,34 @@ void Window::create(VideoMode mode, const String& title, Uint32 style, const Con
 
 
 ////////////////////////////////////////////////////////////
+void Window::create(VideoMode mode, const String& title, State state)
+{
+    Window::create(mode, title, sf::Style::Default, state, ContextSettings{});
+}
+
+
+////////////////////////////////////////////////////////////
+void Window::create(VideoMode mode, const String& title, State state, const ContextSettings& settings)
+{
+    Window::create(mode, title, sf::Style::Default, state, settings);
+}
+
+
+////////////////////////////////////////////////////////////
 void Window::create(WindowHandle handle)
 {
-    Window::create(handle, ContextSettings());
+    Window::create(handle, ContextSettings{});
 }
 
 
 ////////////////////////////////////////////////////////////
 void Window::create(WindowHandle handle, const ContextSettings& settings)
 {
-    // Destroy the previous window implementation
-    close();
-
     // Recreate the window implementation
     WindowBase::create(handle);
 
     // Recreate the context
-    m_context = priv::GlContext::create(settings, m_impl, VideoMode::getDesktopMode().bitsPerPixel);
+    m_context = priv::GlContext::create(settings, *m_impl, VideoMode::getDesktopMode().bitsPerPixel);
 
     // Perform common initializations
     initialize();
@@ -154,8 +137,7 @@ void Window::create(WindowHandle handle, const ContextSettings& settings)
 void Window::close()
 {
     // Delete the context
-    delete m_context;
-    m_context = NULL;
+    m_context.reset();
 
     // Close the base window
     WindowBase::close();
@@ -165,7 +147,7 @@ void Window::close()
 ////////////////////////////////////////////////////////////
 const ContextSettings& Window::getSettings() const
 {
-    static const ContextSettings empty(0, 0, 0);
+    static constexpr ContextSettings empty{/* depthBits */ 0, /* stencilBits */ 0, /* antiAliasingLevel */ 0};
 
     return m_context ? m_context->getSettings() : empty;
 }
@@ -198,16 +180,12 @@ bool Window::setActive(bool active) const
         {
             return true;
         }
-        else
-        {
-            err() << "Failed to activate the window's context" << std::endl;
-            return false;
-        }
-    }
-    else
-    {
+
+        err() << "Failed to activate the window's context" << std::endl;
         return false;
     }
+
+    return false;
 }
 
 
@@ -238,7 +216,10 @@ void Window::initialize()
     m_clock.restart();
 
     // Activate the window
-    setActive();
+    if (!setActive())
+    {
+        err() << "Failed to set window as active during initialization" << std::endl;
+    }
 
     WindowBase::initialize();
 }

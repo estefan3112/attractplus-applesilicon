@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -25,47 +25,48 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
-#include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/InputImpl.hpp>
+#include <SFML/Window/Keyboard.hpp>
+
 #include <SFML/System/String.hpp>
 
 
-namespace sf
+namespace sf::Keyboard
 {
 ////////////////////////////////////////////////////////////
-bool Keyboard::isKeyPressed(Key key)
+bool isKeyPressed(Key key)
 {
     return priv::InputImpl::isKeyPressed(key);
 }
 
 ////////////////////////////////////////////////////////////
-bool Keyboard::isKeyPressed(Scancode code)
+bool isKeyPressed(Scancode code)
 {
     return priv::InputImpl::isKeyPressed(code);
 }
 
 ////////////////////////////////////////////////////////////
-Keyboard::Key Keyboard::localize(Scancode code)
+Key localize(Scancode code)
 {
     return priv::InputImpl::localize(code);
 }
 
 ////////////////////////////////////////////////////////////
-Keyboard::Scancode Keyboard::delocalize(Key key)
+Scancode delocalize(Key key)
 {
     return priv::InputImpl::delocalize(key);
 }
 
 ////////////////////////////////////////////////////////////
-String Keyboard::getDescription(Scancode code)
+String getDescription(Scancode code)
 {
     return priv::InputImpl::getDescription(code);
 }
 
 ////////////////////////////////////////////////////////////
-void Keyboard::setVirtualKeyboardVisible(bool visible)
+void setVirtualKeyboardVisible(bool visible)
 {
     priv::InputImpl::setVirtualKeyboardVisible(visible);
 }
 
-} // namespace sf
+} // namespace sf::Keyboard

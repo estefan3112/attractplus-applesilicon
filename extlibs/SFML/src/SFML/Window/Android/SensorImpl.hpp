@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -22,19 +22,17 @@
 //
 ////////////////////////////////////////////////////////////
 
-#ifndef SFML_SENSORIMPLANDROID_HPP
-#define SFML_SENSORIMPLANDROID_HPP
+#pragma once
 
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/System/Vector3.hpp>
+
 #include <android/sensor.h>
 
 
-namespace sf
-{
-namespace priv
+namespace sf::priv
 {
 ////////////////////////////////////////////////////////////
 /// \brief Android implementation of sensors
@@ -43,7 +41,6 @@ namespace priv
 class SensorImpl
 {
 public:
-
     ////////////////////////////////////////////////////////////
     /// \brief Perform the global initialization of the sensor module
     ///
@@ -61,7 +58,7 @@ public:
     ///
     /// \param sensor Sensor to check
     ///
-    /// \return True if the sensor is available, false otherwise
+    /// \return `true` if the sensor is available, `false` otherwise
     ///
     ////////////////////////////////////////////////////////////
     static bool isAvailable(Sensor::Type sensor);
@@ -71,10 +68,10 @@ public:
     ///
     /// \param sensor Type of the sensor
     ///
-    /// \return True on success, false on failure
+    /// \return `true` on success, `false` on failure
     ///
     ////////////////////////////////////////////////////////////
-    bool open(Sensor::Type sensor);
+    [[nodiscard]] bool open(Sensor::Type sensor);
 
     ////////////////////////////////////////////////////////////
     /// \brief Close the sensor
@@ -88,27 +85,26 @@ public:
     /// \return Sensor value
     ///
     ////////////////////////////////////////////////////////////
-    Vector3f update();
+    [[nodiscard]] Vector3f update() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Enable or disable the sensor
     ///
-    /// \param enabled True to enable, false to disable
+    /// \param enabled `true` to enable, `false` to disable
     ///
     ////////////////////////////////////////////////////////////
     void setEnabled(bool enabled);
 
 private:
-
     ////////////////////////////////////////////////////////////
     /// \brief Get the default Android sensor matching the sensor type
     ///
     /// \param type Type of the sensor
     ///
-    /// \return The default Android sensor, NULL otherwise
+    /// \return The default Android sensor, a null pointer otherwise
     ///
     ////////////////////////////////////////////////////////////
-    static ASensor const* getDefaultSensor(Sensor::Type sensor);
+    static const ASensor* getDefaultSensor(Sensor::Type sensor);
 
     ////////////////////////////////////////////////////////////
     /// \brief Process the pending sensor data available and add them to our lists
@@ -126,12 +122,7 @@ private:
     // Member data
     ////////////////////////////////////////////////////////////
     const ASensor* m_sensor; ///< Android sensor structure
-    unsigned int   m_index;  ///< Index of the sensor
+    Sensor::Type   m_type;   ///< Type of the sensor
 };
 
-} // namespace priv
-
-} // namespace sf
-
-
-#endif // SFML_SENSORIMPLANDROID_HPP
+} // namespace sf::priv

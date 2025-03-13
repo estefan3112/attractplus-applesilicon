@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -26,43 +26,50 @@
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/Graphics/RenderTexture.hpp>
-#include <SFML/Graphics/RenderTextureImplFBO.hpp>
 #include <SFML/Graphics/RenderTextureImplDefault.hpp>
+#include <SFML/Graphics/RenderTextureImplFBO.hpp>
+
 #include <SFML/System/Err.hpp>
+#include <SFML/System/Exception.hpp>
+
+#include <memory>
+#include <ostream>
+
+#include <cassert>
 
 
 namespace sf
 {
 ////////////////////////////////////////////////////////////
-RenderTexture::RenderTexture() :
-m_impl(NULL)
-{
+RenderTexture::RenderTexture() = default;
 
+
+////////////////////////////////////////////////////////////
+RenderTexture::RenderTexture(Vector2u size, const ContextSettings& settings)
+{
+    if (!resize(size, settings))
+        throw sf::Exception("Failed to create render texture");
 }
 
 
 ////////////////////////////////////////////////////////////
-RenderTexture::~RenderTexture()
-{
-    delete m_impl;
-}
+RenderTexture::~RenderTexture() = default;
 
 
 ////////////////////////////////////////////////////////////
-bool RenderTexture::create(unsigned int width, unsigned int height, bool depthBuffer)
-{
-    return create(width, height, ContextSettings(depthBuffer ? 32 : 0));
-}
+RenderTexture::RenderTexture(RenderTexture&&) noexcept = default;
 
 
 ////////////////////////////////////////////////////////////
-bool RenderTexture::create(unsigned int width, unsigned int height, const ContextSettings& settings)
-{
-    // Set texture to be in sRGB scale if requested
-    m_texture.setSrgb(settings.sRgbCapable);
+RenderTexture& RenderTexture::operator=(RenderTexture&&) noexcept = default;
 
+
+////////////////////////////////////////////////////////////
+bool RenderTexture::resize(Vector2u size, const ContextSettings& settings)
+{
     // Create the texture
-    if (!m_texture.create(width, height))
+    // Set texture to be in sRGB scale if requested
+    if (!m_texture.resize(size, settings.sRgbCapable))
     {
         err() << "Impossible to create render texture (failed to create the target texture)" << std::endl;
         return false;
@@ -72,11 +79,10 @@ bool RenderTexture::create(unsigned int width, unsigned int height, const Contex
     setSmooth(false);
 
     // Create the implementation
-    delete m_impl;
     if (priv::RenderTextureImplFBO::isAvailable())
     {
         // Use frame-buffer object (FBO)
-        m_impl = new priv::RenderTextureImplFBO;
+        m_impl = std::make_unique<priv::RenderTextureImplFBO>();
 
         // Mark the texture as being a framebuffer object attachment
         m_texture.m_fboAttachment = true;
@@ -84,11 +90,12 @@ bool RenderTexture::create(unsigned int width, unsigned int height, const Contex
     else
     {
         // Use default implementation
-        m_impl = new priv::RenderTextureImplDefault;
+        m_impl = std::make_unique<priv::RenderTextureImplDefault>();
     }
 
     // Initialize the render texture
-    if (!m_impl->create(width, height, m_texture.m_texture, settings))
+    // We pass the actual size of our texture since OpenGL ES requires that all attachments have identical sizes
+    if (!m_impl->create(m_texture.m_actualSize, m_texture.m_texture, settings))
         return false;
 
     // We can now initialize the render target part
@@ -99,16 +106,14 @@ bool RenderTexture::create(unsigned int width, unsigned int height, const Contex
 
 
 ////////////////////////////////////////////////////////////
-unsigned int RenderTexture::getMaximumAntialiasingLevel()
+unsigned int RenderTexture::getMaximumAntiAliasingLevel()
 {
     if (priv::RenderTextureImplFBO::isAvailable())
     {
-        return priv::RenderTextureImplFBO::getMaximumAntialiasingLevel();
+        return priv::RenderTextureImplFBO::getMaximumAntiAliasingLevel();
     }
-    else
-    {
-        return priv::RenderTextureImplDefault::getMaximumAntialiasingLevel();
-    }
+
+    return priv::RenderTextureImplDefault::getMaximumAntiAliasingLevel();
 }
 
 
@@ -150,26 +155,37 @@ bool RenderTexture::generateMipmap()
 ////////////////////////////////////////////////////////////
 bool RenderTexture::setActive(bool active)
 {
-    bool result = m_impl && m_impl->activate(active);
-
     // Update RenderTarget tracking
-    if (result)
-        RenderTarget::setActive(active);
+    if (m_impl && m_impl->activate(active))
+        return RenderTarget::setActive(active);
 
-    return result;
+    return false;
 }
 
 
 ////////////////////////////////////////////////////////////
 void RenderTexture::display()
 {
-    // Update the target texture
-    if (m_impl && (priv::RenderTextureImplFBO::isAvailable() || setActive(true)))
+    if (!m_impl)
+        return;
+
+    if (priv::RenderTextureImplFBO::isAvailable())
     {
-        m_impl->updateTexture(m_texture.m_texture);
-        m_texture.m_pixelsFlipped = true;
-        m_texture.invalidateMipmap();
+        // Perform a RenderTarget-only activation if we are using FBOs
+        if (!RenderTarget::setActive())
+            return;
     }
+    else
+    {
+        // Perform a full activation if we are not using FBOs
+        if (!setActive())
+            return;
+    }
+
+    // Update the target texture
+    m_impl->updateTexture(m_texture.m_texture);
+    m_texture.m_pixelsFlipped = true;
+    m_texture.invalidateMipmap();
 }
 
 
@@ -183,6 +199,7 @@ Vector2u RenderTexture::getSize() const
 ////////////////////////////////////////////////////////////
 bool RenderTexture::isSrgb() const
 {
+    assert(m_impl && "RenderTexture::isSrgb() Must first initialize render texture");
     return m_impl->isSrgb();
 }
 

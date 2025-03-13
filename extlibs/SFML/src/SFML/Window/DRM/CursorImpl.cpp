@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -26,41 +26,28 @@
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/Window/DRM/CursorImpl.hpp>
+
 #include <vector>
 
 
-namespace sf
-{
-namespace priv
+namespace sf::priv
 {
 ////////////////////////////////////////////////////////////
-CursorImpl::CursorImpl()
-{
-}
-
-
-////////////////////////////////////////////////////////////
-CursorImpl::~CursorImpl()
-{
-}
-
-
-////////////////////////////////////////////////////////////
-bool CursorImpl::loadFromPixels(const Uint8* /*pixels*/, Vector2u /*size*/, Vector2u /*hotspot*/)
+bool CursorImpl::loadFromPixels(const std::uint8_t* /*pixels*/, Vector2u /*size*/, Vector2u /*hotspot*/)
 {
     return false;
 }
 
 
 ////////////////////////////////////////////////////////////
-bool CursorImpl::loadFromPixelsARGB(const Uint8* /*pixels*/, Vector2u /*size*/, Vector2u /*hotspot*/)
+bool CursorImpl::loadFromPixelsARGB(const std::uint8_t* /*pixels*/, Vector2u /*size*/, Vector2u /*hotspot*/)
 {
     return false;
 }
 
 
 ////////////////////////////////////////////////////////////
-bool CursorImpl::loadFromPixelsMonochrome(const Uint8* /*pixels*/, Vector2u /*size*/, Vector2u /*hotspot*/)
+bool CursorImpl::loadFromPixelsMonochrome(const std::uint8_t* /*pixels*/, Vector2u /*size*/, Vector2u /*hotspot*/)
 {
     return false;
 }
@@ -85,6 +72,4 @@ void CursorImpl::release()
 {
 }
 
-} // namespace priv
-
-} // namespace sf
+} // namespace sf::priv

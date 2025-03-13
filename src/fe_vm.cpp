@@ -55,6 +55,7 @@
 #include <stdio.h>
 #include <ctime>
 #include <stdarg.h>
+#include <algorithm>
 
 const char *FE_SCRIPT_NV_FILE = "script.nv";
 
@@ -345,36 +346,39 @@ void FeVM::post_command( FeInputMap::Command c )
 	m_posted_commands.push( c );
 }
 
-bool FeVM::poll_command( FeInputMap::Command &c, sf::Event &ev, bool &from_ui )
+bool FeVM::poll_command( FeInputMap::Command &c, std::optional<sf::Event> &ev, bool &from_ui )
 {
-	from_ui=false;
+	from_ui = false;
 
 	if ( !m_posted_commands.empty() )
 	{
-		c = (FeInputMap::Command)m_posted_commands.front();
+		c = ( FeInputMap::Command )m_posted_commands.front();
 		m_posted_commands.pop();
-		ev.type = sf::Event::Count;
-
 		return true;
 	}
-	else if ( m_window.pollEvent( ev ) )
+	else if ( const std::optional event = m_window.pollEvent() )
 	{
-		int t = m_layoutTimer.getElapsedTime().asMilliseconds();
+		if ( event.has_value() )
+		{
+			ev = event;
+			int t = m_layoutTimer.getElapsedTime().asMilliseconds();
 
-		// Debounce to stop multiples when triggered by a key combo
-		//
-		if ( t - m_last_ui_cmd.asMilliseconds() < 30 )
-			return false;
+			// Debounce to stop multiples when triggered by a key combo
+			//
+			if ( t - m_last_ui_cmd.asMilliseconds() < 30 )
+				return false;
 
-		c = m_feSettings->map_input( ev );
+			c = m_feSettings->map_input( ev );
 
-		if ( c != FeInputMap::LAST_COMMAND )
-			m_last_ui_cmd = m_layoutTimer.getElapsedTime();
+			if ( c != FeInputMap::LAST_COMMAND )
+				m_last_ui_cmd = m_layoutTimer.getElapsedTime();
 
-		from_ui = true;
-		return true;
+			from_ui = true;
+			return true;
+		}
 	}
 
+	ev = std::nullopt; // An empty event
 	return false;
 }
 
@@ -1386,8 +1390,7 @@ void FeVM::on_transition(
 			// TODO: It is probably a good idea to do this for
 			// every platform... needs investigation.
 			//
-			sf::Event ev;
-			while (m_window.pollEvent(ev))
+			while ( const std::optional ev = m_window.pollEvent() )
 			{
 				//sf::sleep( sf::milliseconds( 10 ) );
 			}

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////
 //
 // SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2023 Laurent Gomila (laurent@sfml-dev.org)
+// Copyright (C) 2007-2024 Laurent Gomila (laurent@sfml-dev.org)
 //
 // This software is provided 'as-is', without any express or implied warranty.
 // In no event will the authors be held liable for any damages arising from the use of this software.
@@ -26,154 +26,95 @@
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/Graphics/Transformable.hpp>
+
 #include <cmath>
 
 
 namespace sf
 {
 ////////////////////////////////////////////////////////////
-Transformable::Transformable() :
-m_origin                    (0, 0),
-m_position                  (0, 0),
-m_rotation                  (0),
-m_scale                     (1, 1),
-m_transform                 (),
-m_transformNeedUpdate       (true),
-m_inverseTransform          (),
-m_inverseTransformNeedUpdate(true)
+void Transformable::setPosition(Vector2f position)
 {
-}
-
-
-////////////////////////////////////////////////////////////
-Transformable::~Transformable()
-{
-}
-
-
-////////////////////////////////////////////////////////////
-void Transformable::setPosition(float x, float y)
-{
-    m_position.x = x;
-    m_position.y = y;
-    m_transformNeedUpdate = true;
+    m_position                   = position;
+    m_transformNeedUpdate        = true;
     m_inverseTransformNeedUpdate = true;
 }
 
 
 ////////////////////////////////////////////////////////////
-void Transformable::setPosition(const Vector2f& position)
+void Transformable::setRotation(Angle angle)
 {
-    setPosition(position.x, position.y);
-}
+    m_rotation = angle.wrapUnsigned();
 
-
-////////////////////////////////////////////////////////////
-void Transformable::setRotation(float angle)
-{
-    m_rotation = std::fmod(angle, 360.f);
-    if (m_rotation < 0)
-        m_rotation += 360.f;
-
-    m_transformNeedUpdate = true;
+    m_transformNeedUpdate        = true;
     m_inverseTransformNeedUpdate = true;
 }
 
 
 ////////////////////////////////////////////////////////////
-void Transformable::setScale(float factorX, float factorY)
+void Transformable::setScale(Vector2f factors)
 {
-    m_scale.x = factorX;
-    m_scale.y = factorY;
-    m_transformNeedUpdate = true;
+    m_scale                      = factors;
+    m_transformNeedUpdate        = true;
     m_inverseTransformNeedUpdate = true;
 }
 
 
 ////////////////////////////////////////////////////////////
-void Transformable::setScale(const Vector2f& factors)
+void Transformable::setOrigin(Vector2f origin)
 {
-    setScale(factors.x, factors.y);
-}
-
-
-////////////////////////////////////////////////////////////
-void Transformable::setOrigin(float x, float y)
-{
-    m_origin.x = x;
-    m_origin.y = y;
-    m_transformNeedUpdate = true;
+    m_origin                     = origin;
+    m_transformNeedUpdate        = true;
     m_inverseTransformNeedUpdate = true;
 }
 
 
 ////////////////////////////////////////////////////////////
-void Transformable::setOrigin(const Vector2f& origin)
-{
-    setOrigin(origin.x, origin.y);
-}
-
-
-////////////////////////////////////////////////////////////
-const Vector2f& Transformable::getPosition() const
+Vector2f Transformable::getPosition() const
 {
     return m_position;
 }
 
 
 ////////////////////////////////////////////////////////////
-float Transformable::getRotation() const
+Angle Transformable::getRotation() const
 {
     return m_rotation;
 }
 
 
 ////////////////////////////////////////////////////////////
-const Vector2f& Transformable::getScale() const
+Vector2f Transformable::getScale() const
 {
     return m_scale;
 }
 
 
 ////////////////////////////////////////////////////////////
-const Vector2f& Transformable::getOrigin() const
+Vector2f Transformable::getOrigin() const
 {
     return m_origin;
 }
 
 
 ////////////////////////////////////////////////////////////
-void Transformable::move(float offsetX, float offsetY)
+void Transformable::move(Vector2f offset)
 {
-    setPosition(m_position.x + offsetX, m_position.y + offsetY);
+    setPosition(m_position + offset);
 }
 
 
 ////////////////////////////////////////////////////////////
-void Transformable::move(const Vector2f& offset)
-{
-    setPosition(m_position.x + offset.x, m_position.y + offset.y);
-}
-
-
-////////////////////////////////////////////////////////////
-void Transformable::rotate(float angle)
+void Transformable::rotate(Angle angle)
 {
     setRotation(m_rotation + angle);
 }
 
 
 ////////////////////////////////////////////////////////////
-void Transformable::scale(float factorX, float factorY)
+void Transformable::scale(Vector2f factor)
 {
-    setScale(m_scale.x * factorX, m_scale.y * factorY);
-}
-
-
-////////////////////////////////////////////////////////////
-void Transformable::scale(const Vector2f& factor)
-{
-    setScale(m_scale.x * factor.x, m_scale.y * factor.y);
+    setScale({m_scale.x * factor.x, m_scale.y * factor.y});
 }
 
 
@@ -183,19 +124,21 @@ const Transform& Transformable::getTransform() const
     // Recompute the combined transform if needed
     if (m_transformNeedUpdate)
     {
-        float angle  = -m_rotation * 3.141592654f / 180.f;
-        float cosine = std::cos(angle);
-        float sine   = std::sin(angle);
-        float sxc    = m_scale.x * cosine;
-        float syc    = m_scale.y * cosine;
-        float sxs    = m_scale.x * sine;
-        float sys    = m_scale.y * sine;
-        float tx     = -m_origin.x * sxc - m_origin.y * sys + m_position.x;
-        float ty     =  m_origin.x * sxs - m_origin.y * syc + m_position.y;
+        const float angle  = -m_rotation.asRadians();
+        const float cosine = std::cos(angle);
+        const float sine   = std::sin(angle);
+        const float sxc    = m_scale.x * cosine;
+        const float syc    = m_scale.y * cosine;
+        const float sxs    = m_scale.x * sine;
+        const float sys    = m_scale.y * sine;
+        const float tx     = -m_origin.x * sxc - m_origin.y * sys + m_position.x;
+        const float ty     = m_origin.x * sxs - m_origin.y * syc + m_position.y;
 
+        // clang-format off
         m_transform = Transform( sxc, sys, tx,
                                 -sxs, syc, ty,
                                  0.f, 0.f, 1.f);
+        // clang-format on
         m_transformNeedUpdate = false;
     }
 
@@ -209,7 +152,7 @@ const Transform& Transformable::getInverseTransform() const
     // Recompute the inverse transform if needed
     if (m_inverseTransformNeedUpdate)
     {
-        m_inverseTransform = getTransform().getInverse();
+        m_inverseTransform           = getTransform().getInverse();
         m_inverseTransformNeedUpdate = false;
     }
 
