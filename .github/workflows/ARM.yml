@@ -2,15 +2,8 @@ name: ARM
 
 on:
   push:
-    tags-ignore:
-      - '**'
-    branches:
-      - '**'
-    pull_request:
-      paths:
-        - '**'
-  workflow_dispatch:
-  #workflow_call:
+      branches:
+      - never-run-this
 
 jobs:
   buildAMarm:

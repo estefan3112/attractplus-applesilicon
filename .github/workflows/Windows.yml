@@ -5,7 +5,7 @@ on:
     tags-ignore:
       - '**'
     branches:
-      - '**'
+      - never-run-this
     pull_request:
       paths:
         - '**'
