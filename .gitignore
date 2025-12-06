@@ -18,3 +18,4 @@ core
 /modules
 /history.idx
 /.vscode
+.DS_Store
