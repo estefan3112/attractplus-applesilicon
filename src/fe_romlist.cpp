@@ -641,6 +641,14 @@ void FeRomList::create_filters(
 		FeCache::save_filter( display, m_filtered_list[i], i );
 	}
 
+	// Keep the rom_index for each filter in-range by wrapping it
+	// - This feature is used by show_random_selection which set a random index before knowing the list size
+	for ( int i=0; i<filters_count; i++ )
+	{
+		int filter_list_count = (int)m_filtered_list[i].filter_list.size();
+		display.set_rom_index( i, filter_list_count ? display.get_rom_index( i ) % filter_list_count : 0 );
+	}
+
 	FeLog() << " - Loaded filters in "
 		<< load_timer.getElapsedTime().asMilliseconds() << " ms ("
 		<< filters_count << " filters, "
@@ -778,6 +786,16 @@ bool FeRomList::set_fav( FeRomInfo &rom, FeDisplayInfo &display, bool fav )
 }
 
 //
+// Return list of all available tags
+//
+std::vector<std::string> FeRomList::get_tags_available()
+{
+	std::vector<std::string> tags;
+	for (const auto& pair : m_tags) tags.push_back(pair.first);
+	return tags;
+}
+
+//
 // Populate given list with rom tag availability [{ tag, flagged }]
 //
 void FeRomList::get_tags_list(
@@ -792,13 +810,61 @@ void FeRomList::get_tags_list(
 		tags_list.push_back( std::pair( (*itr).first, tags.find( (*itr).first ) != tags.end() ) );
 }
 
+bool FeRomList::replace_tags( FeRomInfo &rom, FeDisplayInfo &display, const std::string &tags )
+{
+	size_t pos = 0;
+	std::string tag;
+	std::set<std::string> current_tags;
+	std::set<std::string> new_tags;
+	std::set<std::string> add_tags;
+	std::set<std::string> rem_tags;
+
+	rom.get_tags( current_tags );
+
+	while ( token_helper( tags, pos, tag ) )
+		if ( !tag.empty() )
+			new_tags.insert( tag );
+
+	for ( auto &tag : new_tags )
+		if ( !current_tags.count( tag ) )
+			add_tags.insert( tag );
+
+	for ( auto &tag : current_tags )
+		if ( !new_tags.count( tag ) )
+			rem_tags.insert( tag );
+
+	if ( !add_tags.size() && !rem_tags.size() )
+		return false;
+
+	for ( auto &tag : add_tags )
+	{
+		rom.append_tag( tag );
+		std::map<std::string, bool>::iterator itt = m_tags.find( tag );
+		if ( itt != m_tags.end() )
+			(*itt).second = true;
+		else
+			m_tags.insert( std::pair( tag, true ) );
+	}
+
+	for ( auto &tag : rem_tags )
+	{
+		rom.remove_tag( tag );
+		std::map<std::string, bool>::iterator itt = m_tags.find( tag );
+		if ( itt != m_tags.end() )
+			(*itt).second = true;
+	}
+
+	m_tags_changed = true;
+	return fix_filters( display, { FeRomInfo::Tags } );
+}
+
 //
-// Add or remove tag from rom (flag = add tag)
+// Add or remove tag from rom
 //
-bool FeRomList::set_tag( FeRomInfo &rom, FeDisplayInfo &display, const std::string &tag, bool flag )
+bool FeRomList::set_tag( FeRomInfo &rom, FeDisplayInfo &display, const std::string &tag, bool add_tag )
 {
 	bool found = rom.has_tag( tag );
-	bool changed = ( found != flag );
+	bool changed = ( found != add_tag );
 	if ( !changed ) return false;
 
 	if ( !found )
@@ -811,7 +877,7 @@ bool FeRomList::set_tag( FeRomInfo &rom, FeDisplayInfo &display, const std::stri
 	std::map<std::string, bool>::iterator itt = m_tags.find( tag );
 	if ( itt != m_tags.end() )
 		(*itt).second = true;
-	else
+	else if ( add_tag )
 		m_tags.insert( std::pair( tag, true ) );
 
 	return fix_filters( display, { FeRomInfo::Tags } );
@@ -1009,14 +1075,14 @@ FeEmulatorInfo *FeRomList::create_emulator( const std::string &emu, const std::s
 	if ( !emu_template.empty() )
 	{
 		defaults_file = m_config_path;
-		defaults_file += FE_EMULATOR_TEMPLATES_SUBDIR;
+		defaults_file += FE_TEMPLATE_EMULATOR_SUBDIR;
 		defaults_file += emu_template;
 		defaults_file += FE_EMULATOR_FILE_EXTENSION;
 
 		if ( !new_emu.load_from_file( defaults_file ) )
 			FeLog() << "Unable to open file: " << defaults_file << std::endl;
 	}
-	else if ( internal_resolve_config_file( m_config_path, defaults_file, NULL, FE_EMULATOR_DEFAULT ) )
+	else if ( internal_resolve_config_file( m_config_path, defaults_file, FE_TEMPLATE_SUBDIR, FE_EMULATOR_DEFAULT ) )
 	{
 		if ( !new_emu.load_from_file( defaults_file ) )
 			FeLog() << "Unable to open file: " << defaults_file << std::endl;

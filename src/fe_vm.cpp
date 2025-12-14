@@ -65,9 +65,6 @@
 #include <errno.h>
 #endif
 
-const char *FE_SCRIPT_NV_FILE = "script.nv";
-const char *FE_LAYOUT_NV_FILE = "layout.nv";
-
 namespace
 {
 	//
@@ -297,13 +294,13 @@ FeVM::~FeVM()
 // Load fe.nv from file
 void FeVM::load_script_nv() {
 	std::string nv;
-	read_file_content( m_feSettings->get_config_dir() + FE_SCRIPT_NV_FILE, nv );
+	read_file_content( m_feSettings->get_config_dir() + FE_CFG_SUBDIR + FE_SCRIPT_NV_FILE, nv );
 	sq_run_code( "fe.nv <- " + ( nv.empty() ? "{}" : nv ) );
 }
 
 // Save fe.nv to file
 void FeVM::save_script_nv() {
-	write_file_content( m_feSettings->get_config_dir() + FE_SCRIPT_NV_FILE, sq_slot_to_json( "fe.nv" ) );
+	write_file_content( m_feSettings->get_config_dir() + FE_CFG_SUBDIR + FE_SCRIPT_NV_FILE, sq_slot_to_json( "fe.nv" ) );
 }
 
 // Load the fe.layout.nv for the current layout
@@ -319,7 +316,7 @@ void FeVM::load_layout_nv() {
 		return;
 
 	std::string layout_nv;
-	read_file_content( m_feSettings->get_config_dir() + FE_LAYOUT_NV_FILE, layout_nv );
+	read_file_content( m_feSettings->get_config_dir() + FE_CFG_SUBDIR + FE_LAYOUT_NV_FILE, layout_nv );
 	if ( layout_nv.empty() ) layout_nv = "{}";
 
 	std::string key = sq_escape_string( m_last_layout );
@@ -332,7 +329,7 @@ void FeVM::save_layout_nv() {
 		return;
 
 	std::string layout_nv;
-	read_file_content( m_feSettings->get_config_dir() + FE_LAYOUT_NV_FILE, layout_nv );
+	read_file_content( m_feSettings->get_config_dir() + FE_CFG_SUBDIR + FE_LAYOUT_NV_FILE, layout_nv );
 	if ( layout_nv.empty() ) layout_nv = "{}";
 
 	// All layout nv's are stored in one table
@@ -344,7 +341,7 @@ void FeVM::save_layout_nv() {
 	if ( json.empty() )
 		return;
 
-	write_file_content( m_feSettings->get_config_dir() + FE_LAYOUT_NV_FILE, json );
+	write_file_content( m_feSettings->get_config_dir() + FE_CFG_SUBDIR + FE_LAYOUT_NV_FILE, json );
 	sq_run_code( "try { delete " + temp + " } catch (err) {}" );
 }
 
@@ -717,6 +714,7 @@ bool FeVM::on_new_layout()
 	ConstTable()
 		.Const( _SC("FeVersion"), FE_VERSION)
 		.Const( _SC("FeVersionNum"), FE_VERSION_NUM)
+		.Const( _SC("FeLogLevel"), fe_get_log_level_string() )
 		.Const( _SC("ScreenWidth"), (int)m_mon[0].size.x )
 		.Const( _SC("ScreenHeight"), (int)m_mon[0].size.y )
 		.Const( _SC("ScreenRefreshRate"), m_refresh_rate )
@@ -1166,6 +1164,7 @@ bool FeVM::on_new_layout()
 		.Prop( _SC("search_rule"), &FePresent::get_search_rule, &FePresent::set_search_rule )
 		.Prop( _SC("size"), &FePresent::get_current_filter_size )
 		.Prop( _SC("clones_list"), &FePresent::get_clones_list_showing )
+		.Prop( _SC("tags"), &FePresent::get_tags_available )
 
 		// The following are deprecated as of version 1.5 in favour of using the fe.filters array:
 		.Prop( _SC("filter"), &FePresent::get_filter_name )	// deprecated as of 1.5
@@ -1336,9 +1335,17 @@ bool FeVM::on_new_layout()
 #ifdef USE_LIBCURL
 	fe.Func<bool (*)(const char *, const char *)>(_SC("get_url"), &FeVM::get_url);
 #endif
-	fe.Overload<const char* (*)(int)>(_SC("game_info"), &FeVM::cb_game_info);
-	fe.Overload<const char* (*)(int, int)>(_SC("game_info"), &FeVM::cb_game_info);
-	fe.Overload<const char* (*)(int, int, int)>(_SC("game_info"), &FeVM::cb_game_info);
+	// deprecated in 3.2.0, use `get_game_info` now
+	fe.Overload<const char* (*)(int)>(_SC("game_info"), &FeVM::cb_get_game_info);
+	fe.Overload<const char* (*)(int, int)>(_SC("game_info"), &FeVM::cb_get_game_info);
+	fe.Overload<const char* (*)(int, int, int)>(_SC("game_info"), &FeVM::cb_get_game_info);
+	// ---
+	fe.Overload<const char* (*)(int)>(_SC("get_game_info"), &FeVM::cb_get_game_info);
+	fe.Overload<const char* (*)(int, int)>(_SC("get_game_info"), &FeVM::cb_get_game_info);
+	fe.Overload<const char* (*)(int, int, int)>(_SC("get_game_info"), &FeVM::cb_get_game_info);
+	fe.Overload<bool (*)(int, const char *)>(_SC("set_game_info"), &FeVM::cb_set_game_info);
+	fe.Overload<bool (*)(int, const char *, int)>(_SC("set_game_info"), &FeVM::cb_set_game_info);
+	fe.Overload<bool (*)(int, const char *, int, int)>(_SC("set_game_info"), &FeVM::cb_set_game_info);
 	fe.Overload<const char* (*)(const char *, int, int, int)>(_SC("get_art"), &FeVM::cb_get_art);
 	fe.Overload<const char* (*)(const char *, int, int)>(_SC("get_art"), &FeVM::cb_get_art);
 	fe.Overload<const char* (*)(const char *, int)>(_SC("get_art"), &FeVM::cb_get_art);
@@ -1363,6 +1370,8 @@ bool FeVM::on_new_layout()
 	fe.Overload<void (*)(int, bool, bool)>(_SC("set_display"), &FeVM::cb_set_display);
 	fe.Overload<void (*)(int, bool)>(_SC("set_display"), &FeVM::cb_set_display);
 	fe.Overload<void (*)(int)>(_SC("set_display"), &FeVM::cb_set_display);
+	fe.Overload<const char *(*)(const char *, int, int)>(_SC("get_text"), &FeVM::cb_get_text);
+	fe.Overload<const char *(*)(const char *, int)>(_SC("get_text"), &FeVM::cb_get_text);
 	fe.Overload<const char *(*)(const char *)>(_SC("get_text"), &FeVM::cb_get_text);
 
 	//
@@ -1980,6 +1989,7 @@ public:
 		Sqrat::ConstTable()
 			.Const( _SC("FeVersion"), FE_VERSION)
 			.Const( _SC("FeVersionNum"), FE_VERSION_NUM)
+			.Const( _SC("FeLogLevel"), fe_get_log_level_string() )
 			.Const( _SC("OS"), get_OS_string() )
 			.Const( _SC("ShadersAvailable"), sf::Shader::isAvailable() )
 			.Enum( _SC("PathTest"), Sqrat::Enumeration()
@@ -2067,6 +2077,8 @@ public:
 			fe.Func<time_t (*)(const char *)>(_SC("get_file_mtime"), &FeVM::cb_get_file_mtime);
 			// Deprecated: use fs.set_file_mtime instead
 			fe.Func<bool (*)(const char *, time_t)>(_SC("set_file_mtime"), &FeVM::cb_set_file_mtime);
+			fe.Overload<const char *(*)(const char *, int, int)>(_SC("get_text"), &FeVM::cb_get_text);
+			fe.Overload<const char *(*)(const char *, int)>(_SC("get_text"), &FeVM::cb_get_text);
 			fe.Overload<const char *(*)(const char *)>(_SC("get_text"), &FeVM::cb_get_text);
 		}
 
@@ -2371,10 +2383,13 @@ bool FeVM::setup_wizard()
 	}
 
 	std::string read_base = m_feSettings->get_config_dir();
-	read_base += FE_EMULATOR_TEMPLATES_SUBDIR;
+	read_base += FE_TEMPLATE_EMULATOR_SUBDIR;
 
 	std::string write_base = m_feSettings->get_config_dir();
 	write_base += FE_EMULATOR_SUBDIR;
+
+	// Ensure the emulator directory exists before writing files
+	confirm_directory( m_feSettings->get_config_dir(), FE_EMULATOR_SUBDIR );
 
 	bool cancelled=false;
 	for ( std::vector<std::string>::iterator itr = emus_to_import.begin();
@@ -2716,22 +2731,29 @@ bool FeVM::cb_get_input_state( const char *input )
 	else if ( strcmp( input, "Shift" ) == 0 )
 	{
 		// Returns true if either shift active
-		if ( FeInputMapEntry( "LShift" ).get_current_state( fev->m_feSettings->get_joy_thresh() ) ) return true;
-		if ( FeInputMapEntry( "RShift" ).get_current_state( fev->m_feSettings->get_joy_thresh() ) ) return true;
+		if ( fev->m_feSettings->get_key_state( "LShift" ) ) return true;
+		if ( fev->m_feSettings->get_key_state( "RShift" ) ) return true;
 		return false;
 	}
 	else if ( strcmp( input, "Control" ) == 0 )
 	{
 		// Returns true if either control active
-		if ( FeInputMapEntry( "LControl" ).get_current_state( fev->m_feSettings->get_joy_thresh() ) ) return true;
-		if ( FeInputMapEntry( "RControl" ).get_current_state( fev->m_feSettings->get_joy_thresh() ) ) return true;
+		if ( fev->m_feSettings->get_key_state( "LControl" ) ) return true;
+		if ( fev->m_feSettings->get_key_state( "RControl" ) ) return true;
 		return false;
 	}
 	else if ( strcmp( input, "Alt" ) == 0 )
 	{
 		// Returns true if either alt active
-		if ( FeInputMapEntry( "LAlt" ).get_current_state( fev->m_feSettings->get_joy_thresh() ) ) return true;
-		if ( FeInputMapEntry( "RAlt" ).get_current_state( fev->m_feSettings->get_joy_thresh() ) ) return true;
+		if ( fev->m_feSettings->get_key_state( "LAlt" ) ) return true;
+		if ( fev->m_feSettings->get_key_state( "RAlt" ) ) return true;
+		return false;
+	}
+	else if ( strcmp( input, "System" ) == 0 )
+	{
+		// Returns true if either system active
+		if ( fev->m_feSettings->get_key_state( "LSystem" ) ) return true;
+		if ( fev->m_feSettings->get_key_state( "RSystem" ) ) return true;
 		return false;
 	}
 
@@ -2995,7 +3017,7 @@ bool FeVM::cb_make_dir( const char *path )
 #endif
 }
 
-const char *FeVM::cb_game_info( int index, int offset, int filter_offset )
+const char *FeVM::cb_get_game_info( int index, int offset, int filter_offset )
 {
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
 	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
@@ -3004,7 +3026,7 @@ const char *FeVM::cb_game_info( int index, int offset, int filter_offset )
 	{
 		// TODO: the better thing to do would be to raise a squirrel error here
 		//
-		FeLog() << "game_info(): index out of range" << std::endl;
+		FeLog() << "get_game_info(): index out of range" << std::endl;
 		return "";
 	}
 
@@ -3062,14 +3084,70 @@ const char *FeVM::cb_game_info( int index, int offset, int filter_offset )
 	return retval.c_str();
 }
 
-const char *FeVM::cb_game_info( int index, int offset )
+const char *FeVM::cb_get_game_info( int index, int offset )
 {
-	return cb_game_info( index, offset, 0 );
+	return cb_get_game_info( index, offset, 0 );
 }
 
-const char *FeVM::cb_game_info( int index )
+const char *FeVM::cb_get_game_info( int index )
 {
-	return cb_game_info( index, 0, 0 );
+	return cb_get_game_info( index, 0, 0 );
+}
+
+//
+// Updates game info using the most convenient method
+// - No transitions or updates are called after the update
+// - The user must manually signal a reload to fetch the updated info
+//
+bool FeVM::cb_set_game_info( int index, const char *value, int offset, int filter_offset )
+{
+	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
+	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
+
+	if (( index >= FeRomInfo::FileIsAvailable ) || ( index < 0 ))
+	{
+		// TODO: the better thing to do would be to raise a squirrel error here
+		FeLog() << "set_game_info(): index out of range" << std::endl;
+		return false;
+	}
+
+	// Exit early if no change
+	std::string value_str = as_str( value );
+	FeRomInfo *original = fev->m_feSettings->get_rom_offset( filter_offset, offset );
+	if ( !original )
+		return false;
+
+	if ( original->get_info( (FeRomInfo::Index)index ) == value_str )
+		return true;
+
+	if ( (FeRomInfo::Index)index == FeRomInfo::Tags )
+		fev->m_feSettings->replace_tags_offset( value_str, filter_offset, offset );
+	else if ( (FeRomInfo::Index)index == FeRomInfo::Favourite )
+		fev->m_feSettings->set_fav_offset( value_str == "1" || value_str == "true", filter_offset, offset );
+	else if ( FeRomInfo::isStat( (FeRomInfo::Index)index ) )
+	{
+		original->set_info( (FeRomInfo::Index)index, value_str );
+		fev->m_feSettings->update_stats_offset( 0, 0, filter_offset, offset );
+	}
+	else
+	{
+		// updating all other rom info is SLOW
+		FeRomInfo replacement( *original );
+		replacement.set_info( (FeRomInfo::Index)index, value );
+		fev->m_feSettings->update_romlist_after_edit( *original, replacement );
+	}
+
+	return true;
+}
+
+bool FeVM::cb_set_game_info( int index, const char *value, int offset )
+{
+	return cb_set_game_info( index, value, offset, 0 );
+}
+
+bool FeVM::cb_set_game_info( int index, const char *value )
+{
+	return cb_set_game_info( index, value, 0, 0 );
 }
 
 const char *FeVM::cb_get_art( const char *art, int index_offset, int filter_offset, int art_flags )
@@ -3318,15 +3396,34 @@ void FeVM::cb_set_display( int idx )
 	cb_set_display( idx, false, true );
 }
 
+const char *FeVM::cb_get_text( const char *t, int index_offset, int filter_offset )
+{
+	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
+	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
+	FeSettings *fes = fev->m_feSettings;
+
+	std::string translation = _( t );
+	fes->do_text_substitutions( translation, filter_offset, index_offset);
+	static std::string retval; // must be static to work with Squirrel
+	retval = translation; // static must be re-assigned to update
+	return retval.c_str();
+}
+
+const char *FeVM::cb_get_text( const char *t, int index_offset )
+{
+	return cb_get_text( t, index_offset, 0 );
+}
+
 const char *FeVM::cb_get_text( const char *t )
 {
-	static std::string retval = _( t );
-	return retval.c_str();
+	return cb_get_text( t, 0, 0 );
 }
 
 const char *FeVM::cb_get_clipboard()
 {
-	return clipboard_get_content().c_str();
+	static std::string retval;
+	retval = clipboard_get_content();
+	return retval.c_str();
 }
 
 void FeVM::cb_set_clipboard( const char *value )

@@ -251,6 +251,7 @@ Flip;翻动
 
 # --startupDispTokens --
 Show Last Selection;显示最后的选择
+Show Random Selection;显示随机选择
 Launch Last Game;载入最后一次运行的游戏
 Show Displays Menu;界面选择器
 
@@ -288,6 +289,7 @@ Remove '$1' from Favourites?;从收藏中先锋队 '$1'?
 Rom path '$1' not found, proceed?;未找到 ROM 路径“$1”,是否继续?
 Overwrite existing '$1' mapping?;覆盖现有的“$1”映射?
 A display with this name already exists;此名称的显示已存在
+Configuration files have been migrated\n to the 'config' folder.\nDelete old files?;配置文件已迁移到 'config' 文件夹。\n是否删除旧文件？
 
 # --input_map_dialog --
 Press Hotkey;按下热键

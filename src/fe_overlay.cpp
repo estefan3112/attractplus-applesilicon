@@ -504,6 +504,9 @@ int FeOverlay::common_list_dialog(
 			m_fePresent.on_transition( NewSelOverlay, sel );
 		}
 
+		// Transition prior to reset allows layout to "fade-out" last state
+		m_fePresent.on_transition( HideOverlay, 0 );
+
 		// reset to the old text in these controls when done
 		if ( custom_caption )
 			custom_caption->set_string( old_cap.c_str() );
@@ -513,9 +516,6 @@ int FeOverlay::common_list_dialog(
 			custom_lb->removeCustomText();
 			custom_lb->on_new_list( &m_feSettings );
 		}
-
-		// Transition *after* reset so sel_row reflects the current state
-		m_fePresent.on_transition( HideOverlay, 0 );
 	}
 	else
 	{
@@ -678,7 +678,7 @@ int FeOverlay::tags_dialog( int default_sel, FeInputMap::Command extra_exit )
 			if ( !tag_name.empty() )
 			{
 				tags_changed = true;
-				if ( m_feSettings.set_current_tag( tag_name, true ) )
+				if ( m_feSettings.set_tag_current( tag_name, true ) )
 					list_changed = true;
 			}
 		}
@@ -686,7 +686,7 @@ int FeOverlay::tags_dialog( int default_sel, FeInputMap::Command extra_exit )
 		{
 			// Toggle existing tag
 			tags_changed = true;
-			if ( m_feSettings.set_current_tag( tags_list[sel].first, !tags_list[sel].second ) )
+			if ( m_feSettings.set_tag_current( tags_list[sel].first, !tags_list[sel].second ) )
 				list_changed = true;
 		}
 	}
@@ -765,6 +765,9 @@ int FeOverlay::common_basic_dialog(
 			m_fePresent.on_transition( NewSelOverlay, sel );
 		}
 
+		// Transition prior to reset allows layout to "fade-out" last state
+		m_fePresent.on_transition( HideOverlay, 0 );
+
 		// reset to the old text in these controls when done
 		if ( custom_caption )
 			custom_caption->set_string( old_cap.c_str() );
@@ -774,9 +777,6 @@ int FeOverlay::common_basic_dialog(
 			custom_lb->removeCustomText();
 			custom_lb->on_new_list( &m_feSettings );
 		}
-
-		// Transition *after* reset so sel_row reflects the current state
-		m_fePresent.on_transition( HideOverlay, 0 );
 	}
 	else
 	{

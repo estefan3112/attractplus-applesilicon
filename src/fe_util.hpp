@@ -28,6 +28,7 @@
 #include <set>
 #include <SFML/Config.hpp>
 #include <SFML/Graphics.hpp>
+#include <SFML/Window/Clipboard.hpp>
 #include "nowide/fstream.hpp"
 
 #ifdef FE_DEBUG
@@ -308,6 +309,11 @@ std::string get_available_filename(
 bool make_dir(
     const std::string &dir
 );
+
+//
+// Recursively delete directory and all its contents
+//
+void delete_dir( const std::string &path );
 
 //
 // Create "base" directory if it doesn't exist

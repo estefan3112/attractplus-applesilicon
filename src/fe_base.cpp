@@ -47,14 +47,16 @@ const char *FE_BUILD_NUMBER = FE_BUILD_D;
 
 const char *FE_WHITESPACE   = " \t\r";
 const char *FE_DIR_TOKEN    = "<DIR>";
+const float FE_SCORE_MAX    = 5.0;
 
-const char *FE_TAG_ICON         = "🏷";
-const char *FE_HEART_ICON       = "♥";
-const char *FE_HEART_ALT_ICON   = "♡";
-const char *FE_STAR_ICON        = "★";
-const char *FE_STAR_ALT_ICON    = "☆";
-const char *FE_YES_ICON         = "☒";
-const char *FE_NO_ICON          = "☐";
+const char *FE_TAG_ICON             = "🏷";
+const char *FE_HEART_ICON           = "♥";
+const char *FE_HEART_OUTLINE_ICON   = "♡";
+const char *FE_STAR_ICON            = "★";
+const char *FE_STAR_OUTLINE_ICON    = "☆";
+const char *FE_STAR_HALF_ICON       = "⯪";
+const char *FE_YES_ICON             = "☒";
+const char *FE_NO_ICON              = "☐";
 
 const char *FE_TAG_PREFIX       = "🏷 ";
 const char *FE_TAG_DELIM        = "  ";
@@ -62,7 +64,9 @@ const char *FE_TAG_DELIM        = "  ";
 const char *FE_DEFAULT_LANGUAGE          = "en";
 const char *FE_DEFAULT_ARTWORK           = "snap";
 const char *FE_EMULATOR_SUBDIR           = "emulators/";
-const char *FE_EMULATOR_TEMPLATES_SUBDIR = "emulators/templates/";
+const char *FE_TEMPLATE_SUBDIR          = "templates/";
+const char *FE_TEMPLATE_EMULATOR_SUBDIR = "templates/emulators/";
+const char *FE_EMULATOR_TEMPLATES_SUBDIR = "emulators/templates/"; // Deprecated, left for migration cleanup
 const char *FE_EMULATOR_FILE_EXTENSION   = ".cfg";
 const char *FE_EMULATOR_DEFAULT          = "default-emulator.cfg";
 
@@ -131,6 +135,21 @@ void fe_set_log_level( enum FeLogLevel f )
 		av_log_set_level( ( f == FeLog_Debug ) ? AV_LOG_VERBOSE : AV_LOG_ERROR );
 	}
 #endif
+}
+
+const char *fe_get_log_level_string()
+{
+	switch ( g_log_level )
+	{
+		case FeLog_Silent:
+			return "silent";
+		case FeLog_Info:
+			return "info";
+		case FeLog_Debug:
+			return "debug";
+		default:
+			return "";
+	}
 }
 
 void fe_print_version()

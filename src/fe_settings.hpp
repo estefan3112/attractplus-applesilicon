@@ -43,6 +43,9 @@ extern const char *FE_ART_EXTENSIONS[];
 
 extern const char *FE_CFG_FILE;
 extern const char *FE_WINDOW_FILE;
+extern const char *FE_CFG_SUBDIR;
+extern const char *FE_SCRIPT_NV_FILE;
+extern const char *FE_LAYOUT_NV_FILE;
 
 extern const char *FE_SCRAPER_SUBDIR;
 extern const char *FE_LAYOUT_FILE_BASE;
@@ -53,6 +56,7 @@ extern const char *FE_CFG_NO_STR;
 
 extern const int FE_DEFAULT_UI_COLOR_TOKEN;
 
+class FeOverlay;
 
 // A container for each task when importing/building romlists from the command line
 class FeImportTask
@@ -114,7 +118,7 @@ public:
 	static const char *filterWrapTokens[];
 	static const char *filterWrapDispTokens[];
 
-	enum StartupModeType { ShowLastSelection=0, LaunchLastGame, ShowDisplaysMenu };
+	enum StartupModeType { ShowLastSelection=0, ShowRandomSelection, ShowDisplaysMenu, LaunchLastGame };
 	static const char *startupTokens[];
 	static const char *startupDispTokens[];
 
@@ -287,6 +291,7 @@ private:
 	int m_ui_font_size;
 	std::string m_ui_color;
 	bool m_window_topmost;
+	bool m_split_config_format;
 
 	FeSettings( const FeSettings & );
 	FeSettings &operator=( const FeSettings & );
@@ -295,11 +300,14 @@ private:
 		const std::string &,
 		const std::string & );
 
-	void init_display();
 	void load_state();
 	void clear();
 	void load_displays_configs();
 	void save_displays_configs() const;
+	void load_plugins_configs();
+	void save_plugins_configs() const;
+	void load_layouts_configs();
+	void save_layouts_configs() const;
 
 	void construct_display_maps();
 
@@ -309,10 +317,6 @@ private:
 		const char *subdir ) const;
 
 	void internal_load_language( const std::string &lang );
-
-	std::string get_played_time_display_string( int filter_index, int rom_index );
-	std::string get_played_last_display_string( int filter_index, int rom_index );
-	std::string get_played_ago_display_string( int filter_index, int rom_index );
 
 	bool internal_get_best_artwork_file(
 		const FeRomInfo &rom,
@@ -345,6 +349,7 @@ public:
 
 	void load();
 	void save_state();
+	void migration_cleanup_dialog( FeOverlay *overlay );
 
 	FeInputMap::Command map_input( const std::optional<sf::Event> &e );
 	void reset_input();
@@ -357,6 +362,7 @@ public:
 	void set_default_command( FeInputMap::Command c, FeInputMap::Command v );
 
 	bool get_current_state( FeInputMap::Command c );
+	bool get_key_state( std::string key );
 	void get_input_mappings( std::vector < FeMapping > &l ) const { m_inputmap.get_mappings( l ); };
 	void set_input_mapping( FeMapping &m ) { m_inputmap.set_mapping( m ); };
 
@@ -394,6 +400,7 @@ public:
 	// Returns true if the display change results in a new layout, false otherwise
 	//
 	bool set_display( int index, bool stack_previous=false );
+	void init_display();
 
 	// Return true if there are displays available to navigate back to on a "back" button press
 	//
@@ -408,6 +415,7 @@ public:
 	bool navigate_display( int step, bool wrap_mode=false );
 	bool navigate_filter( int step );
 
+	int get_filter_index_from_name( const std::string &name ) const;
 	int get_current_filter_index() const;
 	const std::string &get_filter_name( int filter_index );
 	void get_current_display_filter_names( std::vector<std::string> &list ) const;
@@ -462,6 +470,7 @@ public:
 	const std::string &get_current_display_title() const;
 	const std::string &get_rom_info( int filter_offset, int rom_offset, FeRomInfo::Index index );
 	const std::string &get_rom_info_absolute( int filter_index, int rom_index, FeRomInfo::Index index );
+	FeRomInfo *get_rom_offset( int filter_offset, int rom_offset );
 	FeRomInfo *get_rom_absolute( int filter_index, int rom_index );
 
 	int selection_delay() const { return m_selection_delay; }
@@ -559,19 +568,26 @@ public:
 
 	bool get_current_fav();
 
-	// returns true if the current list chnaged as a result of setting the tag
-	bool set_current_fav( bool );
+	// returns true if the current list changed as a result of setting the tag
+	bool set_fav_offset( bool state, int filter_offset, int rom_offset );
+	bool set_fav_absolute( bool state, int filter_index, int rom_index );
+	bool set_fav_current( bool state );
 	int get_prev_fav_offset();
 	int get_next_fav_offset();
 
 	int get_next_letter_offset( int step );
 
-	void get_current_tags_list(
-		std::vector< std::pair<std::string, bool> > &tags_list );
+	std::vector<std::string> get_tags_available();
+	void get_current_tags_list( std::vector< std::pair<std::string, bool> > &tags_list );
 
 	// returns true if the current list changed as a result of setting the tag
-	bool set_current_tag(
-			const std::string &tag, bool flag );
+	bool set_tag_offset( const std::string &tag, bool add_tag, int filter_offset, int rom_offset );
+	bool set_tag_absolute( const std::string &tag, bool add_tag, int filter_index, int rom_index );
+	bool set_tag_current( const std::string &tag, bool add_tag );
+
+	bool replace_tags_offset( const std::string &tags, int filter_offset, int rom_offset );
+	bool replace_tags_absolute( const std::string &tags, int filter_index, int rom_index );
+
 	//
 	// This function implements command-line romlist generation/imports
 	// If output_name is empty, then a non-existing filename is chosen for
@@ -613,7 +629,9 @@ public:
 	);
 
 	// Returns true if the stats update may have altered the current filters
-	bool update_stats( int count_incr, int time_incr );
+	bool update_stats_offset( int count_incr, int time_incr, int filter_offset, int rom_offset );
+	bool update_stats_absolute( int count_incr, int time_incr, int filter_index, int rom_index );
+	bool update_stats_current( int count_incr, int time_incr );
 
 	//
 	// The frontend maintains extra per game settings/extra info

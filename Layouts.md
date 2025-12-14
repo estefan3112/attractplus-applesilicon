@@ -1,11 +1,22 @@
 # <img src="https://github.com/oomek/attractplus/blob/master/resources/images/Logo.png?raw=true" width="40" align="left"> Attract-Mode Plus Coding Reference
 
-> -  Features unique to Attract-Mode Plus are marked with a 🔶 symbol.
+> Get the [_AM+ Squirrel_][extension] extension for VS Code
+> <br><sup><sub>A suite of support tools to enhance your AM+ development experience. Code completions, highlighting, linting, formatting, and more!</sub></sup>
+
+[extension]: https://marketplace.visualstudio.com/items?itemName=chadnaut.am-squirrel
 
 ## Contents
 
+> Features unique to Attract-Mode Plus are marked with a 🔶 symbol.
+
 -  [Overview](#overview)
+   -  [Layout](#layout)
+   -  [Intro](#intro)
+   -  [Screensaver](#screensaver)
+   -  [Plugin](#plugin)
+   -  [Module](#module)
    -  [Squirrel Language](#squirrel-language)
+-  [Common Structures](#common-structures)
    -  [Magic Tokens](#magic-tokens)
    -  [User Config](#user-config)
 -  [Functions](#functions)
@@ -22,7 +33,8 @@
    -  [`fe.add_music()`](#feadd_music-) 🔶
    -  [`fe.add_ticks_callback()`](#feadd_ticks_callback)
    -  [`fe.add_transition_callback()`](#feadd_transition_callback)
-   -  [`fe.game_info()`](#fegame_info)
+   -  [`fe.get_game_info()`](#feget_game_info)
+   -  [`fe.set_game_info()`](#feset_game_info) 🔶
    -  [`fe.get_art()`](#feget_art)
    -  [`fe.get_input_state()`](#feget_input_state)
    -  [`fe.get_input_pos()`](#feget_input_pos)
@@ -88,34 +100,58 @@
 
 ## Overview
 
-The Attract-Mode Plus layout sets out what gets displayed to the user. Layouts consist of a `layout.nut` script file and a collection of related resources (images, other scripts, etc.) used by the script.
+### Layout
 
-Layouts are stored under the "layouts" subdirectory of the Attract-Mode Plus config directory. Each layout is stored in its own separate subdirectory or archive file (Attract-Mode Plus can read layouts and plugins directly from compressed archives, see [Language Extensions](#language-extensions) for supported formats).
+Layouts define what gets displayed to the user. They consist of a `layout.nut` file and a collection of related resources (images, other scripts, etc.). Layouts are located in the `layouts/` directory, each in its own separate subdirectory or [archive](#language-extensions).
 
-Each layout can have one or more `layout*.nut` script files. The "Toggle Layout" command in Attract-Mode Plus allows users to cycle between each of the `layout*.nut` script files located in the layout's directory. Attract-Mode Plus remembers the last layout file toggled to for each layout and will go back to that same file the next time the layout is loaded. This allows for variations of a particular layout to be implemented and easily selected by the user (for example, a layout could provide a `layout.nut` for horizontal monitor orientations and a `layout-vert.nut` for vertical).
+Layouts can have one or more `layout*.nut` files, which may be cycled between using the "Toggle Layout" command.
 
-The Attract-Mode Plus screen saver and intro modes are really just special case layouts. The screensaver gets loaded after a user-configured period of inactivity, while the intro mode gets run when the frontend first starts and exits as soon as any action is triggered (for example if the user hits the select button). The screen saver script is located in the `screensaver.nut` file stored in the "screensaver" subdirectory. The intro script is located in the `intro.nut` file stored in the "intro" subdirectory.
+```squirrel
+local flw = fe.layout.width
+local flh = fe.layout.height
 
-Plugins are similar to layouts in that they consist of at least one squirrel script file and a collection of related resources. Plugins are stored in the "plugins" subdirectory of the Attract-Mode Plus config directory. Plugins can be a single ".nut" file stored in this subdirectory. They can also have their own separate subdirectory or archive file (in which case the script itself needs to be in a file called `plugin.nut`).
+// Background movie artwork
+local img = fe.add_artwork( "snap", 0, 0, flw, flh )
+img.alpha = 70
+
+// Game listbox
+local lb = fe.add_listbox( 0, 0, flw, flh )
+```
+
+> _The default Layout - it doesn't get much simpler than this!_
+
+### Intro
+
+The `Intro` is a Layout that gets run when the frontend first starts, and exits as soon as any action is triggered, such as pressing the select button. The Intro script is located at `intro/intro.nut`.
+
+### Screensaver
+
+The `Screensaver` is a Layout that gets loaded after a user-configured period of inactivity. The Screensaver script is located at `screensaver/screensaver.nut`.
+
+### Plugin
+
+Plugins are Layouts that provide additional features to _every_ Display. Plugins are located in the `plugins/` directory, in a single `.nut` file, or in their own subdirectory (or archive) with a file named `plugin.nut`.
+
+### Module
+
+Modules are shared libraries that provide functionality to any Layout that requires it using [`fe.load_module()`](#feload_module). Modules are located in the `modules/` directory, in a single `.nut` file, or in their own subdirectory.
 
 ---
 
-### Squirrel Language
+## Squirrel Language
 
-Attract-Mode Plus layouts are scripts written in the Squirrel programming language. Squirrel's standard `Blob`, `IO`, `Math`, `String` and `System` library functions are available for use in a script. For more information on programming in Squirrel and using its standard libraries, consult the Squirrel manuals:
+Attract-Mode Plus Layouts are written in [Squirrel](http://www.squirrel-lang.org/), a high level imperative, object-oriented programming language. Squirrel's syntax is similar to C/C++/Java, but the language has a very dynamic nature like Python/Lua. For more information on programming in Squirrel consult the following resources:
 
 -  [Squirrel 3.0 Reference Manual](http://www.squirrel-lang.org/doc/squirrel3.html)
 -  [Squirrel 3.0 Standard Library Manual](https://web.archive.org/web/20210730072847/http://www.squirrel-lang.org/doc/sqstdlib3.html)
-
-Also check out the Introduction to Squirrel on the wiki:
-
--  https://github.com/mickelson/attract/wiki/Introduction-to-Squirrel-Programming
+-  [Introduction to Squirrel Programming](https://github.com/mickelson/attract/wiki/Introduction-to-Squirrel-Programming)
+-  [AM+ Squirrel VSCode Extension][extension]
 
 ---
 
 ### Magic Tokens
 
-Image names, as well as the messages displayed by Text and Listbox objects, can contain one or more _Magic Tokens_. _Magic Tokens_ are enclosed in square brackets, and the frontend automatically updates them as the user navigates the layout. For example, a Text message set to `"[Title]"` will be automatically updated with the appropriate game's Title.
+[`fe.Image`](#feimage) names, as well as the messages displayed by [`fe.Text`](#fetext) and [`fe.Listbox`](#felistbox) objects, can contain one or more _Magic Tokens_. _Magic Tokens_ are enclosed in square brackets, and the frontend automatically updates them as the user navigates the layout. For example, a Text message set to `"[Title]"` will be automatically updated with the appropriate game's Title.
 
 ```squirrel
 // A Text element that displays the current game's Title as well as it's List position
@@ -148,6 +184,12 @@ The following _Magic Tokens_ are supported:
    -  `[DisplayType]` - The display type for the game
    -  `[AltRomname]` - The alternative rom name for the game
    -  `[AltTitle]` - The alternative title for the game
+   -  `[Extra]` - The extra information for the game
+   -  `[Buttons]` - The number of buttons used by the game
+   -  `[Series]` - The series the game belongs to
+   -  `[Language]` - The language used by the game
+   -  `[Region]` - The region the game belongs to
+   -  `[Rating]` - The age rating for the game
    -  `[Overview]` - The overview description for the game
    -  `[System]` - The first System name for the game's emulator
    -  `[SystemN]` - The last System name for the game's emulator
@@ -166,6 +208,10 @@ The following _Magic Tokens_ are supported:
    -  `[PlayedTime]` - The number of seconds the game has been played
    -  `[PlayedLast]` - The timestamp the game was last played
    -  `[PlayedAgo]` - The last played date formatted relative to now, for example: `5 Minutes Ago`
+   -  `[Score]` - The user score for the game. Range is `[0.0...5.0]`
+   -  `[ScoreStar]` - The score displayed as a number of stars, for example: `★★★`
+   -  `[ScoreStarAlt]` - The score displayed as a number of stars plus empty slots, for example: `★★★☆☆`
+   -  `[Votes]` - The total number of user votes for the game
 
 #### Custom Magic Token Functions
 
@@ -178,7 +224,7 @@ _Magic Tokens_ can also run user-defined functions in the form `[!token_function
 // Return the first word in the Manufacturer name
 function manufacturer_name()
 {
-  local m = fe.game_info( Info.Manufacturer )
+  local m = fe.get_game_info( Info.Manufacturer )
   return split( m, " " )[0]
 }
 
@@ -191,12 +237,12 @@ fe.add_image( "[!manufacturer_name].png", 0, 0 )
 // Otherwise just return the Manufacturer's name
 function copyright( index_offset, filter_offset )
 {
-  local m = fe.game_info( Info.Manufacturer, index_offset, filter_offset )
-  local y = fe.game_info( Info.Year, index_offset, filter_offset )
+  local m = fe.get_game_info( Info.Manufacturer, index_offset, filter_offset )
+  local y = fe.get_game_info( Info.Year, index_offset, filter_offset )
 
   if (( m.len() > 0 ) && ( y.len() > 0 ))
   {
-    return "Copyright " + y + ", " + m
+	 return "Copyright " + y + ", " + m
   }
 
   return m
@@ -483,6 +529,15 @@ Compile a GLSL shader from the given file(s) for use in the layout. Also see [`f
    }
    ```
 
+**Notes**
+
+Windows caches compiled shaders for future recall, and since every change results in a new file this cache will continue to grow over time. When it reaches a limit (`2GB` by default, ie: *thousands* of files) new shaders will not be cached, causing slowdowns in your Layout.
+
+To clear this cache close the program and delete the contents of the cache folders.
+
+- AMD: `C:\Users\<name>\AppData\Local\AMD\GLCache\`
+- nVidia: `C:\Users\<name>\AppData\Local\NVIDIA\GLCache\`
+
 ---
 
 ### `fe.add_sound()`
@@ -583,7 +638,7 @@ Register a function in your script to get transition callbacks. Transition callb
 
      if ( redraw_needed )
      {
-       return true
+   	 return true
      }
 
      return false
@@ -668,14 +723,18 @@ Compile a GLSL shader from the given shader code for use in the layout. Also see
 
 -  An instance of the class [`fe.Shader`](#feshader) which can be used to interact with the added shader.
 
+**Notes**
+
+You should avoid "baking" variables into compiled shaders and use `uniforms` instead. While compiling dynamic shaders can avoid costly code branches, using this method to spawn *thousands* of unique shaders should be avoided. See the notes in [`fe.add_shader()`](#feadd_shader).
+
 ---
 
-### `fe.game_info()`
+### `fe.get_game_info()`
 
 ```squirrel
-fe.game_info( id )
-fe.game_info( id, index_offset )
-fe.game_info( id, index_offset, filter_offset )
+fe.get_game_info( id )
+fe.get_game_info( id, index_offset )
+fe.get_game_info( id, index_offset, filter_offset )
 ```
 
 Get information about the selected game.
@@ -699,11 +758,18 @@ Get information about the selected game.
    -  `Info.AltRomname`
    -  `Info.AltTitle`
    -  `Info.Extra`
+   -  `Info.Buttons`
+   -  `Info.Series`
+   -  `Info.Language`
+   -  `Info.Region`
+   -  `Info.Rating`
    -  `Info.Favourite`
    -  `Info.Tags`
    -  `Info.PlayedCount`
    -  `Info.PlayedTime`
    -  `Info.PlayedLast`
+   -  `Info.Score`
+   -  `Info.Votes`
    -  `Info.FileIsAvailable`
    -  `Info.System`
    -  `Info.Overview`
@@ -719,6 +785,61 @@ Get information about the selected game.
 **Notes**
 
 -  The `Info.IsPaused` attribute is `1` if the game is currently paused by the frontend, and an empty string if it is not.
+
+---
+
+### `fe.set_game_info()`
+
+```squirrel
+fe.set_game_info( id, value )
+fe.set_game_info( id, value, index_offset )
+fe.set_game_info( id, value, index_offset, filter_offset )
+```
+
+Set information about the selected game.
+
+**Parameters**
+
+-  `id` - Id of the information attribute to set. Can be one of the following values:
+   -  `Info.Name`
+   -  `Info.Title`
+   -  `Info.Emulator`
+   -  `Info.CloneOf`
+   -  `Info.Year`
+   -  `Info.Manufacturer`
+   -  `Info.Category`
+   -  `Info.Players`
+   -  `Info.Rotation`
+   -  `Info.Control`
+   -  `Info.Status`
+   -  `Info.DisplayCount`
+   -  `Info.DisplayType`
+   -  `Info.AltRomname`
+   -  `Info.AltTitle`
+   -  `Info.Extra`
+   -  `Info.Buttons`
+   -  `Info.Series`
+   -  `Info.Language`
+   -  `Info.Region`
+   -  `Info.Rating`
+   -  `Info.Favourite`
+   -  `Info.Tags`
+   -  `Info.PlayedCount`
+   -  `Info.PlayedTime`
+   -  `Info.PlayedLast`
+   -  `Info.Score`
+   -  `Info.Votes`
+-  `value` - The value to set.
+-  `index_offset` - The offset (from the current selection) of the game to update info for. i.e. `-1` = previous game, `0` = current game, `1` = next game, and so on. Default value is `0`.
+-  `filter_offset` - The offset (from the current filter) of the filter containing the selection to update info for. i.e. `-1` = previous filter, `0` = current filter. Default value is `0`.
+
+**Return Value**
+
+-  True if the value was successfully set.
+
+**Notes**
+
+-  Modifying game information does not reload the current Filter, or fire any related Transitions. If the change is expected to modify the list then `fe.signal("reload_config")` should be called afterward.
 
 ---
 
@@ -906,7 +1027,7 @@ Register a function in your script to handle signals. Signals are sent whenever 
 
      if ( no_more_processing )
      {
-       return true
+   	 return true
      }
 
      return false
@@ -1120,13 +1241,17 @@ Set the user configured settings for this layout/plugin/screensaver/intro.
 
 ```squirrel
 fe.get_text( text )
+fe.get_text( text, index_offset )
+fe.get_text( text, index_offset, filter_offset )
 ```
 
-Translate the specified text into the user's language. If no translation is found, then return the contents of `text`.
+Translate the given `text` into the user's language, then perform [_Magic Tokens_](#magic-tokens) replacement. Available translations are limited to the content found within the GUI, and if no matches are found the given text will be used.
 
 **Parameters**
 
 -  `text` - The text string to translate.
+-  `index_offset` - The offset (from the current selection) of the game to use for _Magic Tokens_. i.e. `-1` = previous game, `0` = current game, `1` = next game, and so on. Default value is `0`.
+-  `filter_offset` - The offset (from the current filter) of the filter containing the selection to use for _Magic Tokens_. i.e. `-1` = previous filter, `0` = current filter. Default value is `0`.
 
 **Return Value**
 
@@ -1269,6 +1394,7 @@ This class is a container for status information regarding the current display. 
 -  `search_rule` - Get/set the search rule applied to the current game list. If you set this and the resulting search finds no results, then the current game list remains displayed in its entirety. If there are results, then those results are shown instead, until search_rule is cleared or the user navigates away from the display/filter.
 -  `size` - Get the size of the current game list. If a search rule has been applied, this will be the number of matches found (if any)
 -  `clones_list` 🔶 - Returns `true` if the current list contains game clones.
+-  `tags` 🔶 - Returns array containing the available tags for the current list.
 
 ---
 
@@ -1358,11 +1484,18 @@ This class is a container for information about the available filters. Instances
    -  `Info.AltRomname`
    -  `Info.AltTitle`
    -  `Info.Extra`
+   -  `Info.Buttons`
+   -  `Info.Series`
+   -  `Info.Language`
+   -  `Info.Region`
+   -  `Info.Rating`
    -  `Info.Favourite`
    -  `Info.Tags`
    -  `Info.PlayedCount`
    -  `Info.PlayedTime`
    -  `Info.PlayedLast`
+   -  `Info.Score`
+   -  `Info.Votes`
    -  `Info.FileIsAvailable`
 -  `reverse_order` - [boolean] Will be equal to `true` if the list order has been reversed.
 -  `list_limit` - Get the value of the list limit applied to the filter game list.
@@ -1566,12 +1699,13 @@ The class representing an image in Attract-Mode Plus. Instances of this class ar
    {
      if (( ttype == Transition.FromOldSelection ) || ( ttype == Transition.ToNewList ))
      {
-       // dynamic art texture_width and texture_height are now available
-       art.subimg_height = texture_height * -1
-       art.subimg_y = texture_height
+   	 // dynamic art texture_width and texture_height are now available
+   	 art.subimg_height = texture_height * -1
+   	 art.subimg_y = texture_height
      }
    }
    ```
+- Pinch is achieved by subdividing the texture polygon into a triangle-strip, and scaling it towards one end. This results in a distorted image, and "ripple" artifacts on large pinches. For nicer results try the `perspective` module - see its Readme for more information.
 
 ---
 
@@ -2043,6 +2177,7 @@ Copy file from source to destination.
 
 -  `FeVersion` - [string] The current Attract-Mode Plus version.
 -  `FeVersionNum` - [int] The current Attract-Mode Plus version.
+-  `FeLogLevel` - [string] The current loglevel, will be one of: `"silent"`, `"info"`, or `"debug"`.
 -  `FeConfigDirectory` - [string] The path to the config directory.
 -  `IntroActive` - [boolean] `true` if the intro is active, `false` otherwise.
 -  `Language` - [string] The configured language.
@@ -2061,10 +2196,10 @@ Attract-Mode Plus includes all [Squirrel Standard Library](https://web.archive.o
 
 -  `zip_extract_archive( zipfile, filename )` - Open a specified `zipfile` archive file and extract `filename` from it, returning the contents as a squirrel blob. Supported formats are: `.zip` `.7z` `.rar` `.tar.gz` `.tar.bz2` `.tar`
 -  `zip_get_dir( zipfile )` - Return an array of the filenames contained in the `zipfile` archive file.
--  `regexp2( pattern, flags )` - A class which evaluates regular expressions using the C++ regular expression engine. Recommended over the standard `regexp` class as it contains considerable improvements. Flags are optional, accepts `"i"` for case-insensitive matches.
--  `join( arr, delim )` - Returns a string containing concatenated array values separated with the given delimiter.
--  `get_clipboard()` - Returns the contents of the OS clipboard.
--  `set_clipboard( value )` - Sets the contents of the OS clipboard.
+-  `regexp2( pattern, flags )` 🔶 - A class which evaluates regular expressions using the C++ regular expression engine. Recommended over the standard `regexp` class as it contains considerable improvements. Flags are optional, accepts `"i"` for case-insensitive matches.
+-  `join( arr, delim )` 🔶 - Returns a string containing concatenated array values separated with the given delimiter.
+-  `get_clipboard()` 🔶 - Returns the contents of the OS clipboard.
+-  `set_clipboard( value )` 🔶 - Sets the contents of the OS clipboard.
 
 ---
 

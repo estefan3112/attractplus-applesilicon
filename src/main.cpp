@@ -60,6 +60,8 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 void process_args( int argc, char *argv[],
 			std::string &config_path,
 			bool &process_console,
+			std::string &startup_display,
+			std::string &startup_filter,
 			std::string &log_file,
 			FeLogLevel &log_level,
 			bool &window_topmost,
@@ -71,6 +73,8 @@ int main(int argc, char *argv[])
 	bool launch_game = false;
 	bool initial_load = true;
 	bool process_console = false;
+	std::string startup_display;
+	std::string startup_filter;
 	int last_fullscreen_mode = FeSettings::WindowType::Fullscreen;
 	int last_window_mode = FeSettings::WindowType::Window;
 	int last_display_index = -1;
@@ -85,24 +89,18 @@ int main(int argc, char *argv[])
 #endif
 
 	nowide::args a( argc, argv );
-	process_args( argc, argv, config_path, process_console, log_file, log_level, window_topmost, window_args );
+	process_args( argc, argv, config_path, process_console, startup_display, startup_filter, log_file, log_level, window_topmost, window_args );
 
 	FeSettings feSettings( config_path );
 	feSettings.set_window_topmost( window_topmost );
 
-	// Update window file with commandline settings
-	if ( !window_args.empty() || window_topmost )
+	FeWindowPosition win_pos;
+
+	if ( !window_args.empty() )
 	{
-		FeWindowPosition win_pos;
-		win_pos.load_from_file( config_path + FE_WINDOW_FILE );
-
-		if ( !window_args.empty() )
-		{
-			win_pos.m_pos = sf::Vector2i( window_args[0], window_args[1] );
-			win_pos.m_size = sf::Vector2u( window_args[2], window_args[3] );
-		}
-
-		win_pos.save( config_path + FE_WINDOW_FILE );
+		win_pos.m_temporary = true;
+		win_pos.m_pos = sf::Vector2i( window_args[0], window_args[1] );
+		win_pos.m_size = sf::Vector2u( window_args[2], window_args[3] );
 	}
 
 #ifdef USE_LIBCURL
@@ -164,6 +162,7 @@ int main(int argc, char *argv[])
 	soundsys.play_ambient();
 
 	FeWindow window( feSettings );
+	window.set_window_position( win_pos );
 	window.initial_create();
 
 #ifdef WINDOWS_CONSOLE
@@ -179,6 +178,8 @@ int main(int argc, char *argv[])
 	feVM.set_transforms();
 
 	bool exit_selected=false;
+
+	feSettings.migration_cleanup_dialog( &feOverlay );
 
 	if ( feSettings.get_info( FeSettings::Language ).empty() )
 	{
@@ -218,10 +219,33 @@ int main(int argc, char *argv[])
 #endif
 
 	// Only show intro if there are displays configured
-	if ( !(feSettings.displays_count() < 1) ) {
+	if ( !(feSettings.displays_count() < 1) )
+	{
+		if ( !startup_display.empty() )
+		{
+			// Display set by commandline so startup with provided selection
+			feSettings.set_info( FeSettings::StartupMode, "show_last_selection" );
 
-		// Load the display early so the intro can use the romlist and artwork
-		feSettings.set_display( feSettings.get_selected_display_index() );
+			int display_index = feSettings.get_display_index_from_name( startup_display );
+			if ( display_index < 0 )
+				display_index = std::clamp( as_int( startup_display ), 0, (int)(*feSettings.get_displays()).size() - 1 );
+			FeLog() << "Startup Display: '" << startup_display << "' = " << display_index << std::endl;
+			feSettings.set_display( display_index );
+
+			if ( !startup_filter.empty() )
+			{
+				int filter_index = feSettings.get_filter_index_from_name( startup_filter );
+				if ( filter_index < 0 )
+					filter_index = std::clamp( as_int( startup_filter ), 0, feSettings.get_display( display_index )->get_filter_count() - 1 );
+				FeLog() << "Startup Filter: '" << startup_filter << "' = " << filter_index << std::endl;
+				feSettings.set_current_selection( filter_index, -1 );
+			}
+		}
+		else
+		{
+			// Load the display early so the intro can use the romlist and artwork
+			feSettings.set_display( feSettings.get_selected_display_index() );
+		}
 
 		// Attempt to start the intro
 		if ( !feVM.load_intro() )
@@ -356,6 +380,7 @@ int main(int argc, char *argv[])
 			redraw=true;
 		}
 
+		FeInputMouse::clear();
 		FeInputMap::Command c;
 		std::optional<sf::Event> ev;
 		bool from_ui;
@@ -441,60 +466,6 @@ int main(int argc, char *argv[])
 			//
 			if (( c == FeInputMap::LAST_COMMAND ) || ( launch_game ))
 				continue;
-
-			//
-			// Special case: handle the reload/restart/reset signals now
-			//
-
-			// Force window re-init
-			if ( c == FeInputMap::ResetWindow )
-			{
-				window.on_exit();
-				window.initial_create();
-				feVM.init_monitors();
-				feVM.load_layout();
-				continue;
-			}
-
-			// Reload the layout
-			if ( c == FeInputMap::ReloadLayout )
-			{
-				feVM.load_layout();
-				continue;
-			}
-
-			// Reload the configuration/emulator/window/layout
-			if ( c == FeInputMap::ReloadConfig )
-			{
-				int old_mode = feSettings.get_window_mode();
-				int old_aa = feSettings.get_antialiasing();
-				int old_multimon = feSettings.get_multimon();
-
-				feSettings.load();
-				feSettings.on_joystick_connect(); // update joystick mappings
-
-				soundsys.stop();
-				soundsys.play_ambient();
-
-				// Recreate window if the window mode changed
-				if (( feSettings.get_window_mode() != old_mode )
-					|| ( feSettings.get_antialiasing() != old_aa )
-					|| ( feSettings.get_multimon() != old_multimon ))
-				{
-					window.on_exit();
-					window.initial_create();
-					feVM.init_monitors();
-				}
-
-				// Settings have changed, reload the display
-				feSettings.set_display( feSettings.has_custom_displays_menu()
-					? feSettings.get_current_display_index()
-					: feSettings.get_selected_display_index() // in case config has removed custom display
-				);
-				feVM.load_layout();
-				feVM.reset_screen_saver();
-				continue;
-			}
 
 			//
 			// KEY REPEAT LOGIC (1 of 2)
@@ -680,6 +651,57 @@ int main(int argc, char *argv[])
 				// handle the things that fePresent doesn't do
 				switch ( c )
 				{
+
+				// Force window re-init
+				case FeInputMap::ResetWindow:
+				{
+					window.on_exit();
+					window.initial_create();
+					feVM.init_monitors();
+					feVM.load_layout();
+					continue;
+				}
+
+				// Reload the layout
+				case FeInputMap::ReloadLayout:
+				{
+					feVM.load_layout();
+					continue;
+				}
+
+				// Reload the configuration/emulator/window/layout
+				case FeInputMap::ReloadConfig:
+				{
+					int old_mode = feSettings.get_window_mode();
+					int old_aa = feSettings.get_antialiasing();
+					int old_multimon = feSettings.get_multimon();
+
+					feSettings.load();
+					feSettings.on_joystick_connect(); // update joystick mappings
+
+					soundsys.stop();
+					soundsys.play_ambient();
+
+					// Recreate window if the window mode changed
+					if (( feSettings.get_window_mode() != old_mode )
+						|| ( feSettings.get_antialiasing() != old_aa )
+						|| ( feSettings.get_multimon() != old_multimon ))
+					{
+						window.on_exit();
+						window.initial_create();
+						feVM.init_monitors();
+					}
+
+					// Settings have changed, reload the display
+					feSettings.set_display( feSettings.has_custom_displays_menu()
+						? feSettings.get_current_display_index()
+						: feSettings.get_selected_display_index() // in case config has removed custom display
+					);
+					feVM.load_layout();
+					feVM.reset_screen_saver();
+					continue;
+				}
+
 				case FeInputMap::Exit:
 					{
 						if ( feSettings.get_startup_mode() != FeSettings::ShowDisplaysMenu && feSettings.has_custom_displays_menu() )
@@ -805,12 +827,9 @@ int main(int argc, char *argv[])
 						if ( !r )
 							r = &dummy;
 
-						feSettings.update_romlist_after_edit( *r,
-							new_entry,
-							FeSettings::InsertEntry );
-
-						// initial update shows new entry behind config
-						// dialog
+						// initial update shows new entry behind config dialog
+						feSettings.update_romlist_after_edit( *r, new_entry, FeSettings::InsertEntry );
+						feSettings.init_display();
 						feVM.update_to_new_list();
 
 						if ( feOverlay.edit_game_dialog( 0, c ) )
@@ -1008,7 +1027,7 @@ int main(int argc, char *argv[])
 						{
 							// Update without reset if the list has not been changed
 							// - This will allow layout lists to display the changed favs
-							bool list_changed = feSettings.set_current_fav( new_state );
+							bool list_changed = feSettings.set_fav_current( new_state );
 							feVM.update_to_new_list( 0, list_changed );
 							feVM.on_transition( ChangedTag, FeRomInfo::Favourite );
 						}
