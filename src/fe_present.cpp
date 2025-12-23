@@ -191,7 +191,8 @@ FePresent::FePresent( FeSettings *fesettings, FeWindow &wnd )
 	m_emptyShader( NULL ),
 	m_overlay_caption( NULL ),
 	m_overlay_lb( NULL ),
-	m_layout_loaded( false )
+	m_layout_loaded( false ),
+	m_layout_has_content( false )
 {
 	m_baseRotation = m_feSettings->get_screen_rotation();
 	m_layoutFontName = "";
@@ -279,7 +280,7 @@ void FePresent::init_monitors()
 	if ( EnumDisplaySettings( NULL, ENUM_CURRENT_SETTINGS, &devMode ) != 0 )
 		m_refresh_rate = devMode.dmDisplayFrequency;
 
-	if ( m_feSettings->get_multimon() && !is_windowed_mode( m_feSettings->get_window_mode() ) )
+	if ( m_feSettings->get_multimon() && !is_windowed_mode( m_window.get_window_mode() ) )
 	{
 		EnumDisplayMonitors( NULL, NULL, my_mon_enum_proc, (LPARAM)&m_mon );
 
@@ -294,7 +295,7 @@ void FePresent::init_monitors()
 		// On Windows 'Fill screen' mode our window is offscreen 1 pixel in each direction, so correct
 		// for that here to align draw area with screen
 		//
-		if ( m_feSettings->get_window_mode() == FeSettings::Fillscreen )
+		if ( m_window.get_window_mode() == FeSettings::Fillscreen )
 		{
 			translate_x += 1;
 			translate_y += 1;
@@ -350,7 +351,7 @@ void FePresent::init_monitors()
 	XCloseDisplay( xdisp );
  #else
 	bool set_first=true;
-	if ( xdisp && m_feSettings->get_multimon() && !is_windowed_mode( m_feSettings->get_window_mode() ) )
+	if ( xdisp && m_feSettings->get_multimon() && !is_windowed_mode( m_window.get_window_mode() ) )
 	{
 		int num = 0;
 		XineramaScreenInfo *si = XineramaQueryScreens( xdisp, &num );
@@ -397,7 +398,7 @@ void FePresent::init_monitors()
 		// On Windows 'Fill screen' mode our window is offscreen 1 pixel in each direction, so correct
 		// for that here to align draw area with screen.
 		//
-		if ( m_feSettings->get_window_mode() == FeSettings::Fillscreen )
+		if ( m_window.get_window_mode() == FeSettings::Fillscreen )
 		{
 			mc.size.x -= 2;
 			mc.size.y -= 2;
@@ -599,6 +600,9 @@ FeImage *FePresent::add_image( bool is_artwork,
 	if (( !is_artwork ) && ( n.find_first_of( "[" ) == std::string::npos ))
 		new_image->setFileName( n.c_str() );
 
+	if ( get_script_id() < 0 )
+		m_layout_has_content = true;
+
 	flag_redraw();
 	m_texturePool.push_back( new_tex );
 	p.elements.push_back( new_image );
@@ -627,6 +631,9 @@ FeText *FePresent::add_text( const std::string &n, int x, int y, int w, int h,
 	new_text->setFont( *get_layout_font() );
 	new_text->set_scale_factor( m_layoutScale.x, m_layoutScale.y );
 
+	if ( get_script_id() < 0 )
+		m_layout_has_content = true;
+
 	flag_redraw();
 	p.elements.push_back( new_text );
 	return new_text;
@@ -640,6 +647,9 @@ FeListBox *FePresent::add_listbox( int x, int y, int w, int h,
 	new_lb->setFont( *get_layout_font() );
 	new_lb->set_scale_factor( m_layoutScale.x, m_layoutScale.y );
 
+	if ( get_script_id() < 0 )
+		m_layout_has_content = true;
+
 	flag_redraw();
 	m_listBox = new_lb;
 	p.elements.push_back( new_lb );
@@ -651,6 +661,9 @@ FeRectangle *FePresent::add_rectangle( float x, float y, float w, float h,
 {
 	FeRectangle *new_rc = new FeRectangle( p, x, y, w, h );
 	new_rc->set_scale_factor( m_layoutScale.x, m_layoutScale.y );
+
+	if ( get_script_id() < 0 )
+		m_layout_has_content = true;
 
 	flag_redraw();
 	p.elements.push_back( new_rc );
@@ -671,6 +684,9 @@ FeImage *FePresent::add_surface( float x, float y, int w, int h, FePresentablePa
 	new_image->set_blend_mode( FeBlend::Premultiplied );
 
 	new_image->texture_changed();
+
+	if ( get_script_id() < 0 )
+		m_layout_has_content = true;
 
 	flag_redraw();
 	p.elements.push_back( new_image );
@@ -1287,22 +1303,12 @@ void FePresent::load_layout( bool initial_load )
 	//
 	m_layout_time.reset();
 	m_layout_time_old = sf::Time::Zero;
+	m_layout_has_content = false;
 
 	on_new_layout();
 
 	// make things usable if the layout is empty
-	//
-	bool empty_layout=true;
-	for ( std::vector<FeBasePresentable *>::iterator itr=m_mon[0].elements.begin(); itr!=m_mon[0].elements.end(); ++itr )
-	{
-		if ( (*itr)->get_visible() )
-		{
-			empty_layout=false;
-			break;
-		}
-	}
-
-	if ( empty_layout )
+	if ( !m_layout_has_content )
 	{
 		FeLog() << " - Layout is empty, initializing with the default layout settings" << std::endl;
 		init_with_default_layout();
@@ -1727,7 +1733,7 @@ void FePresent::set_mouse_pointer( bool b )
 {
 	m_mouse_pointer_visible = b;
 
-	if ( is_windowed_mode( m_feSettings->get_window_mode() ))
+	if ( is_windowed_mode( m_window.get_window_mode() ))
 		m_window.get_win().setMouseCursorVisible( true );
 	else
 		m_window.get_win().setMouseCursorVisible( b );
