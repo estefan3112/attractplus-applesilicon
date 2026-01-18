@@ -1871,9 +1871,7 @@ const std::string &FeSettings::get_config_dir() const
 
 bool FeSettings::config_file_exists() const
 {
-	std::string config_file = m_config_path;
-	config_file += FE_CFG_FILE;
-
+	std::string config_file = m_config_path + FE_CFG_SUBDIR + FE_CFG_FILE;
 	return file_exists( config_file );
 }
 
