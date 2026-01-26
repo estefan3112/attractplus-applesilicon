@@ -80,10 +80,11 @@ jobs:
 
     - name: Install MacOS brew (Intel)
       run: |
+        export HOMEBREW_NO_INSTALL_CLEANUP=1
+        export HOMEBREW_NO_ENV_HINTS=1
         brew update
-        brew upgrade
-        brew install pkgconfig ffmpeg libarchive libvorbis flac jpeg-turbo sfml openal-soft
-
+        brew install pkgconfig ffmpeg libarchive libvorbis flac jpeg-turbo sfml openal-soft  
+      
     - name: Build AM+ (Intel)
       run: |
         make -C am -j${{ steps.vars.outputs.nbproc }} \
