@@ -53,6 +53,12 @@ jobs:
         mkdir -p "${GITHUB_WORKSPACE}"/artifacts
         bash am/util/osx/appbuilder.sh
 
+    - name: Self-sign app bundle
+      run: |
+        codesign --force --deep --options runtime \
+          --sign - \
+          "artifacts/AttractMode.app"
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -102,6 +108,12 @@ jobs:
         git -C am/ fetch --unshallow
         mkdir -p "${GITHUB_WORKSPACE}"/artifacts
         bash am/util/osx/appbuilder.sh
+
+    - name: Self-sign app bundle
+      run: |
+        codesign --force --deep --options runtime \
+          --sign - \
+          "artifacts/AttractMode.app"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
