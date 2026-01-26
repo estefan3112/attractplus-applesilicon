@@ -28,6 +28,7 @@
 #include <sqrat.h>
 #include "fe_audio_fx.hpp"
 #include "sqrat_array_wrapper.hpp"
+#include "fe_input.hpp"
 
 class FeMusic
 {
@@ -40,11 +41,12 @@ private:
 	bool m_play_state;
 	float m_volume;
 	float m_pan;
+	FeSoundInfo::SoundType m_sound_type;
 
 	FeAudioEffectsManager m_audio_effects;
 
 public:
-	FeMusic( bool loop=false );
+	FeMusic( bool loop=false, FeSoundInfo::SoundType st=FeSoundInfo::Sound );
 	~FeMusic();
 
 	void load( const std::string &fn );

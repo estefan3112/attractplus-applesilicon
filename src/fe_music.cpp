@@ -40,10 +40,11 @@
 #endif
 
 
-FeMusic::FeMusic( bool loop )
+FeMusic::FeMusic( bool loop, FeSoundInfo::SoundType st )
 	: m_file_name( "" ),
 	m_volume( 100.0 ),
 	m_pan( 0.0 ),
+	m_sound_type( st ),
 	m_fft_data_zero( FeAudioVisualiser::FFT_BANDS_MAX, 0.0f ),
 	m_fft_zero_wrapper( &m_fft_data_zero ),
 	m_fft_array_wrapper( &m_fft_data_zero )
@@ -55,27 +56,21 @@ FeMusic::FeMusic( bool loop )
 	m_audio_effects.add_effect( std::make_unique<FeAudioNormaliser>() );
 	m_audio_effects.add_effect( std::make_unique<FeAudioVisualiser>() );
 
+	FePresent *fep = FePresent::script_get_fep();
+	if ( fep )
+	{
+		auto* normaliser = m_audio_effects.get_effect<FeAudioNormaliser>();
+		if ( normaliser )
+			normaliser->set_enabled( fep->get_fes()->get_loudness() );
+	}
+
 	// Mark effects manager as ready for processing after all effects are constructed
 	m_audio_effects.set_ready_for_processing();
 	m_music.setEffectProcessor( [this]( const float *input_frames, unsigned int &input_frame_count,
 	                                    float *output_frames, unsigned int &output_frame_count,
 	                                    unsigned int frame_channel_count )
 	{
-		if ( input_frames && input_frame_count > 0 )
-		{
-			m_audio_effects.process_all( input_frames, output_frames, input_frame_count, frame_channel_count );
-		}
-		else
-		{
-			m_audio_effects.reset_all();
-
-			if ( input_frames && output_frames && input_frame_count > 0 )
-			{
-				const unsigned int total_samples = input_frame_count * frame_channel_count;
-				std::memcpy( output_frames, input_frames, total_samples * sizeof(float) );
-			}
-		}
-
+		m_audio_effects.process_all( input_frames, output_frames, input_frame_count, frame_channel_count );
 		output_frame_count = input_frame_count;
 	});
 }
@@ -105,6 +100,8 @@ void FeMusic::load( const std::string &fn )
 		return;
 	}
 	m_file_name = fn;
+
+	m_audio_effects.reset_all();
 }
 
 void FeMusic::set_file_name( const char *n )
@@ -170,7 +167,7 @@ void FeMusic::set_playing( bool state )
 		float vol = m_volume;
 		FePresent *fep = FePresent::script_get_fep();
 		if ( fep )
-			vol = vol * fep->get_fes()->get_play_volume( FeSoundInfo::Sound ) / 100.0;
+			vol = vol * fep->get_fes()->get_play_volume( m_sound_type ) / 100.0;
 
 		m_music.setVolume( vol );
 		m_music.setPan( m_pan );
@@ -287,7 +284,7 @@ void FeMusic::tick()
 
 	FePresent *fep = FePresent::script_get_fep();
 	if ( fep )
-		vol = vol * fep->get_fes()->get_play_volume( FeSoundInfo::Sound ) / 100.0;
+		vol = vol * fep->get_fes()->get_play_volume( m_sound_type ) / 100.0;
 
 	if ( vol != m_music.getVolume() )
 	{

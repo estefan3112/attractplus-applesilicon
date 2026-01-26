@@ -33,7 +33,7 @@
 
 FeSoundSystem::FeSoundSystem( FeSettings *fes )
 	: m_event_sound( false ),
-	m_ambient_sound( true ),
+	m_ambient_sound( true, FeSoundInfo::Ambient ),
 	m_fes( fes ),
 	m_current_sound( FeInputMap::LAST_COMMAND )
 {
@@ -91,6 +91,7 @@ void FeSoundSystem::stop()
 
 void FeSoundSystem::tick()
 {
+	m_ambient_sound.tick();
 }
 
 void FeSoundSystem::release_audio( bool state )

@@ -103,15 +103,20 @@ bool FeAudioEffectsManager::process_all( const float *input_frames, float *outpu
 	for ( size_t i = 0; i < m_effects.size(); ++i )
 	{
 		auto& effect = m_effects[i];
-		if ( effect && effect->is_enabled() )
+		if ( effect )
 		{
-			if ( effect->process( current_input, current_output, frame_count, channel_count ))
+			bool enabled = effect->is_enabled();
+			if ( dynamic_cast<FeAudioNormaliser*>( effect.get() ))
+			{
+				FePresent *fep = FePresent::script_get_fep();
+				if ( fep )
+					enabled = fep->get_fes()->get_loudness();
+			}
+
+			if ( enabled && effect->process( current_input, current_output, frame_count, channel_count ))
 				audio_modified = true;
-		}
-		else if ( effect )
-		{
-			// Pass-through
-			std::memcpy( current_output, current_input, frame_count * channel_count * sizeof( float ) );
+			else
+				std::memcpy( current_output, current_input, frame_count * channel_count * sizeof( float ) );
 		}
 
 		std::swap( current_input, current_output );
@@ -668,6 +673,11 @@ void FeAudioVisualiser::update_fall() const
 		apply_vu_fall( m_fft_left_in[i], m_fft_left_out[i], fft_fall_amount );
 		apply_vu_fall( m_fft_right_in[i], m_fft_right_out[i], fft_fall_amount );
 	}
+
+	// Reset FFT input values so they can fall properly when no audio is present
+	m_fft_mono_in.assign( m_fft_bands, 0.0f );
+	m_fft_left_in.assign( m_fft_bands, 0.0f );
+	m_fft_right_in.assign( m_fft_bands, 0.0f );
 }
 
 FeAudioNormaliser::FeAudioNormaliser()

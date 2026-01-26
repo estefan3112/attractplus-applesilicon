@@ -69,7 +69,15 @@ typedef AVCodec FeAVCodec;
 
 void try_hw_accel( AVCodecContext *&codec_ctx, FeAVCodec *&dec );
 
-std::string g_decoder;
+namespace
+{
+	std::string g_decoder;
+
+#if FE_HWACCEL
+	AVBufferRef *g_hw_device_ctx = NULL;
+	AVHWDeviceType g_hw_device_type = AV_HWDEVICE_TYPE_NONE;
+#endif
+}
 
 //
 // As of Nov, 2017 RetroPie's default version of avcodec is old enough
@@ -914,21 +922,23 @@ the_end:
 				<< std::endl;
 }
 
-FeMedia::FeMedia( Type t )
+FeMedia::FeMedia( Type t, FeAudioEffectsManager &effects_manager )
 	: sf::SoundStream(),
 	m_audio( NULL ),
 	m_video( NULL ),
-	m_aspect_ratio( 1.0 )
+	m_aspect_ratio( 1.0 ),
+	m_audio_effects( effects_manager )
 {
 	m_imp = new FeMediaImp( t );
 	sf::SoundStream::setSpatializationEnabled( false );
 
-	m_audio_effects.add_effect( std::make_unique<FeAudioDCFilter>() );
-	m_audio_effects.add_effect( std::make_unique<FeAudioNormaliser>() );
-	m_audio_effects.add_effect( std::make_unique<FeAudioVisualiser>() );
-
-	// Mark effects manager as ready for processing after all effects are constructed
-	m_audio_effects.set_ready_for_processing();
+	FePresent *fep = FePresent::script_get_fep();
+	if ( fep )
+	{
+		auto* normaliser = m_audio_effects.get_effect<FeAudioNormaliser>();
+		if ( normaliser )
+			normaliser->set_enabled( fep->get_fes()->get_loudness() );
+	}
 
 	// Mark FeMedia object as ready for audio callbacks
 	m_ready.store( true, std::memory_order_release );
@@ -956,21 +966,7 @@ void FeMedia::setup_effect_processor()
 
 		std::lock_guard<std::mutex> l( m_closing_mutex );
 
-		if ( input_frames && input_frame_count > 0 )
-		{
-			m_audio_effects.process_all( input_frames, output_frames, input_frame_count, frame_channel_count );
-		}
-		else
-		{
-			m_audio_effects.reset_all();
-
-			if ( input_frames && output_frames && input_frame_count > 0 )
-			{
-				const unsigned int total_samples = input_frame_count * frame_channel_count;
-				std::memcpy( output_frames, input_frames, total_samples * sizeof( float ));
-			}
-		}
-
+		m_audio_effects.process_all( input_frames, output_frames, input_frame_count, frame_channel_count );
 		output_frame_count = input_frame_count;
 	});
 }
@@ -993,8 +989,6 @@ void FeMedia::play()
 {
 	if ( !is_playing() )
 	{
-		m_audio_effects.reset_all();
-
 		if ( m_video )
 			m_video->play();
 
@@ -1010,8 +1004,6 @@ void FeMedia::signal_stop()
 
 	if ( m_video )
 		m_video->signal_stop();
-
-	m_audio_effects.reset_all();
 }
 
 void FeMedia::stop()
@@ -1053,8 +1045,6 @@ void FeMedia::stop()
 		std::lock_guard<std::recursive_mutex> l( m_imp->m_read_mutex );
 		m_imp->m_read_eof = false;
 	}
-
-	m_audio_effects.reset_all();
 }
 
 void FeMedia::close()
@@ -1172,8 +1162,6 @@ size_t fe_media_seek( void *opaque, int64_t offset, int whence )
 bool FeMedia::open( const std::string &archive,
 	const std::string &name, sf::Texture *outt )
 {
-	m_audio_effects.reset_all();
-
 	FeFileInputStream *s = NULL;
 
 	if ( !archive.empty() )
@@ -1229,6 +1217,8 @@ bool FeMedia::open( const std::string &archive,
 				<< FORMAT_CTX_URL << std::endl;
 		return false;
 	}
+
+	m_audio_effects.reset_all();
 
 	if ( m_imp->m_type & Audio )
 	{
@@ -1480,9 +1470,6 @@ bool FeMedia::tick()
 	if (( !m_video ) && ( !m_audio ))
 		return false;
 
-	if ( m_audio )
-		m_audio_effects.update_all();
-
 	if ( m_video )
 	{
 		std::lock_guard<std::recursive_mutex> l( m_video->image_swap_mutex );
@@ -1717,7 +1704,45 @@ std::string FeMedia::get_current_decoder()
 void FeMedia::set_current_decoder( const std::string &l )
 {
 	g_decoder = l;
+
+#if FE_HWACCEL
+	if ( g_hw_device_ctx )
+	{
+		av_buffer_unref( &g_hw_device_ctx );
+		FeDebug() << "Closed hardware video decoder context: "
+			<< av_hwdevice_get_type_name( g_hw_device_type ) << std::endl;
+		g_hw_device_ctx = NULL;
+		g_hw_device_type = AV_HWDEVICE_TYPE_NONE;
+	}
+
+	if ( !l.empty() && ( l.compare( "software" ) != 0 ) && ( l.compare( "mmal" ) != 0 ))
+	{
+		for ( int i=0; fe_hw_accels[i] != AV_HWDEVICE_TYPE_NONE; i++ )
+		{
+			if ( l.compare( av_hwdevice_get_type_name( fe_hw_accels[i] )) != 0 )
+				continue;
+
+			int ret = av_hwdevice_ctx_create( &g_hw_device_ctx, fe_hw_accels[i], NULL, NULL, 0 );
+
+			if ( ret < 0 )
+			{
+				FeLog() << "Error creating hardware video decoder context: "
+					<< av_hwdevice_get_type_name( fe_hw_accels[i] ) << std::endl;
+				g_hw_device_ctx = NULL;
+				g_hw_device_type = AV_HWDEVICE_TYPE_NONE;
+				return;
+			}
+
+			g_hw_device_type = fe_hw_accels[i];
+
+			FeDebug() << "Created hardware video decoder context: "
+				<< av_hwdevice_get_type_name( fe_hw_accels[i] ) << std::endl;
+			break;
+		}
+	}
+#endif
 }
+
 
 //
 // Try to use a hardware accelerated decoder where readily available...
@@ -1760,26 +1785,13 @@ void try_hw_accel( AVCodecContext *&codec_ctx, FeAVCodec *&dec )
 #endif
 
 #if FE_HWACCEL
-	for ( int i=0; fe_hw_accels[i] != AV_HWDEVICE_TYPE_NONE; i++ )
+	if ( g_hw_device_ctx && g_hw_device_type != AV_HWDEVICE_TYPE_NONE )
 	{
-		if ( g_decoder.compare( av_hwdevice_get_type_name( fe_hw_accels[i] )) != 0 )
-			continue;
-
-		AVBufferRef *device_ctx=NULL;
-		int ret = av_hwdevice_ctx_create( &device_ctx, fe_hw_accels[i], NULL, NULL, 0 );
-
-		if ( ret < 0 )
+		if ( g_decoder.compare( av_hwdevice_get_type_name( g_hw_device_type )) == 0 )
 		{
-			FeLog() << "error creating hw device context: "
-				<< av_hwdevice_get_type_name( fe_hw_accels[i] ) << std::endl;
-			return;
+			codec_ctx->hw_device_ctx = av_buffer_ref( g_hw_device_ctx );
+			codec_ctx->hwaccel_flags = AV_HWACCEL_FLAG_IGNORE_LEVEL;
 		}
-
-		codec_ctx->hw_device_ctx = device_ctx; // we are passing our buffer ref on device_ctx to codec_ctx here...
-		codec_ctx->hwaccel_flags = AV_HWACCEL_FLAG_IGNORE_LEVEL;
-
-		FeDebug() << "created hw device: "
-				<< av_hwdevice_get_type_name( fe_hw_accels[i] ) << std::endl;
 	}
 #endif
 }
