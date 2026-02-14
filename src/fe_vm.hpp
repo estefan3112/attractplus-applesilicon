@@ -79,6 +79,7 @@ private:
 	friend class FeConfigVM;
 
 	static const char *transitionTypeStrings[];
+	static const char *get_transition_name( FeTransitionType t );
 
 	enum FromToType
 	{
@@ -141,6 +142,8 @@ public:
 	// configs and detect emulators.  Prompts user to automaticallly import emulators
 	//
 	bool setup_wizard();
+
+	void set_audio_loudness( bool enabled );
 
 	// Scripting functionality
 	//
