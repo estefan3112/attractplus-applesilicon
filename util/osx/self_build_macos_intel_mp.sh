@@ -34,6 +34,9 @@ fi
 export PKG_CONFIG_PATH=/opt/local/libexec/ffmpeg8/lib/pkgconfig:/opt/local/lib/pkgconfig:/opt/local/share/pkgconfig
 export PATH=/opt/local/bin:$PATH
 
+# uncomment the following line for legacy MacOS support - 10.15 is oldest possible - probably only relevant for Intel
+# MACOSX_DEPLOYMENT_TARGET=10.15
+
 echo Creating Folders
 rm -Rf $HOME/buildattract
 mkdir $HOME/buildattract
