@@ -29,6 +29,7 @@
 #include <SFML/Config.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/Clipboard.hpp>
+#include "fe_align.hpp"
 #include "nowide/fstream.hpp"
 
 #ifdef FE_DEBUG
@@ -44,6 +45,9 @@ namespace FeUtil
     std::string narrow( const std::wstring& s );
     std::wstring widen( const std::string& s );
 }
+
+// Escape text for use as literal regex pattern
+std::string escape_regex( const std::string &text );
 
 //
 // Utility functions for processing config files:
@@ -224,6 +228,9 @@ bool read_file_content( const std::string &file, std::string &content );
 
 // write the contents to the given file, return true on success
 bool write_file_content( const std::string &file, const std::string content );
+
+// Append the contents to the given file, return true on success
+bool append_file_content( const std::string &file, const std::string content );
 
 // Check if provided path exists and whether it's a file or a directory
 // Returns one of the following: IsFile, IsDirectory, IsNotFound
@@ -479,28 +486,11 @@ void hide_console();
 #define ASSERT(a)
 #endif
 
-#endif
-
 // Create a vector container #size values from..to
 std::vector<std::string> create_range( int from, int to, int size );
 
 // Create a vector container #size values from..to, clamped at min/max
 std::vector<std::string> create_range( int from, int to, int size, int min, int max );
-
-// Auto string to sf::Color
-bool str_to_color( const std::string &str, sf::Color &col );
-
-// rgb string to sf::Color
-bool rgb_to_color( const std::string &str, sf::Color &col );
-
-// hex string to sf::Color
-bool hex_to_color( const std::string &str, sf::Color &col );
-
-// sf::Color to rgb string
-void color_to_rgb( const sf::Color &col, std::string &str );
-
-// sf::Color to hex string
-void color_to_hex( const sf::Color &col, std::string &str );
 
 //
 // Return index of token in tokens, or -1 if not found
@@ -509,3 +499,8 @@ int get_token_index( const char *tokens[], const std::string &token );
 
 // Return true if capslock enabled
 bool get_capslock_state();
+
+// Convert Anchor/Origin/Align values to normalised coordinates
+sf::Vector2f align_type_to_vector( int type );
+
+#endif // FE_UTIL_HPP

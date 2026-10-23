@@ -23,6 +23,7 @@
 #ifndef TEXT_Primitive_HPP
 #define TEXT_Primitive_HPP
 
+#include "fe_align.hpp"
 #include "justify_text.hpp"
 #include <SFML/Graphics.hpp>
 #include <vector>
@@ -30,13 +31,11 @@
 class FeTextPrimitive : public sf::Drawable
 {
 public:
-	enum Alignment {
-		Left=1,
-		Centre=2,
-		Right=4,
-		Top=8,
-		Bottom=16,
-		Middle=32
+	enum Case {
+		None =			0,
+		Uppercase =		1 << 0,
+		Lowercase =		1 << 1,
+		Capitalize =	1 << 2
 	};
 
 	FeTextPrimitive();
@@ -45,7 +44,7 @@ public:
 			sf::Color colour,
 			sf::Color bgcolour,
 			unsigned int charactersize,
-			Alignment align=Centre );
+			FeAlign align=FeAlign::Centre );
 
 	FeTextPrimitive( const FeTextPrimitive & );
 
@@ -70,11 +69,13 @@ public:
 	void setCharacterSize( unsigned int );
 	void setCharacterSpacing( float );
 	void setLineSpacing( float );
-	void setAlignment( Alignment );
+	void setAlignment( FeAlign );
+	void setCase( Case );
 	void setPosition( int x, int y ) {return setPosition(sf::Vector2f(x,y));};
 	void setPosition( const sf::Vector2f & );
 	void setSize( int w, int h ) {return setSize(sf::Vector2f(w,h));};
 	void setSize( const sf::Vector2f & );
+	void setOrigin( const sf::Vector2f & );
 	void setStyle( int );
 	void setJustify( int );
 	void setRotation( float );
@@ -102,9 +103,11 @@ public:
 	float getCharacterSpacing() const;
 	float getLineSpacing() const;
 	int getLineSpacingFactored( const sf::Font *, int ) const;
-	Alignment getAlignment() const;
+	FeAlign getAlignment() const;
+	Case getCase() const;
 	sf::Vector2f getPosition() const;
 	sf::Vector2f getSize() const;
+	sf::Vector2f getOrigin() const;
 	float getRotation() const;
 	int getStyle() const;
 	int getJustify() const;
@@ -120,7 +123,8 @@ public:
 private:
 	sf::RectangleShape m_bgRect;
 	mutable std::vector<sf::JustifyText> m_texts;
-	Alignment m_align;
+	FeAlign m_align;
+	Case m_case;
 	int m_justify;
 
 	// this is set to -1 when "no word wrapping" is set.

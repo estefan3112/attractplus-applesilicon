@@ -27,6 +27,7 @@
 #include "fe_util.hpp"
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 
 const std::string DEFAULT_FORMAT_STRING = "[Title]";
 
@@ -35,24 +36,35 @@ FeListBox::FeListBox( FePresentableParent &p, int x, int y, int w, int h )
 	m_selColour( sf::Color::Yellow ),
 	m_selBg( sf::Color::Blue ),
 	m_selOutlineColour( sf::Color::Black ),
-	m_selOutlineThickness( 0 ),
+	m_position( x, y ),
+	m_size( w, h ),
+	m_transform_origin( 0.f, 0.f ),
+	m_anchor( 0.f, 0.f ),
+	m_rotation_origin( 0.f, 0.f ),
+	m_transform_origin_type( FeAlign::TopLeft ),
+	m_anchor_type( FeAlign::TopLeft ),
+	m_rotation_origin_type( FeAlign::TopLeft ),
 	m_selStyle( sf::Text::Regular ),
 	m_rows( 11 ),
-	m_list_align( FeTextPrimitive::Top ),
+	m_list_align( FeAlign::Top ),
 	m_userCharSize( 0 ),
+	m_userMargin( -1 ),
+	m_outline( 0 ),
+	m_sel_outline( 0 ),
 	m_filter_offset( 0 ),
 	m_rotation( 0.0 ),
 	m_scale_factor( 1.0 ),
 	m_scripted( true ),
 	m_mode( Static ),
 	m_selected_row( -1 ),
+	m_parent_selected_row( -1 ),
 	m_list_start_offset( 0 ),
 	m_selection_margin( 0 ),
 	m_custom_sel( -1 ),
 	m_has_custom_list( false )
 {
-	m_base_text.setPosition( sf::Vector2f( x, y ) );
-	m_base_text.setSize( sf::Vector2f( w, h ) );
+	m_base_text.setPosition( m_position );
+	m_base_text.setSize( m_size );
 	m_base_text.setColor( sf::Color::White );
 	m_base_text.setBgColor( sf::Color::Transparent );
 }
@@ -67,21 +79,32 @@ FeListBox::FeListBox(
 		unsigned int charactersize,
 		int rows )
 	: FeBasePresentable( p ),
-	m_base_text( font, colour, bgcolour, charactersize, FeTextPrimitive::Centre ),
+	m_base_text( font, colour, bgcolour, charactersize, FeAlign::Centre ),
 	m_selColour( selcolour ),
 	m_selBg( selbgcolour ),
 	m_selOutlineColour( sf::Color::Black ),
-	m_selOutlineThickness( 0 ),
+	m_position( 0.f, 0.f ),
+	m_size( 0.f, 0.f ),
+	m_transform_origin( 0.f, 0.f ),
+	m_anchor( 0.f, 0.f ),
+	m_rotation_origin( 0.f, 0.f ),
+	m_transform_origin_type( FeAlign::TopLeft ),
+	m_anchor_type( FeAlign::TopLeft ),
+	m_rotation_origin_type( FeAlign::TopLeft ),
 	m_selStyle( sf::Text::Regular ),
 	m_rows( rows ),
-	m_list_align( FeTextPrimitive::Top ),
+	m_list_align( FeAlign::Top ),
 	m_userCharSize( charactersize ),
+	m_userMargin( -1 ),
+	m_outline( 0 ),
+	m_sel_outline( 0 ),
 	m_filter_offset( 0 ),
 	m_rotation( 0.0 ),
 	m_scale_factor( 1.0 ),
 	m_scripted( false ),
 	m_mode( Static ),
 	m_selected_row( -1 ),
+	m_parent_selected_row( -1 ),
 	m_list_start_offset( 0 ),
 	m_selection_margin( 0 ),
 	m_custom_sel( -1 )
@@ -101,15 +124,16 @@ void FeListBox::setFont( const sf::Font &f )
 
 sf::Vector2f FeListBox::getPosition() const
 {
-	return m_base_text.getPosition();
+	return m_position;
 }
 
 void FeListBox::setPosition( const sf::Vector2f &p )
 {
-	if ( p == m_base_text.getPosition() )
+	if ( p == m_position )
 		return;
 
-	m_base_text.setPosition( p );
+	m_position = p;
+	update_row_geometry();
 
 	if ( m_scripted )
 		FePresent::script_do_update( this );
@@ -117,15 +141,16 @@ void FeListBox::setPosition( const sf::Vector2f &p )
 
 sf::Vector2f FeListBox::getSize() const
 {
-	return m_base_text.getSize();
+	return m_size;
 }
 
 void FeListBox::setSize( const sf::Vector2f &s )
 {
-	if ( s == m_base_text.getSize() )
+	if ( s == m_size )
 		return;
 
-	m_base_text.setSize( s );
+	m_size = s;
+	update_row_geometry();
 
 	if ( m_scripted )
 		FePresent::script_do_update( this );
@@ -141,12 +166,159 @@ sf::Color FeListBox::getColor() const
 	return m_base_text.getColor();
 }
 
+int FeListBox::get_transform_origin_type() const
+{
+	return m_transform_origin_type;
+}
+
+int FeListBox::get_anchor_type() const
+{
+	return m_anchor_type;
+}
+
+int FeListBox::get_rotation_origin_type() const
+{
+	return m_rotation_origin_type;
+}
+
+float FeListBox::get_transform_origin_x() const
+{
+	return m_transform_origin.x;
+}
+
+float FeListBox::get_transform_origin_y() const
+{
+	return m_transform_origin.y;
+}
+
+float FeListBox::get_anchor_x() const
+{
+	return m_anchor.x;
+}
+
+float FeListBox::get_anchor_y() const
+{
+	return m_anchor.y;
+}
+
+float FeListBox::get_rotation_origin_x() const
+{
+	return m_rotation_origin.x;
+}
+
+float FeListBox::get_rotation_origin_y() const
+{
+	return m_rotation_origin.y;
+}
+
+void FeListBox::set_transform_origin( float x, float y )
+{
+	if (
+		x != m_transform_origin.x || x != m_anchor.x || x != m_rotation_origin.x ||
+		y != m_transform_origin.y || y != m_anchor.y || y != m_rotation_origin.y
+	)
+	{
+		m_transform_origin = sf::Vector2f( x, y );
+		m_anchor = sf::Vector2f( x, y );
+		m_rotation_origin = sf::Vector2f( x, y );
+		update_row_geometry();
+		FePresent::script_flag_redraw();
+	}
+}
+
+void FeListBox::set_transform_origin_type( int t )
+{
+	m_transform_origin_type = static_cast<FeAlign>( t );
+	sf::Vector2f a = align_type_to_vector( t );
+	set_transform_origin( a.x, a.y );
+}
+
+void FeListBox::set_anchor( float x, float y )
+{
+	if ( x != m_anchor.x || y != m_anchor.y )
+	{
+		m_anchor = sf::Vector2f( x, y );
+		update_row_geometry();
+		FePresent::script_flag_redraw();
+	}
+}
+
+void FeListBox::set_anchor_type( int t )
+{
+	m_anchor_type = static_cast<FeAlign>( t );
+	sf::Vector2f a = align_type_to_vector( t );
+	set_anchor( a.x, a.y );
+}
+
+void FeListBox::set_rotation_origin( float x, float y )
+{
+	if ( x != m_rotation_origin.x || y != m_rotation_origin.y )
+	{
+		m_rotation_origin = sf::Vector2f( x, y );
+		update_row_geometry();
+		FePresent::script_flag_redraw();
+	}
+}
+
+void FeListBox::set_rotation_origin_type( int t )
+{
+	m_rotation_origin_type = static_cast<FeAlign>( t );
+	sf::Vector2f o = align_type_to_vector( t );
+	set_rotation_origin( o.x, o.y );
+}
+
+void FeListBox::set_transform_origin_x( float x )
+{
+	if ( x != m_transform_origin.x || x != m_anchor.x || x != m_rotation_origin.x )
+	{
+		m_transform_origin.x = x;
+		m_anchor.x = x;
+		m_rotation_origin.x = x;
+		update_row_geometry();
+		FePresent::script_flag_redraw();
+	}
+}
+
+void FeListBox::set_transform_origin_y( float y )
+{
+	if ( y != m_transform_origin.y || y != m_anchor.y || y != m_rotation_origin.y )
+	{
+		m_transform_origin.y = y;
+		m_anchor.y = y;
+		m_rotation_origin.y = y;
+		update_row_geometry();
+		FePresent::script_flag_redraw();
+	}
+}
+
+void FeListBox::set_anchor_x( float x )
+{
+	set_anchor( x, get_anchor_y() );
+}
+
+void FeListBox::set_anchor_y( float y )
+{
+	set_anchor( get_anchor_x(), y );
+}
+
+void FeListBox::set_rotation_origin_x( float x )
+{
+	set_rotation_origin( x, get_rotation_origin_y() );
+}
+
+void FeListBox::set_rotation_origin_y( float y )
+{
+	set_rotation_origin( get_rotation_origin_x(), y );
+}
+
 void FeListBox::set_outline( float t )
 {
-	if ( t == m_base_text.getOutlineThickness() )
+	t = std::max( 0.0f, t );
+	if ( t == m_outline )
 		return;
 
-	m_base_text.setOutlineThickness( t );
+	m_outline = t;
+	update_outline();
 
 	if ( m_scripted )
 		FePresent::script_do_update( this );
@@ -154,13 +326,42 @@ void FeListBox::set_outline( float t )
 
 float FeListBox::get_outline()
 {
-	return m_base_text.getOutlineThickness();
+	return m_outline;
 }
 
-void FeListBox::set_outline_rgb(int r, int g, int b )
+void FeListBox::set_outline_red(int r)
+{
+	sf::Color c = getOutlineColor();
+	set_outline_rgb( r, c.g, c.b, c.a );
+}
+
+void FeListBox::set_outline_green(int g)
+{
+	sf::Color c = getOutlineColor();
+	set_outline_rgb( c.r, g, c.b, c.a );
+}
+
+void FeListBox::set_outline_blue(int b)
+{
+	sf::Color c = getOutlineColor();
+	set_outline_rgb( c.r, c.g, b, c.a );
+}
+
+void FeListBox::set_outline_alpha(int a)
+{
+	sf::Color c = getOutlineColor();
+	set_outline_rgb( c.r, c.g, c.b, a );
+}
+
+void FeListBox::set_outline_rgb( int r, int g, int b )
 {
 	float a = getOutlineColor().a;
-	setOutlineColor( sf::Color( r, g, b, a ? a : 255 ) );
+	set_outline_rgb( r, g, b, a == 0 ? 255 : a ); // legacy - force alpha if none
+}
+
+void FeListBox::set_outline_rgb( int r, int g, int b, int a )
+{
+	setOutlineColor(sf::Color( r, g, b, a ));
 }
 
 sf::Color FeListBox::getOutlineColor() const
@@ -179,12 +380,12 @@ void FeListBox::setOutlineColor( sf::Color c )
 
 void FeListBox::set_sel_outline( float t )
 {
-	if ( t == m_selOutlineThickness )
+	t = std::max( 0.0f, t );
+	if ( t == m_sel_outline )
 		return;
 
-	m_selOutlineThickness = t;
-	FeTextPrimitive *sel;
-	if ( getSelectedText( sel ) ) sel->setOutlineThickness( m_selOutlineThickness );
+	m_sel_outline = t;
+	update_outline();
 
 	if ( m_scripted )
 		FePresent::script_do_update( this );
@@ -192,13 +393,42 @@ void FeListBox::set_sel_outline( float t )
 
 float FeListBox::get_sel_outline()
 {
-	return m_selOutlineThickness;
+	return m_sel_outline;
 }
 
-void FeListBox::set_sel_outline_rgb(int r, int g, int b )
+void FeListBox::set_sel_outline_red(int r)
+{
+	sf::Color c = getSelOutlineColor();
+	set_sel_outline_rgb( r, c.g, c.b, c.a );
+}
+
+void FeListBox::set_sel_outline_green(int g)
+{
+	sf::Color c = getSelOutlineColor();
+	set_sel_outline_rgb( c.r, g, c.b, c.a );
+}
+
+void FeListBox::set_sel_outline_blue(int b)
+{
+	sf::Color c = getSelOutlineColor();
+	set_sel_outline_rgb( c.r, c.g, b, c.a );
+}
+
+void FeListBox::set_sel_outline_alpha(int a)
+{
+	sf::Color c = getSelOutlineColor();
+	set_sel_outline_rgb( c.r, c.g, c.b, a );
+}
+
+void FeListBox::set_sel_outline_rgb( int r, int g, int b )
 {
 	float a = getSelOutlineColor().a;
-	setSelOutlineColor( sf::Color( r, g, b, a ? a : 255 ) );
+	set_sel_outline_rgb( r, g, b, a == 0 ? 255 : a ); // legacy - force alpha if none
+}
+
+void FeListBox::set_sel_outline_rgb( int r, int g, int b, int a )
+{
+	setSelOutlineColor(sf::Color( r, g, b, a ));
 }
 
 sf::Color FeListBox::getSelOutlineColor() const
@@ -213,24 +443,50 @@ void FeListBox::setSelOutlineColor( sf::Color c )
 
 	m_selOutlineColour = c;
 	FeTextPrimitive *sel;
-	if ( getSelectedText( sel ) ) sel->setOutlineColor( m_selOutlineColour );
+	if ( getSelectedText( sel ) )
+		sel->setOutlineColor( m_selOutlineColour );
 
 	if ( m_scripted )
 		FePresent::script_flag_redraw();
 }
 
+void FeListBox::update_row_geometry()
+{
+	int row_count = getRowCount();
+	if ( row_count <= 0 )
+		return;
+
+	sf::Vector2f size = getSize();
+	sf::Vector2f top_left = m_position - sf::Vector2f( m_anchor.x * size.x, m_anchor.y * size.y );
+	sf::Vector2f pivot = m_position + sf::Vector2f(
+		( m_rotation_origin.x - m_anchor.x ) * size.x,
+		( m_rotation_origin.y - m_anchor.y ) * size.y
+	);
+	m_snap_offset = sf::Vector2f( -m_anchor.x * size.x, -m_anchor.y * size.y );
+	sf::Vector2f snapped_top_left = snap_draw_position( top_left );
+	pivot += snapped_top_left - top_left;
+	top_left = snapped_top_left;
+	int actual_spacing = (int)size.y / row_count;
+
+	m_base_text.setPosition( top_left );
+	m_base_text.setSize( size );
+	m_base_text.setOrigin( sf::Vector2f( 0.f, 0.f ));
+
+	sf::Transform rotater;
+	rotater.rotate( sf::degrees( m_rotation ), pivot );
+
+	for ( int i=0; i< row_count; i++ )
+	{
+		m_texts[i].setOrigin( sf::Vector2f( 0.f, 0.f ));
+		m_texts[i].setPosition( rotater.transformPoint({ top_left.x, top_left.y + ( i * actual_spacing )}));
+		m_texts[i].setSize( size.x, actual_spacing );
+		m_texts[i].setRotation( m_rotation );
+	}
+}
+
 void FeListBox::init_dimensions()
 {
-	sf::Vector2f size = getSize();
-	sf::Vector2f pos = getPosition();
-
-	int actual_spacing = (int)size.y / m_rows;
-	int char_size = ( m_userCharSize > 0 ) ? m_userCharSize
-		: ( actual_spacing > 12 ) ? actual_spacing - 4
-		: 8;
-
-	m_base_text.setTextScale( sf::Vector2f( 1.0, 1.0 ) / m_scale_factor );
-	m_base_text.setCharacterSize( char_size * m_scale_factor );
+	update_text_metrics();
 
 	// Add or remove text elements to match row count
 	while ( getRowCount() < m_rows )
@@ -238,19 +494,37 @@ void FeListBox::init_dimensions()
 	while ( getRowCount() > m_rows )
 		m_texts.pop_back();
 
-	sf::Transform rotater;
-	rotater.rotate( sf::degrees( m_rotation ), { pos.x, pos.y });
-
 	// Re-position text elements
 	for ( int i=0; i< m_rows; i++ )
-	{
 		m_texts[i].setFrom( m_base_text );
-		m_texts[i].setPosition( rotater.transformPoint({ pos.x, pos.y + ( i * actual_spacing )}));
-		m_texts[i].setSize( size.x, actual_spacing );
-		m_texts[i].setRotation( m_rotation );
-	}
+
+	update_row_geometry();
 
 	update_styles();
+}
+
+void FeListBox::update_text_metrics()
+{
+	sf::Vector2f size = getSize();
+
+	int actual_spacing = (int)size.y / m_rows;
+	float char_size = ( m_userCharSize > 0 )
+		? ( m_scripted ? grid_height_to_pixels( m_userCharSize ) : m_userCharSize )
+		: ( actual_spacing > 12 ) ? actual_spacing - 4.0f
+		: 8.0f;
+
+	m_base_text.setTextScale( sf::Vector2f( 1.0, 1.0 ) / m_scale_factor );
+	unsigned int scaled_char_size = static_cast<unsigned int>(
+		std::round( std::max( 1.0f, char_size * m_scale_factor )));
+	m_base_text.setCharacterSize( scaled_char_size );
+	update_margin();
+	update_outline();
+
+	for ( int i=0; i < getRowCount(); i++ )
+	{
+		m_texts[i].setTextScale( m_base_text.getTextScale() );
+		m_texts[i].setCharacterSize( scaled_char_size );
+	}
 }
 
 void FeListBox::update_styles()
@@ -259,6 +533,9 @@ void FeListBox::update_styles()
 	sf::Color bgColor = m_base_text.getBgColor();
 	sf::Color outlineColour = m_base_text.getOutlineColor();
 	float outlineThickness = m_base_text.getOutlineThickness();
+	float selOutlineThickness = m_scripted
+		? grid_height_to_pixels( m_sel_outline )
+		: m_sel_outline;
 	int style = m_base_text.getStyle();
 
 	for ( int i=0; i< m_rows; i++ )
@@ -268,7 +545,7 @@ void FeListBox::update_styles()
 			m_texts[i].setColor( m_selColour );
 			m_texts[i].setBgColor( m_selBg );
 			m_texts[i].setOutlineColor( m_selOutlineColour );
-			m_texts[i].setOutlineThickness( m_selOutlineThickness );
+			m_texts[i].setOutlineThickness( selOutlineThickness );
 			m_texts[i].setStyle( m_selStyle );
 			continue;
 		}
@@ -493,8 +770,7 @@ void FeListBox::setRotation( float r )
 
 	m_rotation = r;
 
-	for ( int i=0; i < getRowCount(); i++ )
-		m_texts[i].setRotation( m_rotation );
+	update_row_geometry();
 
 	if ( m_scripted )
 		FePresent::script_flag_redraw();
@@ -538,14 +814,16 @@ void FeListBox::refresh_list()
 			{
 				switch ( m_list_align )
 				{
-					case FeTextPrimitive::Top:
+					case FeAlign::Top:
 						goal_sel_row = sel;
 						break;
-					case FeTextPrimitive::Middle:
+					case FeAlign::Centre:
 						goal_sel_row = sel + empty_rows / 2;
 						break;
-					case FeTextPrimitive::Bottom:
+					case FeAlign::Bottom:
 						goal_sel_row = sel + empty_rows;
+						break;
+					default:
 						break;
 				}
 			}
@@ -566,6 +844,20 @@ void FeListBox::refresh_list()
 void FeListBox::on_new_list( FeSettings *s )
 {
 	update_list_settings( s );
+
+	if ( s->get_clone_index() >= 0 )
+	{
+		if ( m_parent_selected_row < 0 && m_selected_row >= 0 )
+		{
+			m_parent_selected_row = m_selected_row;
+		}
+	}
+	else if ( m_parent_selected_row >= 0 )
+	{
+		m_selected_row = m_parent_selected_row;
+		m_parent_selected_row = -1;
+	}
+
 	refresh_list();
 }
 
@@ -580,6 +872,17 @@ void FeListBox::set_scale_factor( float scale_x, float scale_y )
 	m_scale_factor = ( scale_x > scale_y ) ? scale_x : scale_y;
 	if ( m_scale_factor <= 0.f )
 		m_scale_factor = 1.f;
+
+	update_text_metrics();
+	update_row_geometry();
+}
+
+void FeListBox::refresh_script_geometry()
+{
+	FeBasePresentable::refresh_script_geometry();
+
+	update_text_metrics();
+	update_row_geometry();
 }
 
 void FeListBox::draw( sf::RenderTarget &target, sf::RenderStates states ) const
@@ -632,34 +935,74 @@ int FeListBox::getFilterOffset() const
 	return m_filter_offset;
 }
 
-int FeListBox::get_bgr()
+int FeListBox::get_bg_red()
 {
 	return m_base_text.getBgColor().r;
 }
 
-int FeListBox::get_bgg()
+int FeListBox::get_bg_green()
 {
 	return m_base_text.getBgColor().g;
 }
 
-int FeListBox::get_bgb()
+int FeListBox::get_bg_blue()
 {
 	return m_base_text.getBgColor().b;
 }
 
-int FeListBox::get_bga()
+int FeListBox::get_bg_alpha()
 {
 	return m_base_text.getBgColor().a;
 }
 
-int FeListBox::get_charsize()
+int FeListBox::get_outline_red()
+{
+	return getOutlineColor().r;
+}
+
+int FeListBox::get_outline_green()
+{
+	return getOutlineColor().g;
+}
+
+int FeListBox::get_outline_blue()
+{
+	return getOutlineColor().b;
+}
+
+int FeListBox::get_outline_alpha()
+{
+	return getOutlineColor().a;
+}
+
+int FeListBox::get_sel_outline_red()
+{
+	return getSelOutlineColor().r;
+}
+
+int FeListBox::get_sel_outline_green()
+{
+	return getSelOutlineColor().g;
+}
+
+int FeListBox::get_sel_outline_blue()
+{
+	return getSelOutlineColor().b;
+}
+
+int FeListBox::get_sel_outline_alpha()
+{
+	return getSelOutlineColor().a;
+}
+
+float FeListBox::get_charsize()
 {
 	return m_userCharSize;
 }
 
-int FeListBox::get_glyph_size()
+float FeListBox::get_glyph_size()
 {
-	return m_base_text.getGlyphSize();
+	return m_scripted ? pixels_to_grid_height( m_base_text.getGlyphSize() ) : m_base_text.getGlyphSize();
 }
 
 float FeListBox::get_spacing()
@@ -670,6 +1013,16 @@ float FeListBox::get_spacing()
 int FeListBox::get_rows()
 {
 	return m_rows;
+}
+
+float FeListBox::get_sel_y() const
+{
+	return get_selected_row() * get_row_height();
+}
+
+float FeListBox::get_row_height() const
+{
+	return std::floor( get_height() / m_rows );
 }
 
 int FeListBox::get_list_align()
@@ -703,15 +1056,27 @@ int FeListBox::get_justify()
 
 int FeListBox::get_align()
 {
-	return (int)m_base_text.getAlignment();
+	return m_base_text.getAlignment();
+}
+
+int FeListBox::get_case()
+{
+	return (int)m_base_text.getCase();
+}
+
+int FeListBox::get_type() const
+{
+	return FePresentableTypeListbox;
 }
 
 void FeListBox::set_no_margin( bool m )
 {
-	if ( m == m_base_text.getNoMargin() )
+	float margin = m ? 0.0f : -1.0f;
+	if ( margin == m_userMargin )
 		return;
 
-	m_base_text.setNoMargin( m );
+	m_userMargin = margin;
+	update_margin();
 
 	if ( m_scripted )
 		FePresent::script_do_update( this );
@@ -719,23 +1084,55 @@ void FeListBox::set_no_margin( bool m )
 
 bool FeListBox::get_no_margin()
 {
-	return m_base_text.getNoMargin();
+	return ( m_userMargin >= 0.0f );
 }
 
-void FeListBox::set_margin( int m )
+void FeListBox::set_margin( float m )
 {
-	if ( m == m_base_text.getMargin() )
+	float margin = ( m < 0.0f ) ? -1.0f : m;
+	if ( margin == m_userMargin )
 		return;
 
-	m_base_text.setMargin( m );
+	m_userMargin = margin;
+	update_margin();
 
 	if ( m_scripted )
 		FePresent::script_do_update( this );
 }
 
-int FeListBox::get_margin()
+float FeListBox::get_margin()
 {
-	return m_base_text.getMargin();
+	return m_userMargin;
+}
+
+void FeListBox::update_margin()
+{
+	int margin = -1;
+	if ( m_userMargin >= 0.0f )
+	{
+		float margin_pixels = m_scripted ? grid_height_to_pixels( m_userMargin ) : m_userMargin;
+		margin = static_cast<int>( std::round( std::max( 0.0f, margin_pixels )));
+	}
+
+	m_base_text.setMargin( margin );
+
+	for ( int i=0; i < getRowCount(); i++ )
+		m_texts[i].setMargin( margin );
+}
+
+void FeListBox::update_outline()
+{
+	float outline = m_scripted
+		? grid_height_to_pixels( m_outline )
+		: m_outline;
+	float sel_outline = m_scripted
+		? grid_height_to_pixels( m_sel_outline )
+		: m_sel_outline;
+
+	m_base_text.setOutlineThickness( outline );
+
+	for ( int i=0; i < getRowCount(); i++ )
+		m_texts[i].setOutlineThickness(( i == m_selected_row ) ? sel_outline : outline );
 }
 
 void FeListBox::setBgColor( sf::Color c )
@@ -752,44 +1149,42 @@ void FeListBox::setBgColor( sf::Color c )
 		FePresent::script_flag_redraw();
 }
 
-void FeListBox::set_bgr(int r)
+void FeListBox::set_bg_red(int r)
 {
-	sf::Color c=m_base_text.getBgColor();
-	c.r=r;
-	setBgColor( c );
+	sf::Color c = m_base_text.getBgColor();
+	set_bg_rgb( r, c.g, c.b, c.a );
 }
 
-void FeListBox::set_bgg(int g)
+void FeListBox::set_bg_green(int g)
 {
-	sf::Color c=m_base_text.getBgColor();
-	c.g=g;
-	setBgColor( c );
+	sf::Color c = m_base_text.getBgColor();
+	set_bg_rgb( c.r, g, c.b, c.a );
 }
 
-void FeListBox::set_bgb(int b)
+void FeListBox::set_bg_blue(int b)
 {
-	sf::Color c=m_base_text.getBgColor();
-	c.b=b;
-	setBgColor( c );
+	sf::Color c = m_base_text.getBgColor();
+	set_bg_rgb( c.r, c.g, b, c.a );
 }
 
-void FeListBox::set_bga(int a)
+void FeListBox::set_bg_alpha(int a)
 {
-	sf::Color c=m_base_text.getBgColor();
-	c.a=a;
-	setBgColor( c );
+	sf::Color c = m_base_text.getBgColor();
+	set_bg_rgb( c.r, c.g, c.b, a );
 }
 
-void FeListBox::set_bg_rgb(int r, int g, int b )
+void FeListBox::set_bg_rgb( int r, int g, int b )
 {
-	sf::Color c=m_base_text.getBgColor();
-	c.r=r;
-	c.g=g;
-	c.b=b;
-	setBgColor(c);
+	sf::Color c = m_base_text.getBgColor();
+	set_bg_rgb( r, g, b, c.a );
 }
 
-void FeListBox::set_charsize(int s)
+void FeListBox::set_bg_rgb( int r, int g, int b, int a )
+{
+	setBgColor(sf::Color( r, g, b, a ));
+}
+
+void FeListBox::set_charsize(float s)
 {
 	if ( s == m_userCharSize )
 		return;
@@ -829,13 +1224,15 @@ void FeListBox::set_rows(int r)
 
 void FeListBox::set_list_align(int a)
 {
-	if ( a == m_list_align )
+	FeAlign align = static_cast<FeAlign>( a );
+
+	if ( align == m_list_align )
 		return;
 
-	m_list_align = a;
+	m_list_align = align;
 
 	// Trigger m_selected_row re-calc, which aligns the list
-	if ( a )
+	if ( align != FeAlign::None )
 		m_selected_row = -1;
 
 	if ( m_scripted )
@@ -871,91 +1268,103 @@ void FeListBox::set_justify(int j)
 
 void FeListBox::set_align(int a)
 {
-	if ( a == m_base_text.getAlignment() )
+	FeAlign align = static_cast<FeAlign>( a );
+	if ( align == m_base_text.getAlignment() )
 		return;
 
-	m_base_text.setAlignment( (FeTextPrimitive::Alignment)a);
+	m_base_text.setAlignment( align );
 
 	for ( int i=0; i < getRowCount(); i++ )
-		m_texts[i].setAlignment( (FeTextPrimitive::Alignment)a );
+		m_texts[i].setAlignment( align );
 
 	if ( m_scripted )
 		FePresent::script_flag_redraw();
 }
 
-int FeListBox::get_selr()
+void FeListBox::set_case(int c)
+{
+	if ( c == m_base_text.getCase() )
+		return;
+
+	m_base_text.setCase( (FeTextPrimitive::Case)c );
+
+	for ( int i=0; i < getRowCount(); i++ )
+		m_texts[i].setCase( (FeTextPrimitive::Case)c );
+
+	if ( m_scripted )
+		FePresent::script_flag_redraw();
+}
+
+int FeListBox::get_sel_red()
 {
 	return m_selColour.r;
 }
 
-int FeListBox::get_selg()
+int FeListBox::get_sel_green()
 {
 	return m_selColour.g;
 }
 
-int FeListBox::get_selb()
+int FeListBox::get_sel_blue()
 {
 	return m_selColour.b;
 }
 
-int FeListBox::get_sela()
+int FeListBox::get_sel_alpha()
 {
 	return m_selColour.a;
 }
 
-void FeListBox::set_selr(int r)
+void FeListBox::set_sel_red(int r)
 {
 	sf::Color c = m_selColour;
-	c.r=r;
-	setSelColor( c );
+	set_sel_rgb( r, c.g, c.b, c.a );
 }
 
-void FeListBox::set_selg(int g)
+void FeListBox::set_sel_green(int g)
 {
 	sf::Color c = m_selColour;
-	c.g=g;
-	setSelColor( c );
+	set_sel_rgb( c.r, g, c.b, c.a );
 }
 
-void FeListBox::set_selb(int b)
+void FeListBox::set_sel_blue(int b)
 {
 	sf::Color c = m_selColour;
-	c.b=b;
-	setSelColor( c );
+	set_sel_rgb( c.r, c.g, b, c.a );
 }
 
-void FeListBox::set_sela(int a)
+void FeListBox::set_sel_alpha(int a)
 {
 	sf::Color c = m_selColour;
-	c.a=a;
-	setSelColor( c );
+	set_sel_rgb( c.r, c.g, c.b, a );
 }
 
-void FeListBox::set_sel_rgb(int r, int g, int b )
+void FeListBox::set_sel_rgb( int r, int g, int b )
 {
-	sf::Color c = m_selColour;
-	c.r = r;
-	c.g = g;
-	c.b = b;
-	setSelColor( c );
+	set_sel_rgb( r, g, b, m_selColour.a );
 }
 
-int FeListBox::get_selbgr()
+void FeListBox::set_sel_rgb( int r, int g, int b, int a )
+{
+	setSelColor(sf::Color( r, g, b, a ));
+}
+
+int FeListBox::get_sel_bg_red()
 {
 	return m_selBg.r;
 }
 
-int FeListBox::get_selbgg()
+int FeListBox::get_sel_bg_green()
 {
 	return m_selBg.g;
 }
 
-int FeListBox::get_selbgb()
+int FeListBox::get_sel_bg_blue()
 {
 	return m_selBg.b;
 }
 
-int FeListBox::get_selbga()
+int FeListBox::get_sel_bg_alpha()
 {
 	return m_selBg.a;
 }
@@ -965,41 +1374,38 @@ const char *FeListBox::get_font()
 	return m_font_name.c_str();
 }
 
-void FeListBox::set_selbgr(int r)
+void FeListBox::set_sel_bg_red(int r)
 {
 	sf::Color c = m_selBg;
-	c.r=r;
-	setSelBgColor( c );
+	set_sel_bg_rgb( r, c.g, c.b, c.a );
 }
 
-void FeListBox::set_selbgg(int g)
+void FeListBox::set_sel_bg_green(int g)
 {
 	sf::Color c = m_selBg;
-	c.g=g;
-	setSelBgColor( c );
+	set_sel_bg_rgb( c.r, g, c.b, c.a );
 }
 
-void FeListBox::set_selbgb(int b)
+void FeListBox::set_sel_bg_blue(int b)
 {
 	sf::Color c = m_selBg;
-	c.b=b;
-	setSelBgColor( c );
+	set_sel_bg_rgb( c.r, c.g, b, c.a );
 }
 
-void FeListBox::set_selbga(int a)
+void FeListBox::set_sel_bg_alpha(int a)
 {
 	sf::Color c = m_selBg;
-	c.a=a;
-	setSelBgColor( c );
+	set_sel_bg_rgb( c.r, c.g, c.b, a );
 }
 
-void FeListBox::set_selbg_rgb(int r, int g, int b )
+void FeListBox::set_sel_bg_rgb( int r, int g, int b )
 {
-	sf::Color c = m_selBg;
-	c.r = r;
-	c.g = g;
-	c.b = b;
-	setSelBgColor( c );
+	set_sel_bg_rgb( r, g, b, m_selBg.a );
+}
+
+void FeListBox::set_sel_bg_rgb( int r, int g, int b, int a )
+{
+	setSelBgColor(sf::Color( r, g, b, a ));
 }
 
 void FeListBox::set_font( const char *f )
@@ -1020,7 +1426,8 @@ void FeListBox::set_font( const char *f )
 		setFont( *font );
 		m_font_name = f;
 
-		FePresent::script_flag_redraw();
+		if ( m_scripted )
+			FePresent::script_do_update( this );
 	}
 }
 

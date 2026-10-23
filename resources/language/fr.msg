@@ -17,6 +17,10 @@ On;Activé
 OR;OU
 True;Vrai
 Yes;Oui
+Stopped;Arrete
+Paused;En pause
+Playing;En lecture
+Ended;Termine
 Import;Importer
 Cancel;Annuler
 
@@ -104,8 +108,11 @@ Scrape Flyers/Boxart;Aspire les Flyers/Couvertures
 Scrape Game Logos (Wheel Art);Aspire les logos des jeux (Wheel Art)
 Scrape Marquees;Aspire les Marquees
 Scrape Snaps;Aspire les images des jeux
-Scrape Videos (MAME only);Récupérer des vidéos (MAME uniquement)
+Scrape Videos;Récupérer des vidéos
+Scrape Overview;Récupérer des descriptions
 Scraper;Grattoir
+ScreenScraper Username;Nom d'utilisateur ScreenScraper
+ScreenScraper Password;Mot de passe ScreenScraper
 Screen Rotation;Rotation de l'écran
 Screen Saver Timeout;Décompte économiseur d'écran
 Selection Speed;Vitesse de sélection
@@ -152,6 +159,8 @@ Tags;Mots clés
 PlayedCount;Compteur de jeu
 PlayedTime;Temps de jeu
 PlayedLast;Dernier jeu joué
+PlayedSession;Session jouée
+PlayedLongest;Session la plus longue
 FileIsAvailable;Fichier disponible
 Shuffle;Mélanger
 
@@ -182,6 +191,8 @@ Displays Menu;Liste des Listes d'affichage
 Previous Filter;Filtre précédent
 Next Filter;Filtre suivant
 Filters Menu;Menu des filtres
+Next Layout;Mise en page suivante
+Previous Layout;Mise en page précédente
 Toggle Layout;Basculer le thème
 Toggle Movie;Basculer la vidéo
 Toggle Mute;Basculer en mode silence
@@ -416,7 +427,8 @@ _help_control_selection_delay;Définir le délai en millisecondes avant le débu
 _help_control_selection_max_step;Définit la taille de pas maximale pour le mouvement de sélection. (par défaut: 128).
 _help_control_toggle_flip;Définit le(s) contrôle(s) qui active(nt)/désactive(nt) la rotation de l'écran de 180 degrés
 _help_control_toggle_fullscreen;Basculer entre le mode Plein écran et le mode Fenêtré
-_help_control_toggle_layout;Définit le(s) contrôle(s) qui  active(nt)/désactive(nt) le script du theme utilisé (Ceci dépend du theme que vous utilisez)
+_help_control_prev_layout;Définit le(s) contrôle(s) qui  active(nt)/désactive(nt) le script du theme utilisé (Ceci dépend du theme que vous utilisez)
+_help_control_next_layout;Définit le(s) contrôle(s) qui  active(nt)/désactive(nt) le script du theme utilisé (Ceci dépend du theme que vous utilisez)
 _help_control_toggle_movie;Définit le(s) contrôle(s) qui active(nt)/désactive(nt) la lecture des vidéos.
 _help_control_toggle_mute;Définit le(s) contrôle(s) qui active(nt)/désactive(nt) le son.
 _help_control_toggle_rotate_left;Définit le(s) contrôle(s) qui active(nt)/désactive(nt) la rotation de l'écran de 90 degrés sur la gauche
@@ -528,7 +540,10 @@ _help_scraper_flyers;Définir où les 'flyers' et les couvertures des boîtes de
 _help_scraper_marquees;Définir où les 'marquees' et les bannières des jeux doivent être téléchargés lorsqu'ils sont aspirés
 _help_scraper_snaps;Définir où les 'snapshots' des jeux doivent être téléchargés lorsqu'ils sont aspirés
 _help_scraper_vids;Définir où les videos des jeux doivent être téléchargés lorsqu'ils sont aspirés
+_help_scraper_overview;Définir où les descriptions des jeux doivent être téléchargés lorsqu'ils sont aspirés
 _help_scraper_wheels;Définir où les logos des jeux doivent être téléchargés lorsqu'ils sont aspirés
+_help_screenscraper_user;Optionnel: Votre nom d'utilisateur ScreenScraper.fr pour des limites de scraping plus élevées
+_help_screenscraper_pass;Optionnel: Votre mot de passe ScreenScraper.fr pour l'authentification
 _help_shortcut_artwork_name;Ajouter éventuellement un nom d'illustration à associer à ce raccourci. L'interface tentera de charger des illustrations portant ce nom lors de l'affichage du raccourci.
 _help_shortcut_delete;Supprimer ce raccourci de la liste des ROM.
 _help_shortcut_label;Modifier le libellé de ce raccourci

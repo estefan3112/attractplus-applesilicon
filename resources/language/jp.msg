@@ -17,6 +17,10 @@ On;オン
 OR;又は
 True;有効
 Yes;はい
+Stopped;停止
+Paused;一時停止
+Playing;再生中
+Ended;終了
 Import;輸入
 Cancel;キャンセル
 
@@ -104,8 +108,11 @@ Scrape Flyers/Boxart;箱のアートーワーク, ポスターをダウンロー
 Scrape Game Logos (Wheel Art);ゲームロゴをダウンロード (Wheel Art)
 Scrape Marquees;Marqueeをダウンロード
 Scrape Snaps;スクリーンショットをダウンロード
-Scrape Videos (MAME only);ビデオをスクレイピング (MAMEのみ)
+Scrape Videos;ビデオをスクレイピング
+Scrape Overview;説明をスクレイピング
 Scraper;スクレーパー
+ScreenScraper Username;ScreenScraper ユーザー名
+ScreenScraper Password;ScreenScraper パスワード
 Screen Rotation;画面の回転
 Screen Saver Timeout;スクリーンセーバーのタイムアウト時間
 Selection Speed;選択速度
@@ -152,6 +159,8 @@ Tags;タッグ
 PlayedCount;プレイ数
 PlayedTime;プレイ時間
 PlayedLast;前回のプレイ日時
+PlayedSession;プレイセッション
+PlayedLongest;最長プレイ時間
 FileIsAvailable;Romファイルの存在
 Shuffle;シャッフル
 
@@ -182,6 +191,8 @@ Displays Menu;ディスプレイメニュー
 Previous Filter;前のフィルター
 Next Filter;次のフィルター
 Filters Menu;フィルターメニュー
+Next Layout;次のレイアウト
+Previous Layout;前のレイアウト
 Toggle Layout;レイアウット選択
 Toggle Movie;ムービー再生
 Toggle Mute;ミュート
@@ -416,7 +427,8 @@ _help_control_selection_delay;キーリピート開始までの遅延時間を�
 _help_control_selection_max_step;選択移動の最大ステップサイズを設定します。デフォルトは128です。
 _help_control_toggle_flip;画面を180°回転するキーを設定します
 _help_control_toggle_fullscreen;ウィンドウモードをフルスクリーンとウィンドウの間で切り替えます。
-_help_control_toggle_layout;レイアウットを変更するキーを設定します. (レイアウットにより無視される場合があります)
+_help_control_prev_layout;レイアウットを変更するキーを設定します. (レイアウットにより無視される場合があります)
+_help_control_next_layout;レイアウットを変更するキーを設定します. (レイアウットにより無視される場合があります)
 _help_control_toggle_movie;ムービーの再生をオン/オフにするキーを設定します
 _help_control_toggle_mute;ミュートするキーを設定します
 _help_control_toggle_rotate_left;画面を反時計回りに90°回転するキーを設定します
@@ -528,7 +540,10 @@ _help_scraper_flyers;オンラインから箱のアートーワーク, ポスタ
 _help_scraper_marquees;オンラインからMarqueeをダウンロードするかを設定します
 _help_scraper_snaps;オンラインからスクリーンショットをダウンロードするかを設定します
 _help_scraper_vids;スクレイピング時にゲームビデオをダウンロードするかどうかを設定します
+_help_scraper_overview;スクレイピング時にゲーム説明をダウンロードするかどうかを設定
 _help_scraper_wheels;オンラインからWheel Artタイプのゲームロゴをダウンロードするかを設定します
+_help_screenscraper_user;オプション: スクレイピング上限を引き上げるためのScreenScraper.frアカウントのユーザー名
+_help_screenscraper_pass;オプション: 認証用のScreenScraper.frアカウントのパスワードします
 _help_shortcut_artwork_name;このショートカットに関連付けるアートワーク名を任意で指定します。フロントエンドはショートカットを表示するときに、この名前のアートワークを読み込もうとします
 _help_shortcut_delete;このショートカットをROMリストから削除します
 _help_shortcut_label;このショートカットのラベルを編集します

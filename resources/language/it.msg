@@ -17,6 +17,10 @@ On;Attivato
 OR;o
 True;Vero
 Yes;Si
+Stopped;Arrestato
+Paused;In pausa
+Playing;In riproduzione
+Ended;Terminato
 Import;Importare
 Cancel;Cancellare
 
@@ -104,8 +108,11 @@ Scrape Flyers/Boxart;Recupera i flyer/boxart
 Scrape Game Logos (Wheel Art);Recupera i logo
 Scrape Marquees;Recupera i marquee
 Scrape Snaps;Recupera le snap
-Scrape Videos (MAME only);Scarica video (solo per MAME)
+Scrape Videos;Scarica video
+Scrape Overview;Scarica descrizioni
 Scraper;Scratcher
+ScreenScraper Username;Nome utente ScreenScraper
+ScreenScraper Password;Password ScreenScraper
 Screen Rotation;Rotazione schermo
 Screen Saver Timeout;Timeout salvaschermo
 Selection Speed;Velocità di selezione
@@ -152,6 +159,8 @@ Tags;Etichette
 PlayedCount;Partite giocate
 PlayedTime;Tempo giocato
 PlayedLast;Ultimo giocato
+PlayedSession;Sessione giocata
+PlayedLongest;Giocata più lunga
 FileIsAvailable;File disponibile
 Shuffle;Riproduzione casuale
 
@@ -182,6 +191,8 @@ Displays Menu;Menù dei display
 Previous Filter;Filtro precedente
 Next Filter;Filtro successivo
 Filters Menu;Menù dei filtri
+Next Layout;Layout successivo
+Previous Layout;Layout precedente
 Toggle Layout;Pagina successiva tema
 Toggle Movie;Pausa video
 Toggle Mute;Muto
@@ -416,7 +427,8 @@ _help_control_selection_delay;Imposta il ritardo in millisecondi prima dell'iniz
 _help_control_selection_max_step;Imposta la dimensione massima del passo per il movimento di selezione. Il valore predefinito è 128.
 _help_control_toggle_flip;Configura i controlli per ruotare display di 180 gradi
 _help_control_toggle_fullscreen;Alterna la modalità finestra tra Schermo intero e Finestra
-_help_control_toggle_layout;Configura i controlli per cambiare la pagina del tema. Tale funzione dipende da come è stato costruito il tema stesso: con alcuni potrebbe non succedere nulla.
+_help_control_prev_layout;Configura i controlli per cambiare la pagina del tema. Tale funzione dipende da come è stato costruito il tema stesso: con alcuni potrebbe non succedere nulla.
+_help_control_next_layout;Configura i controlli per cambiare la pagina del tema. Tale funzione dipende da come è stato costruito il tema stesso: con alcuni potrebbe non succedere nulla.
 _help_control_toggle_movie;Configura i controlli per attivare/disattivare l'esecuzione dei video
 _help_control_toggle_mute;Configura i controlli che disabilitano e riabilitano l'audio del frontend
 _help_control_toggle_rotate_left;Configura i controlli per ruotare il display a sinistra di 90 gradi
@@ -528,7 +540,10 @@ _help_scraper_flyers;Stabilisce se i flyers e le copertine delle confezioni devo
 _help_scraper_marquees;Stabilisce se i marquee devono essere recuperati dalla rete
 _help_scraper_snaps;Stabilisce se gli snapshot devono essere recuperati dalla rete
 _help_scraper_vids;Stabilisce se i video devono essere recuperati dalla rete
+_help_scraper_overview;Stabilisce se le descrizioni devono essere recuperate dalla rete
 _help_scraper_wheels;Stabilisce se i logo devono essere recuperati dalla rete
+_help_screenscraper_user;Opzionale: Il tuo nome utente ScreenScraper.fr per limiti di scraping più elevati
+_help_screenscraper_pass;Opzionale: La tua password ScreenScraper.fr per l'autenticazione
 _help_shortcut_artwork_name;Facoltativamente, fornisci un nome di grafica da associare a questa scorciatoia. Il frontend proverà a caricare le illustrazioni con questo nome quando visualizza la scorciatoia
 _help_shortcut_delete;Elimina questa scorciatoia dalla Romlist
 _help_shortcut_label;Modifica l'etichetta di questa scorciatoia

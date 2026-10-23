@@ -17,6 +17,10 @@ On;켜기
 OR;또는
 True;참
 Yes;예
+Stopped;중지됨
+Paused;일시 정지
+Playing;재생 중
+Ended;종료됨
 Import;수입
 Cancel;취소
 
@@ -104,8 +108,11 @@ Scrape Flyers/Boxart;박스 아트, 홍보 포스터 다운로드
 Scrape Game Logos (Wheel Art);게임 로고 (Wheel Art) 다운로드
 Scrape Marquees;Marquee 다운로드
 Scrape Snaps;스크린샷 다운로드
-Scrape Videos (MAME only);외부 영상 다운로드 (MAME 전용)
+Scrape Videos;외부 영상 다운로드
+Scrape Overview;게임 설명 다운로드
 Scraper;스크래퍼
+ScreenScraper Username;ScreenScraper 사용자 이름
+ScreenScraper Password;ScreenScraper 비밀번호
 Screen Rotation;화면 회전
 Screen Saver Timeout;화면 보호기 타임아웃 시간
 Selection Speed;선택 속도
@@ -152,6 +159,8 @@ Tags;태그 정보
 PlayedCount;플레이 횟수
 PlayedTime;플레이 시간
 PlayedLast;마지막 재생 시간
+PlayedSession;플레이 세션
+PlayedLongest;가장 오래 플레이한 세션
 FileIsAvailable;롬파일 존재여부
 Shuffle;셔플
 
@@ -182,6 +191,8 @@ Displays Menu;목록 관리 메뉴
 Previous Filter;이전 필터로
 Next Filter;다음 필터로
 Filters Menu;필터 관리 메뉴
+Next Layout;다음 레이아웃
+Previous Layout;이전 레이아웃
 Toggle Layout;레이아웃 변경
 Toggle Movie;동영상 켜기/끄기
 Toggle Mute;음소거
@@ -416,7 +427,8 @@ _help_control_selection_delay;키 반복 시작 전 지연 시간을 밀리초 �
 _help_control_selection_max_step;선택 이동의 최대 단계 크기를 설정합니다. 기본값은 128입니다.
 _help_control_toggle_flip;화면을 180도 회전하는 키를 설정합니다.
 _help_control_toggle_fullscreen;창 모드를 전체 화면과 창 모드로 전환합니다.
-_help_control_toggle_layout;레이아웃을 변경하는 키를 설정합니다. (사용중인 레이아웃에 따라 동작 여부가 달라질 수 있습니다.)
+_help_control_prev_layout;레이아웃을 변경하는 키를 설정합니다. (사용중인 레이아웃에 따라 동작 여부가 달라질 수 있습니다.)
+_help_control_next_layout;레이아웃을 변경하는 키를 설정합니다. (사용중인 레이아웃에 따라 동작 여부가 달라질 수 있습니다.)
 _help_control_toggle_movie;동영상 재생을 켜고 끄는 키를 설정합니다.
 _help_control_toggle_mute;음소거 키를 설정합니다.
 _help_control_toggle_rotate_left;화면을 반시계 방향으로 90도 회전하는 키를 설정합니다.
@@ -528,7 +540,10 @@ _help_scraper_flyers;온라인에서 게임 홍보 포스터 > 박스 아트를 
 _help_scraper_marquees;온라인에서 Marquee를 다운로드 할지 설정합니다.
 _help_scraper_snaps;온라인에서 스크린샷을 다운로드 할지 설정합니다.
 _help_scraper_vids;게임 영상을 가져올 지 여부를 설정합니다
+_help_scraper_overview;게임 설명을 가져올 지 여부를 설정합니다
 _help_scraper_wheels;온라인에서 Wheel Art 형식의 게임 로고를 다운로드 할지 설정합니다.
+_help_screenscraper_user;선택 사항: 더 높은 스크래핑 제한을 위해 ScreenScraper.fr 계정 사용자 이름
+_help_screenscraper_pass;선택 사항: 인증을 위한 ScreenScraper.fr 계정 비밀번호
 _help_shortcut_artwork_name;이 바로가기에 연결될 아트워크를 설정합니다. 바로가기를 표시할 때 이 이름으로 된 아트워크를 찾을 것입니다
 _help_shortcut_delete;롬 목록에서 이 바로가기를 제거합니다
 _help_shortcut_label;이 바로가기의 이름을 설정합니다

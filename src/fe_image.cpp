@@ -106,6 +106,16 @@ const char *FeBaseTextureContainer::get_file_name() const
 	return NULL;
 }
 
+int FeBaseTextureContainer::get_type() const
+{
+	return 0;
+}
+
+bool FeBaseTextureContainer::get_magic() const
+{
+	return false;
+}
+
 void FeBaseTextureContainer::set_trigger( int t )
 {
 }
@@ -342,6 +352,18 @@ bool FeTextureContainer::fix_masked_image()
 struct RGBAPixel { std::uint8_t r,g,b,a; };
 static std::vector<RGBAPixel> s_black_pixels;
 
+static void fill_texture_black( sf::Texture &texture )
+{
+	size_t required_pixels = texture.getSize().x * texture.getSize().y;
+	if ( required_pixels == 0 )
+		return;
+
+	if ( s_black_pixels.size() < required_pixels )
+		s_black_pixels.resize( required_pixels, { 0, 0, 0, 255 });
+
+	texture.update( reinterpret_cast<std::uint8_t*>( s_black_pixels.data() ));
+}
+
 #ifndef NO_MOVIE
 bool FeTextureContainer::load_with_ffmpeg(
 	const std::string &filename,
@@ -396,10 +418,7 @@ bool FeTextureContainer::load_with_ffmpeg(
 	if ( res && !is_image )
 	{
 		// Fill the first video frame with an opaque black colour
-		size_t required_pixels = m_texture.getSize().x * m_texture.getSize().y;
-		if ( s_black_pixels.size() < required_pixels )
-    		s_black_pixels.resize( required_pixels, { 0, 0, 0, 255 });
-		m_texture.update( reinterpret_cast<std::uint8_t*>( s_black_pixels.data() ));
+		fill_texture_black( m_texture );
 	}
 
 	m_texture.setSmooth( m_smooth );
@@ -805,6 +824,27 @@ const char *FeTextureContainer::get_file_name() const
 	return m_file_name.c_str();
 }
 
+int FeTextureContainer::get_type() const
+{
+	switch ( m_type )
+	{
+		case IsArtwork:
+			return FePresentableTypeArtwork;
+
+		case IsDynamic:
+			return FePresentableTypeImage;
+
+		case IsStatic:
+		default:
+			return FePresentableTypeImage;
+	}
+}
+
+bool FeTextureContainer::get_magic() const
+{
+	return ( m_type == IsDynamic );
+}
+
 void FeTextureContainer::set_trigger( int t )
 {
 	m_art_update_trigger = t;
@@ -931,6 +971,14 @@ int FeTextureContainer::get_fft_bands() const
 		return m_fft_bands;
 }
 
+void FeTextureContainer::clear_video_frame()
+{
+#ifndef NO_MOVIE
+	if ( m_movie )
+		fill_texture_black( m_texture );
+#endif
+}
+
 float FeTextureContainer::get_sample_aspect_ratio() const
 {
 #ifndef NO_MOVIE
@@ -1001,7 +1049,9 @@ FeSurfaceTextureContainer::FeSurfaceTextureContainer( int width, int height )
 		FeSettings *fes = fep->get_fes();
 		if ( fes ) ctx.antiAliasingLevel = fes->get_antialiasing();
 	}
-	if ( m_texture.resize({ static_cast<unsigned int>(width), static_cast<unsigned int>(height) }, ctx ) )
+	if (( width > 0 )
+		&& ( height > 0 )
+		&& m_texture.resize({ static_cast<unsigned int>(width), static_cast<unsigned int>(height) }, ctx ) )
 		m_texture.clear( sf::Color::Transparent );
 }
 
@@ -1075,6 +1125,7 @@ bool FeSurfaceTextureContainer::get_smooth() const
 void FeSurfaceTextureContainer::set_mipmap( bool m )
 {
 	m_mipmap = m;
+	if ( m_mipmap ) std::ignore = m_texture.generateMipmap();
 }
 
 bool FeSurfaceTextureContainer::get_mipmap() const
@@ -1112,9 +1163,25 @@ bool FeSurfaceTextureContainer::get_redraw() const
 	return m_redraw;
 }
 
+int FeSurfaceTextureContainer::get_type() const
+{
+	return FePresentableTypeSurface;
+}
+
 FePresentableParent *FeSurfaceTextureContainer::get_presentable_parent()
 {
 	return this;
+}
+
+FeCoordinateSpace FeSurfaceTextureContainer::get_coordinate_space( bool uniform ) const
+{
+	sf::Vector2u size = m_texture.getSize();
+	sf::Vector2f parent_size( size );
+	if ( !uniform )
+		return FeCoordinateSpace( sf::Vector2f( 0, 0 ), parent_size );
+
+	float side = std::min( parent_size.x, parent_size.y );
+	return FeCoordinateSpace( sf::Vector2f( 0, 0 ), sf::Vector2f( side, side ));
 }
 
 FeImage::FeImage(
@@ -1132,16 +1199,16 @@ FeImage::FeImage(
 	m_auto_size( w == 0, h == 0 ),
 	m_origin( 0.f, 0.f ),
 	m_transform_origin( 0.f, 0.f ),
-	m_transform_origin_type( TopLeft ),
+	m_transform_origin_type( FeAlign::TopLeft ),
 	m_anchor( 0.f, 0.f ),
-	m_anchor_type( TopLeft ),
+	m_anchor_type( FeAlign::TopLeft ),
 	m_rotation( 0.0 ),
 	m_rotation_origin( 0.f, 0.f ),
-	m_rotation_origin_type( TopLeft ),
+	m_rotation_origin_type( FeAlign::TopLeft ),
 	m_crop( true ),
 	m_fit( Fill ),
 	m_fit_anchor( 0.5f, 0.5f ),
-	m_fit_anchor_type( Centre ),
+	m_fit_anchor_type( FeAlign::Centre ),
 	m_blend_mode( FeBlend::Alpha ),
 	m_preserve_aspect_ratio( false ),
 	m_force_aspect_ratio( 0.0 ),
@@ -1217,42 +1284,6 @@ void FeImage::texture_changed( FeBaseTextureContainer *new_tex )
 	scale();
 }
 
-sf::Vector2f FeImage::alignTypeToVector( int type )
-{
-	switch( type )
-	{
-		case Left:
-			return sf::Vector2f( 0.0f, 0.5f );
-
-		case Centre:
-			return sf::Vector2f( 0.5f, 0.5f );
-
-		case Right:
-			return sf::Vector2f( 1.0f, 0.5f );
-
-		case Top:
-			return sf::Vector2f( 0.5f, 0.0f );
-
-		case Bottom:
-			return sf::Vector2f( 0.5f, 1.0f );
-
-		case TopLeft:
-			return sf::Vector2f( 0.0f, 0.0f );
-
-		case TopRight:
-			return sf::Vector2f( 1.0f, 0.0f );
-
-		case BottomLeft:
-			return sf::Vector2f( 0.0f, 1.0f );
-
-		case BottomRight:
-			return sf::Vector2f( 1.0f, 1.0f );
-
-		default:
-			return sf::Vector2f( 0.0f, 0.0f );
-	}
-}
-
 int FeImage::getIndexOffset() const
 {
 	return m_tex->get_index_offset();
@@ -1299,7 +1330,7 @@ void FeImage::draw(sf::RenderTarget& target, sf::RenderStates states) const
 			states.shader = sh;
 	}
 	else
-		states.shader = FeBlend::get_default_shader( m_blend_mode );
+		states.shader = FeBlend::get_default_shader( m_blend_mode, true );
 
 	states.blendMode = FeBlend::get_blend_mode( m_blend_mode );
 	target.draw( m_sprite, states );
@@ -1417,17 +1448,33 @@ void FeImage::scale()
 	);
 
 	// Populate the fit_rect so users can get the resulting image dimensions
-	IntEdges padding = m_sprite.getPadding();
+	const IntEdges& padding = m_sprite.getPadding();
+	float padding_scale = m_sprite.getPaddingScale( sf::Vector2f(
+		std::abs( tex_size.x * scale.x ),
+		std::abs( tex_size.y * scale.y )
+	));
+	sf::Vector2f scaled_padding = sf::Vector2f(
+		( padding.left + padding.right ) * padding_scale,
+		( padding.top + padding.bottom ) * padding_scale
+	);
+	sf::Vector2f scaled_padding_origin = sf::Vector2f(
+		padding.left * padding_scale,
+		padding.top * padding_scale
+	);
 	m_fit_rect = sf::FloatRect(
 		sf::Vector2f(
-			pos.x - pos_rotation.x + offset.x - ( origin.x * scale.x ) + (( crop.left - padding.left ) * flip.x ) - m_pos.x,
-			pos.y - pos_rotation.y + offset.y - ( origin.y * scale.y ) + (( crop.top - padding.top ) * flip.y ) - m_pos.y
+			pos.x - pos_rotation.x + offset.x - ( origin.x * scale.x ) + (( crop.left - scaled_padding_origin.x ) * flip.x ) - m_pos.x,
+			pos.y - pos_rotation.y + offset.y - ( origin.y * scale.y ) + (( crop.top - scaled_padding_origin.y ) * flip.y ) - m_pos.y
 		),
 		sf::Vector2f(
-			( tex_size.x * scale.x ) + (( padding.left + padding.right - crop.left - crop.right ) * flip.x ),
-			( tex_size.y * scale.y ) + (( padding.top + padding.bottom - crop.top - crop.bottom ) * flip.y )
+			( tex_size.x * scale.x ) + (( scaled_padding.x - crop.left - crop.right ) * flip.x ),
+			( tex_size.y * scale.y ) + (( scaled_padding.y - crop.top - crop.bottom ) * flip.y )
 		)
 	);
+	m_snap_offset = m_fit_rect.position;
+	sf::Vector2f snapped_pos = snap_draw_position( pos );
+	m_fit_rect.position += snapped_pos - pos;
+	pos = snapped_pos;
 
 	// Apply the transformations
 	m_sprite.setCrop( crop );
@@ -1613,6 +1660,19 @@ const char *FeImage::getFileName() const
 	return m_tex->get_file_name();
 }
 
+int FeImage::get_type() const
+{
+	if ( m_tex )
+		return m_tex->get_type();
+
+	return 0;
+}
+
+bool FeImage::get_magic() const
+{
+	return m_tex && m_tex->get_magic();
+}
+
 void FeImage::setFileName( const char *n )
 {
 	std::string filename = n;
@@ -1659,22 +1719,22 @@ float FeImage::get_origin_y() const
 
 int FeImage::get_transform_origin_type() const
 {
-	return (FeImage::Alignment)m_transform_origin_type;
+	return m_transform_origin_type;
 }
 
 int FeImage::get_anchor_type() const
 {
-	return (FeImage::Alignment)m_anchor_type;
+	return m_anchor_type;
 }
 
 int FeImage::get_fit_anchor_type() const
 {
-	return (FeImage::Alignment)m_fit_anchor_type;
+	return m_fit_anchor_type;
 }
 
 int FeImage::get_rotation_origin_type() const
 {
-	return (FeImage::Alignment)m_rotation_origin_type;
+	return m_rotation_origin_type;
 }
 
 float FeImage::get_transform_origin_x() const
@@ -1823,8 +1883,8 @@ void FeImage::set_transform_origin( float x, float y )
 
 void FeImage::set_transform_origin_type( int t )
 {
-	m_transform_origin_type = (FeImage::Alignment)t;
-	sf::Vector2f a = alignTypeToVector( t );
+	m_transform_origin_type = static_cast<FeAlign>( t );
+	sf::Vector2f a = align_type_to_vector( t );
 	set_transform_origin( a.x, a.y );
 }
 
@@ -1840,8 +1900,8 @@ void FeImage::set_anchor( float x, float y )
 
 void FeImage::set_anchor_type( int t )
 {
-	m_anchor_type = (FeImage::Alignment)t;
-	sf::Vector2f a = alignTypeToVector( t );
+	m_anchor_type = static_cast<FeAlign>( t );
+	sf::Vector2f a = align_type_to_vector( t );
 	set_anchor( a.x, a.y );
 }
 
@@ -1857,8 +1917,8 @@ void FeImage::set_fit_anchor( float x, float y )
 
 void FeImage::set_fit_anchor_type( int t )
 {
-	m_fit_anchor_type = (FeImage::Alignment)t;
-	sf::Vector2f a = alignTypeToVector( t );
+	m_fit_anchor_type = static_cast<FeAlign>( t );
+	sf::Vector2f a = align_type_to_vector( t );
 	set_fit_anchor( a.x, a.y );
 }
 
@@ -1874,8 +1934,8 @@ void FeImage::set_rotation_origin( float x, float y )
 
 void FeImage::set_rotation_origin_type( int t )
 {
-	m_rotation_origin_type = (FeImage::Alignment)t;
-	sf::Vector2f o = alignTypeToVector( t );
+	m_rotation_origin_type = static_cast<FeAlign>( t );
+	sf::Vector2f o = align_type_to_vector( t );
 	set_rotation_origin( o.x, o.y );
 }
 
@@ -2325,16 +2385,25 @@ FeRectangle *FeImage::add_rectangle(float x, float y, float w, float h)
 	return NULL;
 }
 
-FeImage *FeImage::add_surface(int w, int h)
+FeImage *FeImage::add_surface(float w, float h)
 {
 	return add_surface( 0, 0, w, h );
 }
 
-FeImage *FeImage::add_surface(float x, float y, int w, int h)
+FeImage *FeImage::add_surface(float x, float y, float w, float h)
 {
 	FePresentableParent *p = m_tex->get_presentable_parent();
 	if ( p )
 		return p->add_surface( x, y, w, h );
+
+	return NULL;
+}
+
+FeImage *FeImage::add_surface(float x, float y, float w, float h, int texture_width, int texture_height)
+{
+	FePresentableParent *p = m_tex->get_presentable_parent();
+	if ( p )
+		return p->add_surface( x, y, w, h, texture_width, texture_height );
 
 	return NULL;
 }

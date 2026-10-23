@@ -17,6 +17,10 @@ On;On
 OR;OR
 True;True
 Yes;Yes
+Stopped;Stopped
+Paused;Paused
+Playing;Playing
+Ended;Ended
 Import;Import
 Cancel;Cancel
 
@@ -104,8 +108,11 @@ Scrape Flyers/Boxart;Scrape Flyers/Boxart
 Scrape Game Logos (Wheel Art);Scrape Game Logos (Wheel Art)
 Scrape Marquees;Scrape Marquees
 Scrape Snaps;Scrape Snaps
-Scrape Videos (MAME only);Scrape Videos (MAME only)
+Scrape Videos;Scrape Videos
+Scrape Overview;Scrape Overview
 Scraper;Scraper
+ScreenScraper Username;ScreenScraper Username
+ScreenScraper Password;ScreenScraper Password
 Screen Rotation;Screen Rotation
 Screen Saver Timeout;Screen Saver Timeout
 Selection Speed;Selection Speed
@@ -152,6 +159,8 @@ Tags;Tags
 PlayedCount;PlayedCount
 PlayedTime;PlayedTime
 PlayedLast;PlayedLast
+PlayedSession;PlayedSession
+PlayedLongest;PlayedLongest
 FileIsAvailable;FileIsAvailable
 Shuffle;Shuffle
 
@@ -182,6 +191,8 @@ Displays Menu;Displays Menu
 Previous Filter;Previous Filter
 Next Filter;Next Filter
 Filters Menu;Filters Menu
+Next Layout;Next Layout
+Previous Layout;Previous Layout
 Toggle Layout;Toggle Layout
 Toggle Movie;Toggle Movie
 Toggle Mute;Toggle Mute
@@ -416,7 +427,8 @@ _help_control_selection_delay;Set the delay in milliseconds before key repeat be
 _help_control_selection_max_step;Set the maximum step size for selection movement, default is 128
 _help_control_toggle_flip;Set the control(s) that toggle whether the display should be rotated 180 degrees
 _help_control_toggle_fullscreen;Toggle the Window Mode between Fullscreen and Window
-_help_control_toggle_layout;Set the control(s) that toggle the layout script to use (It depends on the layout you are using whether this does anything)
+_help_control_prev_layout;Set the control(s) that toggle the layout script to use (It depends on the layout you are using whether this does anything)
+_help_control_next_layout;Set the control(s) that toggle the layout script to use (It depends on the layout you are using whether this does anything)
 _help_control_toggle_movie;Set the control(s) that toggle whether or not videos should be played
 _help_control_toggle_mute;Set the control(s) that mute/unmute frontend sound
 _help_control_toggle_rotate_left;Set the control(s) that toggle whether the display should be rotated 90 degrees to the left
@@ -528,7 +540,10 @@ _help_scraper_flyers;Set whether game flyers and box covers should be downloaded
 _help_scraper_marquees;Set whether game marquees and banners should be downloaded when scraping
 _help_scraper_snaps;Set whether game snapshots should be downloaded when scraping
 _help_scraper_vids;Set whether game videos should be downloaded when scraping
+_help_scraper_overview;Set whether game descriptions should be downloaded when scraping
 _help_scraper_wheels;Set whether game logos should be downloaded when scraping
+_help_screenscraper_user;Optional: Your ScreenScraper.fr account username for higher scraping limits
+_help_screenscraper_pass;Optional: Your ScreenScraper.fr account password for authentication
 _help_shortcut_artwork_name;Optionally provide an artwork name to be associated with this shortcut.  The frontend will try to load artworks with this name when displaying the shortcut
 _help_shortcut_delete;Delete this shortcut from the Romlist
 _help_shortcut_label;Edit this shortcut's label

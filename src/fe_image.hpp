@@ -25,6 +25,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <sqrat.h>
+#include "fe_align.hpp"
 #include "sprite.hpp"
 #include "fe_presentable.hpp"
 #include "fe_blend.hpp"
@@ -116,6 +117,8 @@ public:
 
 	virtual void release_audio( bool );
 	virtual void on_redraw_surfaces();
+	virtual int get_type() const;
+	virtual bool get_magic() const;
 
 protected:
 	FeBaseTextureContainer();
@@ -192,6 +195,7 @@ public:
 
 	void set_fft_bands( int );
 	int get_fft_bands() const;
+	void clear_video_frame();
 
 	float get_vu_mono() const;
 	float get_vu_left() const;
@@ -204,6 +208,8 @@ public:
 
 	FeAudioEffectsManager& get_audio_effects() { return m_audio_effects; };
 	FeMedia *get_media() const;
+	int get_type() const;
+	bool get_magic() const;
 
 protected:
 	FeTextureContainer *get_derived_texture_container();
@@ -278,6 +284,8 @@ public:
 	bool get_redraw() const;
 
 	FePresentableParent *get_presentable_parent();
+	FeCoordinateSpace get_coordinate_space( bool uniform=true ) const;
+	int get_type() const;
 
 private:
 	sf::RenderTexture m_texture;
@@ -289,19 +297,6 @@ private:
 class FeImage : public sf::Drawable, public FeBasePresentable
 {
 public:
-	enum Alignment
-	{
-		Left,
-		Centre,
-		Right,
-		Top,
-		Bottom,
-		TopLeft,
-		TopRight,
-		BottomLeft,
-		BottomRight
-	};
-
 	enum Fit
 	{
 		Fill,
@@ -521,12 +516,15 @@ public:
 	FeImage *add_artwork( const char *, float, float, float, float );
 	FeImage *add_artwork( const char *, float, float );
 	FeImage *add_artwork( const char * );
-	FeImage *add_surface( float, float, int, int );
-	FeImage *add_surface( int, int );
+	FeImage *add_surface( float, float, float, float );
+	FeImage *add_surface( float, float, float, float, int, int );
+	FeImage *add_surface( float, float );
 	FeImage *add_clone( FeImage * );
 	FeText *add_text( const char *, int, int, int, int );
 	FeListBox *add_listbox( int, int, int, int );
 	FeRectangle *add_rectangle( float, float, float, float );
+	int get_type() const;
+	bool get_magic() const;
 
 protected:
 	FeBaseTextureContainer *m_tex;
@@ -537,19 +535,19 @@ protected:
 
 	sf::Vector2f m_origin;
 	sf::Vector2f m_transform_origin;
-	FeImage::Alignment m_transform_origin_type;
+	FeAlign m_transform_origin_type;
 
 	sf::Vector2f m_anchor;
-	FeImage::Alignment m_anchor_type;
+	FeAlign m_anchor_type;
 
 	float m_rotation;
 	sf::Vector2f m_rotation_origin;
-	FeImage::Alignment m_rotation_origin_type;
+	FeAlign m_rotation_origin_type;
 
 	bool m_crop;
 	FeImage::Fit m_fit;
 	sf::Vector2f m_fit_anchor;
-	FeImage::Alignment m_fit_anchor_type;
+	FeAlign m_fit_anchor_type;
 
 	FeBlend::Mode m_blend_mode;
 	bool m_preserve_aspect_ratio;
@@ -561,7 +559,6 @@ protected:
 	void scale();
 	int resolveFit() const;
 	float resolveAspectRatio() const;
-	sf::Vector2f alignTypeToVector( int a );
 
 	void draw( sf::RenderTarget& target, sf::RenderStates states ) const;
 

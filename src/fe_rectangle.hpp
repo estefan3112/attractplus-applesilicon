@@ -24,6 +24,7 @@
 #define FE_RECTANGLE_HPP
 
 #include <SFML/Graphics.hpp>
+#include "fe_align.hpp"
 #include "fe_presentable.hpp"
 #include "fe_blend.hpp"
 #include "rounded_rectangle_shape.hpp"
@@ -33,20 +34,6 @@ class FeSettings;
 class FeRectangle : public sf::Drawable, public FeBasePresentable
 {
 public:
-	public:
-	enum Alignment
-	{
-		Left,
-		Centre,
-		Right,
-		Top,
-		Bottom,
-		TopLeft,
-		TopRight,
-		BottomLeft,
-		BottomRight
-	};
-
 	FeRectangle( FePresentableParent &p,
 		float x, float y, float w, float h );
 
@@ -68,16 +55,19 @@ public:
 
 	float get_origin_x() const;
 	float get_origin_y() const;
+	int get_transform_origin_type() const;
 	int get_anchor_type() const;
 	int get_rotation_origin_type() const;
+	float get_transform_origin_x() const;
+	float get_transform_origin_y() const;
 	float get_anchor_x() const;
 	float get_anchor_y() const;
 	float get_rotation_origin_x() const;
 	float get_rotation_origin_y() const;
-	int get_olr() const;
-	int get_olg() const;
-	int get_olb() const;
-	int get_ola() const;
+	int get_outline_red() const;
+	int get_outline_green() const;
+	int get_outline_blue() const;
+	int get_outline_alpha() const;
 
 	float get_corner_radius() const;
 	float get_corner_radius_x() const;
@@ -89,19 +79,24 @@ public:
 
 	void set_origin_x( float x );
 	void set_origin_y( float y );
+	void set_transform_origin( float x, float y );
+	void set_transform_origin_type( int t );
 	void set_anchor( float x, float y );
 	void set_anchor_type( int t );
 	void set_rotation_origin( float x, float y );
 	void set_rotation_origin_type( int t );
+	void set_transform_origin_x( float x );
+	void set_transform_origin_y( float y );
 	void set_anchor_x( float x );
 	void set_anchor_y( float y );
 	void set_rotation_origin_x( float x );
 	void set_rotation_origin_y( float y );
-	void set_olr( int r );
-	void set_olg( int g );
-	void set_olb( int b );
-	void set_ola( int a );
-	void set_olrgb( int r, int g, int b );
+	void set_outline_red( int r );
+	void set_outline_green( int g );
+	void set_outline_blue( int b );
+	void set_outline_alpha( int a );
+	void set_outline_rgb( int r, int g, int b );
+	void set_outline_rgb( int r, int g, int b, int a );
 
 	void set_corner_radius( float r );
 	void set_corner_radius( float rx, float ry );
@@ -117,6 +112,8 @@ public:
 	void set_blend_mode( int b );
 
 	const sf::Drawable &drawable() const { return (const sf::Drawable &)*this; };
+	int get_type() const;
+	void refresh_script_geometry() override;
 
 protected:
 	void draw( sf::RenderTarget &target, sf::RenderStates states ) const;
@@ -129,10 +126,12 @@ private:
 	sf::Vector2f m_position;
 	sf::Vector2f m_size;
 	sf::Vector2f m_origin;
+	sf::Vector2f m_transform_origin;
 	sf::Vector2f m_rotation_origin;
 	sf::Vector2f m_anchor;
-	FeRectangle::Alignment m_anchor_type;
-	FeRectangle::Alignment m_rotation_origin_type;
+	FeAlign m_transform_origin_type;
+	FeAlign m_anchor_type;
+	FeAlign m_rotation_origin_type;
 	float m_rotation;
 
 	int m_corner_point_count;
@@ -142,13 +141,13 @@ private:
 	bool m_corner_ratio_x;
 	bool m_corner_ratio_y;
 	bool m_corner_auto;
+	float m_outline;
 	FeBlend::Mode m_blend_mode;
 
 	void scale();
 	void update_corner_radius();
 	void update_corner_ratio();
 	void update_corner_points();
-	sf::Vector2f alignTypeToVector( int a );
 };
 
 #endif

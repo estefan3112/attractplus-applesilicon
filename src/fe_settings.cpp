@@ -20,6 +20,7 @@
  *
  */
 
+#include "fe_color.hpp"
 #include "fe_util.hpp"
 #include "fe_settings.hpp"
 #include "fe_present.hpp"
@@ -605,6 +606,8 @@ const char *FeSettings::configSettingStrings[] =
 	"scrape_videos",
 	"scrape_overview",
 	"thegamesdb_key",
+	"screenscraper_user",
+	"screenscraper_pass",
 	"power_saving",
 	"check_for_updates",
 #ifdef SFML_SYSTEM_WINDOWS
@@ -1268,7 +1271,7 @@ void FeSettings::load_state()
 
 void FeSettings::reset_input()
 {
-	m_inputmap.clear_tracked_keys();
+	m_inputmap.clear_held_inputs();
 }
 
 FeInputMap::Command FeSettings::map_input( const std::optional<sf::Event> &e )
@@ -1303,6 +1306,11 @@ void FeSettings::set_default_command( FeInputMap::Command c, FeInputMap::Command
 bool FeSettings::get_current_state( FeInputMap::Command c )
 {
 	return m_inputmap.get_current_state( c, m_joy_thresh );
+}
+
+bool FeSettings::is_input_held()
+{
+	return m_inputmap.is_input_held( m_joy_thresh );
 }
 
 bool FeSettings::get_key_state( std::string key )
@@ -1392,6 +1400,15 @@ int FeSettings::get_filter_size( int filter_index ) const
 	return m_rl.filter_size( filter_index );
 }
 
+// Return index of given rom in filter, -1 if not found
+int FeSettings::get_rom_index( int filter_index, FeRomInfo* rom ) const
+{
+	for ( int i=0, n=m_rl.filter_size( filter_index ); i<n; ++i )
+		if ( m_rl.lookup( filter_index, i ) == *rom )
+			return i;
+	return -1;
+}
+
 int FeSettings::get_rom_index( int filter_index, int offset ) const
 {
 	int retval, rl_size;
@@ -1439,7 +1456,7 @@ int FeSettings::get_rom_index( int filter_index, int offset ) const
 	return retval;
 }
 
-void FeSettings::set_search_rule( const std::string &rule_str )
+bool FeSettings::set_search_rule( const std::string &rule_str )
 {
 	FeDebug() << "set_search_rule = '" << rule_str << "'" << std::endl;
 
@@ -1449,16 +1466,16 @@ void FeSettings::set_search_rule( const std::string &rule_str )
 	m_clone_index = -1;
 
 	if ( rule_str.empty() )
-		return;
+		return false;
 
 	// The search rule is not stored if it fails to parse
 	FeRule rule;
 	if ( rule.process_setting( "", rule_str, "" ) )
-		return;
+		return false;
 
 	// The search rule is not stored if it fails to init (bad regex)
 	if ( !rule.init() )
-		return;
+		return false;
 
 	int filter_index = get_current_filter_index();
 	for ( int i=0; i<m_rl.filter_size( filter_index ); i++ )
@@ -1469,8 +1486,11 @@ void FeSettings::set_search_rule( const std::string &rule_str )
 	}
 
 	// The search rule is not stored if there are no results
-	if ( !m_current_search.empty() )
-		m_current_search_str = rule_str;
+	if ( m_current_search.empty() )
+		return false;
+
+	m_current_search_str = rule_str;
+	return true;
 }
 
 bool FeSettings::switch_to_clone_group( int idx )
@@ -2602,7 +2622,7 @@ bool FeSettings::set_tag_absolute( const std::string &tag, bool add_tag, int fil
 	return m_rl.set_tag( *r, m_displays[m_current_display], tag, add_tag );
 }
 
-void FeSettings::toggle_layout()
+void FeSettings::change_layout( int inc )
 {
 	std::vector<std::string> list;
 
@@ -2617,11 +2637,12 @@ void FeSettings::toggle_layout()
 			layout_path,
 			list );
 
-	if ( list.size() <= 1 ) // nothing to do if there isn't more than one file
+	int n = static_cast<int>( list.size() );
+	if ( n <= 1 ) // nothing to do if there isn't more than one file
 		return;
 
-	unsigned int index=0;
-	for ( unsigned int i=0; i< list.size(); i++ )
+	int index=0;
+	for ( unsigned int i=0; i<n; i++ )
 	{
 		if ( layout_file.compare( list[i] ) == 0 )
 		{
@@ -2630,7 +2651,8 @@ void FeSettings::toggle_layout()
 		}
 	}
 
-	layout_file = list[ ( index + 1 ) % list.size() ];
+	index = ( index + inc ) % n;
+	layout_file = list[ index < 0 ? index + n : index ];
 
 	if ( m_current_display < 0 )
 		m_menu_layout_file = layout_file;
@@ -2978,18 +3000,19 @@ void FeSettings::get_exit_question( std::string &exit_question ) const
 //
 // Perform substitutions of the [MagicString] sequences occurring in str
 //
-void FeSettings::do_text_substitutions( std::string &str, int filter_offset, int index_offset )
+bool FeSettings::do_text_substitutions( std::string &str, int filter_offset, int index_offset )
 {
 	int filter_index = get_filter_index_from_offset( filter_offset );
 	int rom_index = get_rom_index( filter_index, index_offset );
-	do_text_substitutions_absolute( str, filter_index, rom_index );
+	return do_text_substitutions_absolute( str, filter_index, rom_index );
 }
 
 //
 // Perform substitutions of the [MagicString] sequences occurring in str
 //
-void FeSettings::do_text_substitutions_absolute( std::string &str, int filter_index, int rom_index )
+bool FeSettings::do_text_substitutions_absolute( std::string &str, int filter_index, int rom_index )
 {
+	bool processed = false;
 	size_t pos = str.find( '[' );
 	while ( pos != std::string::npos )
 	{
@@ -3004,20 +3027,22 @@ void FeSettings::do_text_substitutions_absolute( std::string &str, int filter_in
 		{
 			str.replace( pos, close-pos+1, rep );
 			pos += rep.size() - 1;
+			processed = true;
 		}
 
 		pos = str.find( '[', pos+1 );
 	}
+
+	return processed;
 }
 
 namespace {
 	//
-	// Format PlayedTime to "# Unit(s)" where Units is Seconds, Minutes, Hours, or Days
+	// Format seconds to "# Unit(s)" where Units is Seconds, Minutes, Hours, or Days
 	// - A single decimal is shown for time over 1 hour
 	//
-	std::string get_played_time_display_string( std::string value )
+	std::string get_time_duration_string( int seconds )
 	{
-		int seconds = as_int( value );
 		float val;
 		std::string unit;
 
@@ -3056,11 +3081,11 @@ namespace {
 	}
 
 	//
-	// Format PlayedLast to "YYYY-mm-dd HH:MM:SS"
+	// Format timestamp to "YYYY-mm-dd HH:MM:SS" or "Never" if zero
 	//
-	std::string get_played_last_display_string( std::string value )
+	std::string get_datetime_string( int ts )
 	{
-		std::time_t timestamp = static_cast<std::time_t>( as_int( value ) );
+		std::time_t timestamp = static_cast<std::time_t>( ts );
 
 		if ( timestamp == 0 )
 			return _( "Never" );
@@ -3071,11 +3096,11 @@ namespace {
 	}
 
 	//
-	// Format PlayedLast to "# Unit(s) Ago"
+	// Format timestamp to "# Unit(s) Ago"
 	//
-	std::string get_played_ago_display_string( std::string value )
+	std::string get_time_relative_string( int ts )
 	{
-		std::time_t timestamp = static_cast<std::time_t>( as_int( value ) );
+		std::time_t timestamp = static_cast<std::time_t>( ts );
 
 		if ( timestamp == 0 )
 			return _( "Never" );
@@ -3152,10 +3177,16 @@ bool FeSettings::get_token_value( std::string &token, int filter_index, int rom_
 			return true;
 		}
 		case FeRomInfo::PlayedTime:
-			value = get_played_time_display_string( get_rom_info_absolute( filter_index, rom_index, FeRomInfo::PlayedTime ) );
+			value = get_time_duration_string( as_int(get_rom_info_absolute( filter_index, rom_index, FeRomInfo::PlayedTime )) );
+			return true;
+		case FeRomInfo::PlayedSession:
+			value = get_time_duration_string( as_int(get_rom_info_absolute( filter_index, rom_index, FeRomInfo::PlayedSession )) );
+			return true;
+		case FeRomInfo::PlayedLongest:
+			value = get_time_duration_string( as_int(get_rom_info_absolute( filter_index, rom_index, FeRomInfo::PlayedLongest )) );
 			return true;
 		case FeRomInfo::PlayedLast:
-			value = get_played_last_display_string( get_rom_info_absolute( filter_index, rom_index, FeRomInfo::PlayedLast ) );
+			value = get_datetime_string( as_int(get_rom_info_absolute( filter_index, rom_index, FeRomInfo::PlayedLast )) );
 			return true;
 		case FeRomInfo::Score:
 			value = as_str( as_float( get_rom_info_absolute( filter_index, rom_index, (FeRomInfo::Index)i ) ), 1 );
@@ -3270,7 +3301,7 @@ bool FeSettings::get_special_token_value( std::string &token, int filter_index, 
 				return true;
 			}
 		case FeRomInfo::PlayedAgo:
-			value = get_played_ago_display_string( get_rom_info_absolute( filter_index, rom_index, FeRomInfo::PlayedLast ) );
+			value = get_time_relative_string( as_int(get_rom_info_absolute( filter_index, rom_index, FeRomInfo::PlayedLast )) );
 			return true;
 		case FeRomInfo::ScoreStar:
 			{
@@ -3473,6 +3504,10 @@ const std::string FeSettings::get_info( int index ) const
 		return prefixTokens[ m_prefix_mode ];
 	case ThegamesdbKey:
 		return m_tgdb_key;
+	case ScreenScraperUser:
+		return m_ss_user;
+	case ScreenScraperPass:
+		return m_ss_pass;
 
 	case CustomLanguages:
 	case DisplaysMenuExit:
@@ -3641,6 +3676,14 @@ bool FeSettings::set_info( int index, const std::string &value )
 
 	case ThegamesdbKey:
 		m_tgdb_key = value;
+		break;
+
+	case ScreenScraperUser:
+		m_ss_user = value;
+		break;
+
+	case ScreenScraperPass:
+		m_ss_pass = value;
 		break;
 
 	case ConfirmFavourites:
@@ -3822,9 +3865,9 @@ bool FeSettings::set_info( int index, const std::string &value )
 
 	case UIColor:
 	{
-		sf::Color col;
-		if ( str_to_color( value, col ) )
-			color_to_rgb( col, m_ui_color );
+		FeColor col;
+		if ( col.fromString( value ) )
+			m_ui_color = col.toRgbString();
 		break;
 	}
 
@@ -4633,6 +4676,15 @@ bool FeSettings::internal_get_best_artwork_file(
 	std::string scraper_path = get_config_dir() + FE_SCRAPER_SUBDIR + emu_name + "/" + scrape_art + "/";
 	if ( directory_exists( scraper_path ) )
 		art_paths.push_back( scraper_path );
+
+	// For "snap" first check scraper/display_name/video/
+	// This matches the convention where users configure multiple paths for "snap"
+	if ( art_name.compare( "snap" ) == 0 && !image_only )
+	{
+		std::string scraper_video_path = get_config_dir() + FE_SCRAPER_SUBDIR + emu_name + "/video/";
+		if ( directory_exists( scraper_video_path ) )
+			art_paths.push_back( scraper_video_path );
+	}
 
 	if ( !art_paths.empty() )
 	{

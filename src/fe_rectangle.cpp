@@ -40,10 +40,12 @@ FeRectangle::FeRectangle( FePresentableParent &p,
 	m_position( x, y ),
 	m_size( w, h ),
 	m_origin( 0.f, 0.f ),
+	m_transform_origin( 0.f, 0.f ),
 	m_rotation_origin( 0.f, 0.f ),
 	m_anchor( 0.f, 0.f ),
-	m_anchor_type( TopLeft ),
-	m_rotation_origin_type( TopLeft ),
+	m_transform_origin_type( FeAlign::TopLeft ),
+	m_anchor_type( FeAlign::TopLeft ),
+	m_rotation_origin_type( FeAlign::TopLeft ),
 	m_rotation ( 0.0 ),
 	m_corner_point_count( 12 ),
 	m_corner_point_actual( -1 ),
@@ -52,6 +54,7 @@ FeRectangle::FeRectangle( FePresentableParent &p,
 	m_corner_ratio_x( false ),
 	m_corner_ratio_y( false ),
 	m_corner_auto( false ),
+	m_outline( 0 ),
 	m_blend_mode( FeBlend::Alpha )
 {
 	setColor( sf::Color::White );
@@ -134,73 +137,71 @@ void FeRectangle::setOutlineColor( sf::Color c )
 
 float FeRectangle::get_outline()
 {
-	return m_rect.getOutlineThickness();
+	return m_outline;
 }
 
 void FeRectangle::set_outline( float o )
 {
-	if ( o != m_rect.getOutlineThickness() )
-	{
-		m_rect.setOutlineThickness( o );
-		FePresent::script_flag_redraw();
-	}
+	if ( o == m_outline )
+		return;
+
+	m_outline = o;
+	m_rect.setOutlineThickness( grid_height_to_pixels( m_outline ));
+	FePresent::script_flag_redraw();
 }
 
-int FeRectangle::get_olr() const
+int FeRectangle::get_outline_red() const
 {
 	return m_rect.getOutlineColor().r;
 }
 
-int FeRectangle::get_olg() const
+int FeRectangle::get_outline_green() const
 {
 	return m_rect.getOutlineColor().g;
 }
 
-int FeRectangle::get_olb() const
+int FeRectangle::get_outline_blue() const
 {
 	return m_rect.getOutlineColor().b;
 }
 
-int FeRectangle::get_ola() const
+int FeRectangle::get_outline_alpha() const
 {
 	return m_rect.getOutlineColor().a;
 }
 
-void FeRectangle::set_olr( int r )
+void FeRectangle::set_outline_red( int r )
 {
-	sf::Color c=getOutlineColor();
-	c.r=r;
-	setOutlineColor(c);
+	sf::Color c = getOutlineColor();
+	set_outline_rgb( r, c.g, c.b, c.a );
 }
 
-void FeRectangle::set_olg( int g )
+void FeRectangle::set_outline_green( int g )
 {
-	sf::Color c=getOutlineColor();
-	c.g=g;
-	setOutlineColor(c);
+	sf::Color c = getOutlineColor();
+	set_outline_rgb( c.r, g, c.b, c.a );
 }
 
-void FeRectangle::set_olb( int b )
+void FeRectangle::set_outline_blue( int b )
 {
-	sf::Color c=getOutlineColor();
-	c.b=b;
-	setOutlineColor(c);
+	sf::Color c = getOutlineColor();
+	set_outline_rgb( c.r, c.g, b, c.a );
 }
 
-void FeRectangle::set_ola( int a )
+void FeRectangle::set_outline_alpha( int a )
 {
-	sf::Color c=getOutlineColor();
-	c.a=a;
-	setOutlineColor(c);
+	sf::Color c = getOutlineColor();
+	set_outline_rgb( c.r, c.g, c.b, a );
 }
 
-void FeRectangle::set_olrgb( int r, int g, int b )
+void FeRectangle::set_outline_rgb( int r, int g, int b )
 {
-	sf::Color c=getOutlineColor();
-	c.r=r;
-	c.g=g;
-	c.b=b;
-	setOutlineColor(c);
+	set_outline_rgb( r, g, b, getOutlineColor().a );
+}
+
+void FeRectangle::set_outline_rgb( int r, int g, int b, int a )
+{
+	setOutlineColor(sf::Color( r, g, b, a ));
 }
 
 float FeRectangle::get_origin_x() const
@@ -213,14 +214,29 @@ float FeRectangle::get_origin_y() const
 	return m_origin.y;
 }
 
+int FeRectangle::get_transform_origin_type() const
+{
+	return m_transform_origin_type;
+}
+
 int FeRectangle::get_anchor_type() const
 {
-	return (FeRectangle::Alignment)m_anchor_type;
+	return m_anchor_type;
 }
 
 int FeRectangle::get_rotation_origin_type() const
 {
-	return (FeRectangle::Alignment)m_rotation_origin_type;
+	return m_rotation_origin_type;
+}
+
+float FeRectangle::get_transform_origin_x() const
+{
+	return m_transform_origin.x;
+}
+
+float FeRectangle::get_transform_origin_y() const
+{
+	return m_transform_origin.y;
 }
 
 float FeRectangle::get_anchor_x() const
@@ -263,6 +279,28 @@ void FeRectangle::set_origin_y( float y )
 	}
 }
 
+void FeRectangle::set_transform_origin( float x, float y )
+{
+	if (
+		x != m_transform_origin.x || x != m_anchor.x || x != m_rotation_origin.x ||
+		y != m_transform_origin.y || y != m_anchor.y || y != m_rotation_origin.y
+	)
+	{
+		m_transform_origin = sf::Vector2f( x, y );
+		m_anchor = sf::Vector2f( x, y );
+		m_rotation_origin = sf::Vector2f( x, y );
+		scale();
+		FePresent::script_flag_redraw();
+	}
+}
+
+void FeRectangle::set_transform_origin_type( int t )
+{
+	m_transform_origin_type = static_cast<FeAlign>( t );
+	sf::Vector2f a = align_type_to_vector( t );
+	set_transform_origin( a.x, a.y );
+}
+
 void FeRectangle::set_anchor( float x, float y )
 {
 	if ( x != m_anchor.x || y != m_anchor.y )
@@ -275,8 +313,8 @@ void FeRectangle::set_anchor( float x, float y )
 
 void FeRectangle::set_anchor_type( int t )
 {
-	m_anchor_type = (FeRectangle::Alignment)t;
-	sf::Vector2f a = alignTypeToVector( t );
+	m_anchor_type = static_cast<FeAlign>( t );
+	sf::Vector2f a = align_type_to_vector( t );
 	set_anchor( a.x, a.y );
 }
 
@@ -292,9 +330,33 @@ void FeRectangle::set_rotation_origin( float x, float y )
 
 void FeRectangle::set_rotation_origin_type( int t )
 {
-	m_rotation_origin_type = (FeRectangle::Alignment)t;
-	sf::Vector2f o = alignTypeToVector( t );
+	m_rotation_origin_type = static_cast<FeAlign>( t );
+	sf::Vector2f o = align_type_to_vector( t );
 	set_rotation_origin( o.x, o.y );
+}
+
+void FeRectangle::set_transform_origin_x( float x )
+{
+	if ( x != m_transform_origin.x || x != m_anchor.x || x != m_rotation_origin.x )
+	{
+		m_transform_origin.x = x;
+		m_anchor.x = x;
+		m_rotation_origin.x = x;
+		scale();
+		FePresent::script_flag_redraw();
+	}
+}
+
+void FeRectangle::set_transform_origin_y( float y )
+{
+	if ( y != m_transform_origin.y || y != m_anchor.y || y != m_rotation_origin.y )
+	{
+		m_transform_origin.y = y;
+		m_anchor.y = y;
+		m_rotation_origin.y = y;
+		scale();
+		FePresent::script_flag_redraw();
+	}
 }
 
 void FeRectangle::set_anchor_x( float x )
@@ -345,6 +407,12 @@ int FeRectangle::get_blend_mode() const
 void FeRectangle::set_blend_mode( int b )
 {
 	m_blend_mode = (FeBlend::Mode)b;
+}
+
+void FeRectangle::refresh_script_geometry()
+{
+	FeBasePresentable::refresh_script_geometry();
+	m_rect.setOutlineThickness( grid_height_to_pixels( m_outline ));
 }
 
 float FeRectangle::get_corner_radius() const
@@ -478,6 +546,11 @@ int FeRectangle::get_corner_point_count() const
 	return m_corner_point_count;
 }
 
+int FeRectangle::get_type() const
+{
+	return FePresentableTypeRectangle;
+}
+
 void FeRectangle::set_corner_point_count( int n )
 {
 	m_corner_point_count = n;
@@ -543,42 +616,6 @@ void FeRectangle::update_corner_ratio()
 	update_corner_radius();
 }
 
-sf::Vector2f FeRectangle::alignTypeToVector( int type )
-{
-	switch( type )
-	{
-		case Left:
-			return sf::Vector2f( 0.0f, 0.5f );
-
-		case Centre:
-			return sf::Vector2f( 0.5f, 0.5f );
-
-		case Right:
-			return sf::Vector2f( 1.0f, 0.5f );
-
-		case Top:
-			return sf::Vector2f( 0.5f, 0.0f );
-
-		case Bottom:
-			return sf::Vector2f( 0.5f, 1.0f );
-
-		case TopLeft:
-			return sf::Vector2f( 0.0f, 0.0f );
-
-		case TopRight:
-			return sf::Vector2f( 1.0f, 0.0f );
-
-		case BottomLeft:
-			return sf::Vector2f( 0.0f, 1.0f );
-
-		case BottomRight:
-			return sf::Vector2f( 1.0f, 1.0f );
-
-		default:
-			return sf::Vector2f( 0.0f, 0.0f );
-	}
-}
-
 void FeRectangle::draw( sf::RenderTarget &target, sf::RenderStates states ) const
 {
 	FeShader *s = get_shader();
@@ -589,7 +626,7 @@ void FeRectangle::draw( sf::RenderTarget &target, sf::RenderStates states ) cons
 			states.shader = sh;
 	}
 	else
-		states.shader = FeBlend::get_default_shader( m_blend_mode );
+		states.shader = FeBlend::get_default_shader( m_blend_mode, false );
 
 	states.blendMode = FeBlend::get_blend_mode( m_blend_mode );
 
@@ -616,10 +653,13 @@ void FeRectangle::scale()
 	}
 
 	pos += sf::Vector2f(( m_rotation_origin.x - m_anchor.x ) * size.x, ( m_rotation_origin.y -  m_anchor.y ) * size.y );
+	sf::Vector2f origin( m_origin.x + m_rotation_origin.x * size.x, m_origin.y + m_rotation_origin.y * size.y );
+	m_snap_offset = sf::Vector2f( -m_anchor.x * size.x - m_origin.x, -m_anchor.y * size.y - m_origin.y );
+	pos = snap_draw_position( pos );
 
 	m_rect.setPosition( pos );
 	m_rect.setRotation( sf::degrees( m_rotation ));
 	m_rect.setSize( size );
-	m_rect.setOrigin({( m_origin.x + m_rotation_origin.x * size.x ), ( m_origin.y + m_rotation_origin.y * size.y )});
+	m_rect.setOrigin( origin );
 
 }

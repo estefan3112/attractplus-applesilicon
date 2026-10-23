@@ -24,6 +24,7 @@
 #define FE_LISTBOX_HPP
 
 #include <SFML/Graphics.hpp>
+#include "fe_align.hpp"
 #include "fe_presentable.hpp"
 #include "tp.hpp"
 
@@ -77,6 +78,15 @@ public:
 	sf::Color getColor() const;
 	sf::Color getOutlineColor() const;
 	sf::Color getSelOutlineColor() const;
+	int get_transform_origin_type() const;
+	int get_anchor_type() const;
+	int get_rotation_origin_type() const;
+	float get_transform_origin_x() const;
+	float get_transform_origin_y() const;
+	float get_anchor_x() const;
+	float get_anchor_y() const;
+	float get_rotation_origin_x() const;
+	float get_rotation_origin_y() const;
 
 	int getIndexOffset() const;
 	void setIndexOffset( int );
@@ -92,6 +102,18 @@ public:
 	void setSelStyle( int );
 	int getSelStyle();
 	void setTextScale( const sf::Vector2f & );
+	void set_transform_origin( float x, float y );
+	void set_transform_origin_type( int t );
+	void set_anchor( float x, float y );
+	void set_anchor_type( int t );
+	void set_rotation_origin( float x, float y );
+	void set_rotation_origin_type( int t );
+	void set_transform_origin_x( float x );
+	void set_transform_origin_y( float y );
+	void set_anchor_x( float x );
+	void set_anchor_y( float y );
+	void set_rotation_origin_x( float x );
+	void set_rotation_origin_y( float y );
 
 	bool getSelectedText( FeTextPrimitive* &sel );
 
@@ -116,17 +138,25 @@ public:
 
 	void set_no_margin( bool );
 	bool get_no_margin();
-	void set_margin( int );
-	int get_margin();
+	void set_margin( float );
+	float get_margin();
 
 	const sf::Drawable &drawable() const { return (const sf::Drawable &)*this; };
 
-	int get_bgr();
-	int get_bgg();
-	int get_bgb();
-	int get_bga();
-	int get_charsize();
-	int get_glyph_size();
+	int get_bg_red();
+	int get_bg_green();
+	int get_bg_blue();
+	int get_bg_alpha();
+	int get_outline_red();
+	int get_outline_green();
+	int get_outline_blue();
+	int get_outline_alpha();
+	int get_sel_outline_red();
+	int get_sel_outline_green();
+	int get_sel_outline_blue();
+	int get_sel_outline_alpha();
+	float get_charsize();
+	float get_glyph_size();
 	float get_spacing();
 	int get_rows();
 	int get_list_align();
@@ -135,59 +165,82 @@ public:
 	int get_style();
 	int get_justify();
 	int get_align();
+	int get_case();
 	int get_selection_mode();
 	int get_selection_margin();
-	void set_bgr(int r);
-	void set_bgg(int g);
-	void set_bgb(int b);
-	void set_bga(int a);
+	void set_bg_red(int r);
+	void set_bg_green(int g);
+	void set_bg_blue(int b);
+	void set_bg_alpha(int a);
+	void set_outline_red(int r);
+	void set_outline_green(int g);
+	void set_outline_blue(int b);
+	void set_outline_alpha(int a);
+	void set_sel_outline_red(int r);
+	void set_sel_outline_green(int g);
+	void set_sel_outline_blue(int b);
+	void set_sel_outline_alpha(int a);
 	void set_bg_rgb( int, int, int );
-	void set_charsize(int s);
+	void set_bg_rgb( int, int, int, int );
+	void set_charsize(float s);
 	void set_spacing(float s);
 	void set_rows(int r);
 	void set_list_align(int a);
 	void set_style(int s);
 	void set_justify(int j);
 	void set_align(int a);
+	void set_case(int c);
 	void set_selection_mode(int m);
 	void set_selection_margin(int m);
-	int get_selr();
-	int get_selg();
-	int get_selb();
-	int get_sela();
-	void set_selr(int r);
-	void set_selg(int g);
-	void set_selb(int b);
-	void set_sela(int a);
+	int get_sel_red();
+	int get_sel_green();
+	int get_sel_blue();
+	int get_sel_alpha();
+	void set_sel_red(int r);
+	void set_sel_green(int g);
+	void set_sel_blue(int b);
+	void set_sel_alpha(int a);
 	void set_sel_rgb( int, int, int );
-	int get_selbgr();
-	int get_selbgg();
-	int get_selbgb();
-	int get_selbga();
+	void set_sel_rgb( int, int, int, int );
+	int get_sel_bg_red();
+	int get_sel_bg_green();
+	int get_sel_bg_blue();
+	int get_sel_bg_alpha();
 	const char *get_font();
 	const char *get_format_string();
 
 	void set_outline( float );
 	void set_outline_rgb( int, int, int );
+	void set_outline_rgb( int, int, int, int );
 	void set_sel_outline_rgb( int, int, int );
+	void set_sel_outline_rgb( int, int, int, int );
 	void set_sel_outline( float );
 
 	float get_outline();
 	float get_sel_outline();
 
-	void set_selbgr(int r);
-	void set_selbgg(int g);
-	void set_selbgb(int b);
-	void set_selbga(int a);
-	void set_selbg_rgb( int, int, int );
+	void set_sel_bg_red(int r);
+	void set_sel_bg_green(int g);
+	void set_sel_bg_blue(int b);
+	void set_sel_bg_alpha(int a);
+	void set_sel_bg_rgb( int, int, int );
+	void set_sel_bg_rgb( int, int, int, int );
 	void set_font( const char *f );
 	void set_format_string( const char *s );
 	int get_selected_row() const;
 	void set_selected_row( int r );
+	float get_sel_y() const;
+	float get_row_height() const;
+	int get_type() const;
+	void refresh_script_geometry() override;
 private:
 	void update_list_settings( FeSettings *s );
 	void refresh_selection();
 	void refresh_list();
+	void update_row_geometry();
+	void update_text_metrics();
+	void update_margin();
+	void update_outline();
 
 	FeTextPrimitive m_base_text;
 	std::vector<std::string> m_custom_list;
@@ -197,17 +250,28 @@ private:
 	sf::Color m_selColour;
 	sf::Color m_selBg;
 	sf::Color m_selOutlineColour;
-	float m_selOutlineThickness;
+	sf::Vector2f m_position;
+	sf::Vector2f m_size;
+	sf::Vector2f m_transform_origin;
+	sf::Vector2f m_anchor;
+	sf::Vector2f m_rotation_origin;
+	FeAlign m_transform_origin_type;
+	FeAlign m_anchor_type;
+	FeAlign m_rotation_origin_type;
 	int m_selStyle;
 	int m_rows;
-	int m_list_align;
-	int m_userCharSize;
+	FeAlign m_list_align;
+	float m_userCharSize;
+	float m_userMargin;
+	float m_outline;
+	float m_sel_outline;
 	int m_filter_offset;
 	float m_rotation;
 	float m_scale_factor;
 	bool m_scripted; // True when the list is used in a layout, false when used in the builtin-menu
 	int m_mode;
 	int m_selected_row;
+	int m_parent_selected_row;
 	int m_list_start_offset;
 	int m_selection_margin;
 

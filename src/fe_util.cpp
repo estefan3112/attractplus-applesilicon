@@ -421,7 +421,18 @@ bool read_file_content( const std::string &file, std::string &content )
 
 bool write_file_content( const std::string &file, const std::string content )
 {
-	nowide::ofstream f( file );
+	nowide::ofstream f( file, std::ios::binary );
+	if ( !f.is_open() )
+		return false;
+
+	f << content;
+	f.close();
+	return true;
+}
+
+bool append_file_content( const std::string &file, const std::string content )
+{
+	nowide::ofstream f( file, std::ios::binary | std::ios_base::app );
 	if ( !f.is_open() )
 		return false;
 
@@ -950,6 +961,11 @@ namespace
 		return more;
 	}
 
+}
+
+std::string escape_regex(const std::string& text) {
+    static const std::regex metacharacters(R"([\.\^\$\+\-\(\)\[\]\{\}\|\?\*\\\u00A0])");
+    return std::regex_replace(text, metacharacters, R"(\$&)");
 }
 
 bool token_helper(
@@ -2268,49 +2284,6 @@ std::vector<std::string> create_range( int from, int to, int size )
 	return create_range( from, to, size, from, to );
 }
 
-
-bool str_to_color( const std::string &str, sf::Color &col )
-{
-	if ( rgb_to_color( str, col ) ) return true;
-	if ( hex_to_color( str, col ) ) return true;
-	return false;
-}
-
-bool rgb_to_color( const std::string &str, sf::Color &col )
-{
-	std::smatch m;
-	if ( !std::regex_search( str, m, std::regex( "^(\\d{1,3})[, ]+(\\d{1,3})[, ]+(\\d{1,3})$" ) ) )
-		return false;
-
-	col = sf::Color( as_int( m[1].str() ), as_int( m[2].str() ), as_int( m[3].str() ) );
-	return true;
-}
-
-bool hex_to_color( const std::string &str, sf::Color &col )
-{
-	std::smatch m;
-	if ( !std::regex_search( str, m, std::regex( "^#?([0-9A-F]{6})$" ) ) )
-		return false;
-
-	col = sf::Color( std::stoul( "0x" + m[1].str() + "FF", nullptr, 16 ) );
-	return true;
-}
-
-void color_to_rgb( const sf::Color &col, std::string &str )
-{
-	str = as_str( col.r ) + "," + as_str( col.g ) + "," + as_str( col.b );
-}
-
-void color_to_hex( const sf::Color &col, std::string &str )
-{
-	std::stringstream hex;
-	hex << "#"
-		<< std::hex << std::setw(2) << std::setfill('0') << (int)col.r
-		<< std::hex << std::setw(2) << std::setfill('0') << (int)col.g
-		<< std::hex << std::setw(2) << std::setfill('0') << (int)col.b;
-	str = hex.str();
-}
-
 int get_token_index( const char *tokens[], const std::string &token )
 {
 	int i = 0;
@@ -2343,4 +2316,23 @@ bool get_capslock_state()
 	#endif
 
 	return false;
+}
+
+sf::Vector2f align_type_to_vector( int type )
+{
+	bool left = type & FeAlign::Left;
+	bool right = type & FeAlign::Right;
+	bool top = type & FeAlign::Top;
+	bool bottom = type & FeAlign::Bottom;
+
+	float x = 0.5f;
+	float y = 0.5f;
+
+	if ( left != right )
+		x = left ? 0.0f : 1.0f;
+
+	if ( top != bottom )
+		y = top ? 0.0f : 1.0f;
+
+	return sf::Vector2f( x, y );
 }

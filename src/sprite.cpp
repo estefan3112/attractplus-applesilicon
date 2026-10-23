@@ -175,12 +175,13 @@ sf::Color FeSprite::getColor() const
 
 
 ////////////////////////////////////////////////////////////
-sf::IntRect FeSprite::getLocalBounds() const
+sf::FloatRect FeSprite::getLocalBounds() const
 {
-    int width = std::abs( m_textureRect.size.x );
-    int height = std::abs( m_textureRect.size.y );
+    float width = std::abs( m_textureRect.size.x );
+    float height = std::abs( m_textureRect.size.y );
 
-    return sf::IntRect({ 0, 0 }, { width, height });
+    return sf::FloatRect({ 0, 0 }, { width, height });
+
 }
 
 void FeSprite::setCrop( FloatEdges crop )
@@ -205,20 +206,25 @@ void FeSprite::draw(sf::RenderTarget& target, sf::RenderStates states) const
 		states.transform *= getTransform();
 		states.texture = m_texture;
 		if ( m_vertices[0].color.a > 0 )
-			target.draw( m_vertices, states );
-
-		// Set anisotropic filtering
-		FePresent *fep = FePresent::script_get_fep();
-		if ( fep )
 		{
-			int af_mode = fep->get_fes()->get_anisotropic();
-			if ( af_mode > 0 )
+			FePresent *fep = FePresent::script_get_fep();
+			if ( fep )
 			{
-				GLfloat aniso_max;
-				glGetFloatv( GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &aniso_max );
-				glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, (GLfloat)std::min( (int)aniso_max, af_mode ));
-				glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -0.25 );
+				int af_mode = fep->get_fes()->get_anisotropic();
+				if ( af_mode > 0 )
+				{
+					GLfloat aniso_max = 0.0f;
+					glGetFloatv( GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &aniso_max );
+					if ( aniso_max >= 1.0f )
+					{
+						glBindTexture( GL_TEXTURE_2D, m_texture->getNativeHandle() );
+						glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, std::min( aniso_max, static_cast<GLfloat>( af_mode )));
+						glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -0.25f );
+					}
+				}
 			}
+
+			target.draw( m_vertices, states );
 		}
 	}
 }
@@ -318,6 +324,19 @@ float FeSprite::getBorderScale() const
 	return m_border_scale;
 }
 
+float FeSprite::getPaddingScale( const sf::Vector2f &size ) const
+{
+	if ( !m_border.left && !m_border.top && !m_border.right && !m_border.bottom )
+		return 1.f;
+
+	float padding_scale = m_border_scale;
+	float x = m_border.left + m_border.right - m_padding.left - m_padding.right;
+	float y = m_border.top + m_border.bottom - m_padding.top - m_padding.bottom;
+	if ( x > 0.f ) padding_scale = std::min( padding_scale, size.x / x );
+	if ( y > 0.f ) padding_scale = std::min( padding_scale, size.y / y );
+	return padding_scale;
+}
+
 void FeSprite::setBorderScale( float s )
 {
 	if ( s != m_border_scale )
@@ -352,8 +371,18 @@ void FeSprite::updateGeometry()
 		tex.bottom -= scrop.bottom;
 	}
 
+	float padding_scale = getPaddingScale( sf::Vector2f(
+		( pos.right - pos.left ) * scale.x,
+		( pos.bottom - pos.top ) * scale.y
+	));
+
 	// Padding enlarges the position to overlap the image bounds
-	FloatEdges spadding = FloatEdges( m_padding.left / scale.x, m_padding.top / scale.y, m_padding.right / scale.x, m_padding.bottom / scale.y );
+	FloatEdges spadding = FloatEdges(
+		m_padding.left * padding_scale / scale.x,
+		m_padding.top * padding_scale / scale.y,
+		m_padding.right * padding_scale / scale.x,
+		m_padding.bottom * padding_scale / scale.y
+	);
 	pos.left -= spadding.left;
 	pos.top -= spadding.top;
 	pos.right = std::max( pos.left, pos.right + spadding.right );
@@ -369,14 +398,7 @@ void FeSprite::updateGeometry()
 		sf::Vector2f total_size = sf::Vector2f( pos.right - pos.left, pos.bottom - pos.top );
 		FloatEdges sborder = FloatEdges( m_border.left / scale.x, m_border.top / scale.y, m_border.right / scale.x, m_border.bottom / scale.y );
 
-		// Run twice, once to scale x, once to scale y (or vice-versa)
-		float s = m_border_scale;
-		for ( int i=0; i<2; i++)
-			s *= std::min(
-				total_size.x / std::max( ( sborder.left + sborder.right ) * s, total_size.x ),
-				total_size.y / std::max( ( sborder.top + sborder.bottom ) * s, total_size.y )
-			);
-
+		float s = padding_scale;
 		FloatEdges border = FloatEdges( sborder.left * s, sborder.top * s, sborder.right * s, sborder.bottom * s );
 
 		// Prepare pos/tex points for the slices

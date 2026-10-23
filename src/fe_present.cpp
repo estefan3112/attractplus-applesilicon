@@ -21,6 +21,7 @@
  */
 
 #include "fe_present.hpp"
+#include "fe_animation.hpp"
 #include "fe_util.hpp"
 #include "fe_image.hpp"
 #include "fe_text.hpp"
@@ -170,6 +171,65 @@ int FeMonitor::get_num()
 	return num;
 }
 
+FeCoordinateSpace FeMonitor::get_coordinate_space( bool uniform ) const
+{
+	FePresent *fep = FePresent::script_get_fep();
+	if (( num == 0 ) && fep )
+	{
+		sf::Vector2f parent_size( fep->get_layout_size() );
+		if ( !uniform )
+			return FeCoordinateSpace( sf::Vector2f( 0, 0 ), parent_size );
+
+		float side = std::min( parent_size.x, parent_size.y );
+		sf::Vector2f space_size( side, side );
+		sf::Vector2f origin(
+			( parent_size.x - space_size.x ) / 2.0f,
+			( parent_size.y - space_size.y ) / 2.0f );
+
+		return FeCoordinateSpace( origin, space_size );
+	}
+
+	return FeCoordinateSpace( sf::Vector2f( 0, 0 ), sf::Vector2f( size ));
+}
+
+sf::Vector2f FeMonitor::get_grid_offset( bool uniform ) const
+{
+	FePresent *fep = FePresent::script_get_fep();
+	if (( num == 0 ) && fep )
+		return fep->get_layout_grid_offset( uniform );
+
+	return sf::Vector2f( 0, 0 );
+}
+
+sf::Vector2f FeMonitor::snap_position_to_pixel( const sf::Vector2f &p ) const
+{
+	FePresent *fep = FePresent::script_get_fep();
+	if (( num == 0 ) && fep )
+	{
+		const sf::Transform &layout_transform = fep->get_transform();
+		sf::Vector2f pixel = layout_transform.transformPoint( p );
+		pixel.x = std::round( pixel.x );
+		pixel.y = std::round( pixel.y );
+		return layout_transform.getInverse().transformPoint( pixel );
+	}
+
+	return FePresentableParent::snap_position_to_pixel( p );
+}
+
+sf::Vector2f FeMonitor::snap_size_to_pixel( const sf::Vector2f &s ) const
+{
+	FePresent *fep = FePresent::script_get_fep();
+	if (( num == 0 ) && fep )
+	{
+		sf::Vector2f scale( fep->get_layout_scale_x(), fep->get_layout_scale_y() );
+		return sf::Vector2f(
+			scale.x != 0.0f ? std::round( s.x * scale.x ) / scale.x : s.x,
+			scale.y != 0.0f ? std::round( s.y * scale.y ) / scale.y : s.y );
+	}
+
+	return FePresentableParent::snap_size_to_pixel( s );
+}
+
 FePresent::FePresent( FeSettings *fesettings, FeWindow &wnd )
 	: m_feSettings( fesettings ),
 	m_window( wnd ),
@@ -185,8 +245,14 @@ FePresent::FePresent( FeSettings *fesettings, FeWindow &wnd )
 	m_playMovies( true ),
 	m_user_page_size( -1 ),
 	m_preserve_aspect( false ),
+	m_layout_crop( true ),
 	m_custom_overlay( false ),
 	m_mouse_pointer_visible( false ),
+	m_grid( GridPixel ),
+	m_grid_uniform( true ),
+	m_pixel_snap( false ),
+	m_grid_offset( 0, 0 ),
+	m_aspect_ratio( 0.0f ),
 	m_listBox( NULL ),
 	m_emptyShader( NULL ),
 	m_overlay_caption( NULL ),
@@ -448,6 +514,8 @@ void FePresent::clear_resources()
 //
 void FePresent::clear_layout()
 {
+	FeAnimation::clear();
+
 	//
 	// keep toggle rotation, base rotation and mute state through clear
 	//
@@ -461,9 +529,15 @@ void FePresent::clear_layout()
 	m_layoutFontName = "";
 	m_user_page_size = -1;
 	m_preserve_aspect = false;
+	m_layout_crop = true;
 	m_custom_overlay = false;
 	m_overlay_caption = NULL;
 	m_overlay_lb = NULL;
+	m_grid = GridPixel;
+	m_grid_uniform = true;
+	m_pixel_snap = false;
+	m_grid_offset = sf::Vector2f( 0, 0 );
+	m_aspect_ratio = 0.0f;
 
 	FeImageLoader &il = FeImageLoader::get_ref();
 	il.set_background_loading( false );
@@ -521,18 +595,7 @@ void FePresent::clear_layout()
 
 	m_baseRotation = m_feSettings->get_screen_rotation();
 
-	FeSettings::RotationState actualRotation = get_actual_rotation();
-
-	if (( actualRotation == FeSettings::RotateLeft ) || ( actualRotation == FeSettings::RotateRight ))
-	{
-		m_layoutSize.x = m_mon[0].size.y;
-		m_layoutSize.y = m_mon[0].size.x;
-	}
-	else
-	{
-		m_layoutSize.x = m_mon[0].size.x;
-		m_layoutSize.y = m_mon[0].size.y;
-	}
+	m_layoutSize = get_default_layout_size();
 
 	m_layoutScale.x = 1.0;
 	m_layoutScale.y = 1.0;
@@ -549,6 +612,7 @@ namespace
 	{
 		return ( one->get_zorder() < two->get_zorder() );
 	}
+
 };
 
 void FePresent::sort_zorder()
@@ -567,10 +631,58 @@ void FePresent::sort_zorder()
 void FePresent::draw( sf::RenderTarget& target, sf::RenderStates states ) const
 {
 	std::vector<FeBasePresentable *>::const_iterator itl;
+	const sf::View previous_view = target.getView();
+	const sf::Vector2u target_size = target.getSize();
+
+	if ( m_layout_crop && (( target_size.x == 0 ) || ( target_size.y == 0 )))
+		return;
 
 	//
 	for ( unsigned int i=0; i<m_mon.size(); i++ )
 	{
+		if ( m_layout_crop )
+		{
+			sf::Vector2f monitor_pos = m_mon[i].transform.transformPoint({ 0, 0 });
+			float monitor_left = monitor_pos.x;
+			float monitor_top = monitor_pos.y;
+			float monitor_right = monitor_pos.x + m_mon[i].size.x;
+			float monitor_bottom = monitor_pos.y + m_mon[i].size.y;
+
+			float clip_left = monitor_left;
+			float clip_top = monitor_top;
+			float clip_right = monitor_right;
+			float clip_bottom = monitor_bottom;
+
+			if ( i == 0 )
+			{
+				sf::Vector2f p0 = m_layout_transform.transformPoint({ 0, 0 });
+				sf::Vector2f p1 = m_layout_transform.transformPoint({ static_cast<float>( m_layoutSize.x ), 0 });
+				sf::Vector2f p2 = m_layout_transform.transformPoint({ 0, static_cast<float>( m_layoutSize.y )});
+				sf::Vector2f p3 = m_layout_transform.transformPoint({ static_cast<float>( m_layoutSize.x ), static_cast<float>( m_layoutSize.y )});
+
+				clip_left = std::min({ p0.x, p1.x, p2.x, p3.x });
+				clip_top = std::min({ p0.y, p1.y, p2.y, p3.y });
+				clip_right = std::max({ p0.x, p1.x, p2.x, p3.x });
+				clip_bottom = std::max({ p0.y, p1.y, p2.y, p3.y });
+			}
+
+			float left = std::max({ clip_left, monitor_left, 0.0f });
+			float top = std::max({ clip_top, monitor_top, 0.0f });
+			float right = std::min({ clip_right, monitor_right, static_cast<float>( target_size.x )});
+			float bottom = std::min({ clip_bottom, monitor_bottom, static_cast<float>( target_size.y )});
+			float width = right - left;
+			float height = bottom - top;
+
+			if (( width <= 0.0f ) || ( height <= 0.0f ))
+				continue;
+
+			sf::View monitor_view( sf::FloatRect({ left, top }, { width, height }));
+			monitor_view.setViewport( sf::FloatRect(
+				{ left / target_size.x, top / target_size.y },
+				{ width / target_size.x, height / target_size.y }));
+			target.setView( monitor_view );
+		}
+
 		// use m_transform on monitor 0
 		states.transform = i ? m_mon[i].transform : m_layout_transform;
 		for ( itl=m_mon[i].elements.begin(); itl != m_mon[i].elements.end(); ++itl )
@@ -579,6 +691,9 @@ void FePresent::draw( sf::RenderTarget& target, sf::RenderStates states ) const
 				target.draw( (*itl)->drawable(), states );
 		}
 	}
+
+	if ( m_layout_crop )
+		target.setView( previous_view );
 }
 
 FeImage *FePresent::add_image( bool is_artwork,
@@ -594,6 +709,7 @@ FeImage *FePresent::add_image( bool is_artwork,
 
 	FeImage *new_image = new FeImage( p, new_tex, x, y, w, h );
 	new_image->set_scale_factor( m_layoutScale.x, m_layoutScale.y );
+	new_image->set_script_geometry( x, y, w, h );
 
 	// if this is a static image/video then load it now
 	//
@@ -614,6 +730,8 @@ FeImage *FePresent::add_clone( FeImage *o,
 			FePresentableParent &p )
 {
 	FeImage *new_image = new FeImage( o );
+	new_image->set_parent( p );
+	new_image->refresh_script_geometry();
 	flag_redraw();
 	p.elements.push_back( new_image );
 
@@ -630,6 +748,8 @@ FeText *FePresent::add_text( const std::string &n, int x, int y, int w, int h,
 
 	new_text->setFont( *get_layout_font() );
 	new_text->set_scale_factor( m_layoutScale.x, m_layoutScale.y );
+	new_text->on_new_selection( m_feSettings );
+	new_text->set_script_geometry( x, y, w, h );
 
 	if ( get_script_id() < 0 )
 		m_layout_has_content = true;
@@ -646,6 +766,7 @@ FeListBox *FePresent::add_listbox( int x, int y, int w, int h,
 
 	new_lb->setFont( *get_layout_font() );
 	new_lb->set_scale_factor( m_layoutScale.x, m_layoutScale.y );
+	new_lb->set_script_geometry( x, y, w, h );
 
 	if ( get_script_id() < 0 )
 		m_layout_has_content = true;
@@ -661,6 +782,7 @@ FeRectangle *FePresent::add_rectangle( float x, float y, float w, float h,
 {
 	FeRectangle *new_rc = new FeRectangle( p, x, y, w, h );
 	new_rc->set_scale_factor( m_layoutScale.x, m_layoutScale.y );
+	new_rc->set_script_geometry( x, y, w, h );
 
 	if ( get_script_id() < 0 )
 		m_layout_has_content = true;
@@ -670,9 +792,18 @@ FeRectangle *FePresent::add_rectangle( float x, float y, float w, float h,
 	return new_rc;
 }
 
-FeImage *FePresent::add_surface( float x, float y, int w, int h, FePresentableParent &p )
+FeImage *FePresent::add_surface(
+		float x,
+		float y,
+		float w,
+		float h,
+		int texture_width,
+		int texture_height,
+		FePresentableParent &p )
 {
-	FeSurfaceTextureContainer *new_surface = new FeSurfaceTextureContainer( w, h );
+	FeSurfaceTextureContainer *new_surface = new FeSurfaceTextureContainer(
+		std::max( 0, texture_width ),
+		std::max( 0, texture_height ));
 	new_surface->set_smooth( m_feSettings->get_info_bool( FeSettings::SmoothImages ) );
 	new_surface->set_nesting_level( p.get_nesting_level() + 1 );
 
@@ -682,6 +813,7 @@ FeImage *FePresent::add_surface( float x, float y, int w, int h, FePresentablePa
 	FeImage *new_image = new FeImage( p, new_surface, x, y, w, h );
 	new_image->set_scale_factor( m_layoutScale.x, m_layoutScale.y );
 	new_image->set_blend_mode( FeBlend::Premultiplied );
+	new_image->set_script_geometry( x, y, w, h );
 
 	new_image->texture_changed();
 
@@ -819,6 +951,11 @@ float FePresent::get_layout_height() const
 	return (float)m_layoutSize.y;
 }
 
+float FePresent::get_layout_aspect_ratio() const
+{
+	return m_aspect_ratio;
+}
+
 float FePresent::get_layout_scale_x() const
 {
 	return m_layoutScale.x;
@@ -829,23 +966,232 @@ float FePresent::get_layout_scale_y() const
 	return m_layoutScale.y;
 }
 
+int FePresent::get_layout_grid() const
+{
+	return m_grid;
+}
+
+void FePresent::set_layout_grid( int g )
+{
+	if ( g != m_grid )
+	{
+		m_grid = g;
+		refresh_script_geometry();
+		flag_redraw();
+	}
+}
+
+bool FePresent::get_layout_grid_uniform() const
+{
+	return m_grid_uniform;
+}
+
+void FePresent::set_layout_grid_uniform( bool u )
+{
+	m_grid_uniform = u;
+}
+
+bool FePresent::get_layout_pixel_snap() const
+{
+	return m_pixel_snap;
+}
+
+void FePresent::set_layout_pixel_snap( bool s )
+{
+	m_pixel_snap = s;
+}
+
+float FePresent::get_layout_grid_offset_x() const
+{
+	return m_grid_offset.x;
+}
+
+float FePresent::get_layout_grid_offset_y() const
+{
+	return m_grid_offset.y;
+}
+
+sf::Vector2f FePresent::get_layout_grid_offset( bool uniform ) const
+{
+	switch ( m_grid )
+	{
+		case GridNormalised:
+		{
+			sf::Vector2f size( m_layoutSize );
+			if ( uniform )
+			{
+				float side = std::min( size.x, size.y );
+				size = sf::Vector2f( side, side );
+			}
+
+			return sf::Vector2f(
+				size.x * m_grid_offset.x,
+				size.y * m_grid_offset.y );
+		}
+
+		case GridPercent:
+		{
+			sf::Vector2f size( m_layoutSize );
+			if ( uniform )
+			{
+				float side = std::min( size.x, size.y );
+				size = sf::Vector2f( side, side );
+			}
+
+			return sf::Vector2f(
+				size.x * m_grid_offset.x / 100.0f,
+				size.y * m_grid_offset.y / 100.0f );
+		}
+
+		case GridPixel:
+		default:
+			return m_grid_offset;
+	}
+}
+
+sf::Vector2f FePresent::window_to_layout_grid_pos( const sf::Vector2i &pos ) const
+{
+	sf::Vector2f layout_pos = m_layout_transform.getInverse().transformPoint( sf::Vector2f( pos ));
+
+	switch ( m_grid )
+	{
+		case GridNormalised:
+		case GridPercent:
+		{
+			sf::Vector2f parent_size( m_layoutSize );
+			sf::Vector2f space_origin( 0, 0 );
+			sf::Vector2f space_size = parent_size;
+
+			if ( m_grid_uniform )
+			{
+				float side = std::min( parent_size.x, parent_size.y );
+				space_size = sf::Vector2f( side, side );
+				space_origin = sf::Vector2f(
+					( parent_size.x - space_size.x ) / 2.0f,
+					( parent_size.y - space_size.y ) / 2.0f );
+			}
+
+			layout_pos -= space_origin + get_layout_grid_offset( m_grid_uniform );
+
+			if ( m_grid == GridNormalised )
+			{
+				return sf::Vector2f(
+					space_size.x != 0.0f ? layout_pos.x / space_size.x : 0.0f,
+					space_size.y != 0.0f ? layout_pos.y / space_size.y : 0.0f );
+			}
+
+			return sf::Vector2f(
+				space_size.x != 0.0f ? layout_pos.x * 100.0f / space_size.x : 0.0f,
+				space_size.y != 0.0f ? layout_pos.y * 100.0f / space_size.y : 0.0f );
+		}
+		case GridPixel:
+		default:
+			return layout_pos - get_layout_grid_offset( false );
+	}
+}
+
+void FePresent::set_layout_grid_offset_x( float x )
+{
+	set_layout_grid_offset( x, m_grid_offset.y );
+}
+
+void FePresent::set_layout_grid_offset_y( float y )
+{
+	set_layout_grid_offset( m_grid_offset.x, y );
+}
+
+void FePresent::set_layout_grid_offset( float x, float y )
+{
+	if (( x != m_grid_offset.x ) || ( y != m_grid_offset.y ))
+	{
+		m_grid_offset = sf::Vector2f( x, y );
+		refresh_script_geometry();
+		flag_redraw();
+	}
+}
+
 void FePresent::set_layout_width( float w )
 {
+	m_aspect_ratio = 0.0f;
 	if ( w != m_layoutSize.x )
 	{
 		m_layoutSize.x = w;
 		set_transforms();
+		refresh_script_geometry();
 		flag_redraw();
 	}
 }
 
 void FePresent::set_layout_height( float h )
 {
+	m_aspect_ratio = 0.0f;
 	if ( h != m_layoutSize.y )
 	{
 		m_layoutSize.y = h;
 		set_transforms();
+		refresh_script_geometry();
 		flag_redraw();
+	}
+}
+
+void FePresent::set_layout_aspect_ratio( float r )
+{
+	r = std::fabs( r );
+	float old_ratio = m_aspect_ratio;
+	sf::Vector2i old_size = m_layoutSize;
+
+	m_aspect_ratio = r;
+	apply_layout_aspect_ratio();
+
+	if (( r == old_ratio ) && ( m_layoutSize == old_size ))
+		return;
+
+	set_transforms();
+	refresh_script_geometry();
+	flag_redraw();
+}
+
+sf::Vector2i FePresent::get_default_layout_size() const
+{
+	FeSettings::RotationState actualRotation = (FeSettings::RotationState)(( m_baseRotation + m_toggleRotation ) % 4 );
+	if (( actualRotation == FeSettings::RotateLeft ) || ( actualRotation == FeSettings::RotateRight ))
+		return sf::Vector2i( m_mon[0].size.y, m_mon[0].size.x );
+
+	return m_mon[0].size;
+}
+
+void FePresent::apply_layout_aspect_ratio()
+{
+	sf::Vector2i base_size = get_default_layout_size();
+	if ( m_aspect_ratio <= 0.0f )
+	{
+		m_layoutSize = base_size;
+		return;
+	}
+
+	float base_ratio = static_cast<float>( base_size.x ) / base_size.y;
+	if ( base_ratio > m_aspect_ratio )
+	{
+		m_layoutSize.y = base_size.y;
+		m_layoutSize.x = std::max( 1, static_cast<int>( base_size.y * m_aspect_ratio + 0.5f ));
+	}
+	else
+	{
+		m_layoutSize.x = base_size.x;
+		m_layoutSize.y = std::max( 1, static_cast<int>( base_size.x / m_aspect_ratio + 0.5f ));
+	}
+}
+
+void FePresent::refresh_script_geometry()
+{
+	for ( std::vector<FeMonitor>::iterator itr=m_mon.begin(); itr!=m_mon.end(); ++itr )
+		itr->refresh_script_geometry();
+
+	for ( std::vector<FeBaseTextureContainer *>::iterator itr=m_texturePool.begin(); itr!=m_texturePool.end(); ++itr )
+	{
+		FePresentableParent *parent = (*itr)->get_presentable_parent();
+		if ( parent )
+			parent->refresh_script_geometry();
 	}
 }
 
@@ -921,8 +1267,17 @@ void FePresent::set_toggle_rotation( int r )
 {
 	if ( r != m_toggleRotation )
 	{
+		sf::Vector2i old_size = m_layoutSize;
 		m_toggleRotation = (FeSettings::RotationState)r;
+
+		if ( m_aspect_ratio > 0.0f )
+			apply_layout_aspect_ratio();
+
 		set_transforms();
+
+		if ( m_layoutSize != old_size )
+			refresh_script_geometry();
+
 		flag_redraw();
 	}
 }
@@ -1139,8 +1494,12 @@ bool FePresent::handle_event( FeInputMap::Command c )
 		}
 		break;
 
-	case FeInputMap::ToggleLayout:
-		m_feSettings->toggle_layout();
+	case FeInputMap::PrevLayout:
+		m_feSettings->change_layout( -1 );
+		load_layout();
+		break;
+	case FeInputMap::NextLayout:
+		m_feSettings->change_layout( 1 );
 		load_layout();
 		break;
 
@@ -1290,8 +1649,8 @@ void FePresent::load_layout( bool initial_load )
 	else
 		var = FromToFrontend;
 
+	init_monitors();
 	clear_layout();
-
 	set_transforms();
 	m_feSettings->set_present_state( FeSettings::Layout_Showing );
 
@@ -1429,6 +1788,13 @@ void FePresent::pre_run()
 {
 	on_transition( ToGame, FromToNoValue );
 	set_video_play_state( false );
+	for ( std::vector<FeBaseTextureContainer *>::iterator itm=m_texturePool.begin();
+				itm != m_texturePool.end(); ++itm )
+	{
+		FeTextureContainer *tex = dynamic_cast<FeTextureContainer *>( *itm );
+		if ( tex )
+			tex->clear_video_frame();
+	}
 
 	for ( std::vector<FeSound *>::iterator its=m_sounds.begin();
 				its != m_sounds.end(); ++its )
@@ -1437,10 +1803,14 @@ void FePresent::pre_run()
 	for ( std::vector<FeMusic *>::iterator its=m_musics.begin();
 				its != m_musics.end(); ++its )
 		(*its)->set_playing( false );
+
+	std::ignore = sf::PlaybackDevice::setDeviceToNull();
 }
 
 void FePresent::post_run()
 {
+	std::ignore = sf::PlaybackDevice::setDeviceToDefault();
+
 	std::vector<FeSound *>::iterator its;
 
 #ifndef NO_MOVIE
@@ -1481,7 +1851,10 @@ void FePresent::set_video_play_state( bool state )
 {
 	for ( std::vector<FeBaseTextureContainer *>::iterator itm=m_texturePool.begin();
 				itm != m_texturePool.end(); ++itm )
-		(*itm)->set_play_state( state );
+	{
+		const bool play = state && !( (*itm)->get_video_flags() & VF_NoAutoStart );
+		(*itm)->set_play_state( play );
+	}
 }
 
 void FePresent::set_audio_loudness( bool enabled )
@@ -1712,6 +2085,44 @@ void FePresent::set_preserve_aspect_ratio( bool p )
 bool FePresent::get_preserve_aspect_ratio()
 {
 	return m_preserve_aspect;
+}
+
+void FePresent::set_layout_crop( bool c )
+{
+	if ( c != m_layout_crop )
+	{
+		m_layout_crop = c;
+		flag_redraw();
+	}
+}
+
+bool FePresent::get_layout_crop()
+{
+	return m_layout_crop;
+}
+
+sf::Vector2i FePresent::get_surface_texture_size( FePresentableParent &p, float w, float h, int grid, bool grid_uniform ) const
+{
+	FeCoordinateSpace space = p.get_coordinate_space( grid_uniform );
+	sf::Vector2f display_size;
+
+	switch ( grid )
+	{
+		case GridNormalised:
+			display_size = sf::Vector2f( space.size.x * w, space.size.y * h );
+			break;
+
+		case GridPercent:
+			display_size = sf::Vector2f( space.size.x * w / 100.0f, space.size.y * h / 100.0f );
+			break;
+
+		case GridPixel:
+		default:
+			display_size = sf::Vector2f( w, h );
+			break;
+	}
+
+	return sf::Vector2i( static_cast<int>( display_size.x ), static_cast<int>( display_size.y ));
 }
 
 bool FePresent::get_overlay_custom_controls( FeText *&t, FeListBox *&lb )

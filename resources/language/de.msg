@@ -17,6 +17,10 @@ On;Ein
 OR;ODER
 True;Wahr
 Yes;Ja
+Stopped;Gestoppt
+Paused;Pausiert
+Playing;Abspielen
+Ended;Beendet
 Import;Import
 Cancel;Stornieren
 
@@ -104,8 +108,11 @@ Scrape Flyers/Boxart;Flyer/Boxart extrahieren
 Scrape Game Logos (Wheel Art);Scrape Spiele Logos (Wheel Art)
 Scrape Marquees;Laufschrift extrahieren
 Scrape Snaps;Snapshots extrahieren
-Scrape Videos (MAME only);Scrape Videos (nur für MAME)
+Scrape Videos;Scrape Videos
+Scrape Overview;Spielbeschreibungen
 Scraper;Scraper
+ScreenScraper Username;ScreenScraper Benutzername
+ScreenScraper Password;ScreenScraper Passwort
 Screen Rotation;Bildschirmdrehung
 Screen Saver Timeout;Timeout des Bildschirmschoners
 Selection Speed;Auswahlgeschwindigkeit
@@ -152,6 +159,8 @@ Tags;Markierungen
 PlayedCount;Male gespielt
 PlayedTime;Zeit gespielt
 PlayedLast;Zuletzt gespielt
+PlayedSession;Spielsitzung
+PlayedLongest;Längste Spielzeit
 FileIsAvailable;Datei ist vorhanden
 Shuffle;Zufallswiedergabe
 
@@ -182,6 +191,8 @@ Displays Menu;Bildschirm Menü
 Previous Filter;Vorheriger Filter
 Next Filter;Nächster Filter
 Filters Menu;Filter-Menü
+Next Layout;Nächstes Layout
+Previous Layout;Vorheriges Layout
 Toggle Layout;Thema wechseln
 Toggle Movie;Movie wechseln
 Toggle Mute;Stummschaltung wechseln
@@ -416,7 +427,8 @@ _help_control_selection_delay;Legt die Verzögerung in Millisekunden fest, bevor
 _help_control_selection_max_step;Legt die maximale Schrittgröße für die Auswahlbewegung fest. Standardwert: 128.
 _help_control_toggle_flip;Definiere die Taste(n), die den Bildschirm um 180 Grad drehen
 _help_control_toggle_fullscreen;Fenstermodus zwischen Vollbild und Fenster umschalten
-_help_control_toggle_layout;Definiere die Taste(n), die das Thema wechseln (Dies funktioniert nicht bei allen Themen)
+_help_control_prev_layout;Definiere die Taste(n), die das Thema wechseln (Dies funktioniert nicht bei allen Themen)
+_help_control_next_layout;Definiere die Taste(n), die das Thema wechseln (Dies funktioniert nicht bei allen Themen)
 _help_control_toggle_movie;Definiere die Taste(n) für Videos an/aus
 _help_control_toggle_mute;Definiere die Taste(n) für Frontend-Klänge an/aus
 _help_control_toggle_rotate_left;Definiere die Taste(n) für eine 90 Grad Drehung des Bildschirms gegen den Uhrzeigersinn
@@ -528,7 +540,10 @@ _help_scraper_flyers;Lege fest ob, Spiele Flyer und Box Covers während des Scra
 _help_scraper_marquees;Lege fest ob, Spiele Marquees und Banner während des Scrapens heruntergeladen werden sollen
 _help_scraper_snaps;Lege fest ob, Spiel Snapshots während des Scrapens heruntergeladen werden sollen
 _help_scraper_vids;Lege fest ob, Videos der Spiele während des Scrapens heruntergeladen werden sollen
+_help_scraper_overview;Lege fest ob, Spielbeschreibungen während des Scrapens heruntergeladen werden sollen
 _help_scraper_wheels;Lege fest ob, Spiel Logos während des Scrapens heruntergeladen werden sollen
+_help_screenscraper_user;Optional: Ihr ScreenScraper.fr Benutzername für höhere Scraping-Limits
+_help_screenscraper_pass;Optional: Ihr ScreenScraper.fr Passwort für die Authentifizierung
 _help_shortcut_artwork_name;Hier kannst du Bilddateien einer Verknüpfung zuordnen. Das Frontend wird versuchen Bilddateien mit diesem Namen zu laden wenn die jeweilige Verknüpfung angezeigt wird
 _help_shortcut_delete;Lösche diese Verknüpfung aus der Romliste
 _help_shortcut_label;Editiere den Namen der Verknüpfung

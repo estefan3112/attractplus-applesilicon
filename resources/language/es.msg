@@ -17,6 +17,10 @@ On;Activado
 OR;O
 True;Verdadero
 Yes;Si
+Stopped;Detenido
+Paused;Pausado
+Playing;Reproduciendo
+Ended;Finalizado
 Import;Importar
 Cancel;Cancelar
 
@@ -104,8 +108,11 @@ Scrape Flyers/Boxart;Escrapear pósters/carátulas
 Scrape Game Logos (Wheel Art);Escrapear logotipos de juegos (arte de la rueda)
 Scrape Marquees;Escrapear marquesinas
 Scrape Snaps;Escrapear capturas de pantalla
-Scrape Videos (MAME only);Escrapear vídeos (solo MAME)
+Scrape Videos;Escrapear vídeos
+Scrape Overview;Escrapear descripciones
 Scraper;Escrapeador
+ScreenScraper Username;Usuario ScreenScraper
+ScreenScraper Password;Contraseña ScreenScraper
 Screen Rotation;Rotación de pantalla
 Screen Saver Timeout;Límite de tiempo para el salvapantalla
 Selection Speed;Velocidad de selección
@@ -152,6 +159,8 @@ Tags;Etiquetas
 PlayedCount;Partidas jugadas
 PlayedTime;Tiempo jugado
 PlayedLast;Último juego jugado
+PlayedSession;Sesión jugada
+PlayedLongest;Jugada más larga
 FileIsAvailable;Archivo disponible
 Shuffle;Aleatorio
 
@@ -182,6 +191,8 @@ Displays Menu;Mostrar menú
 Previous Filter;Filtro anterior
 Next Filter;Filtro posterior
 Filters Menu;Menú de filtros
+Next Layout;Diseño siguiente
+Previous Layout;Diseño anterior
 Toggle Layout;Cambiar tema
 Toggle Movie;Cambiar video
 Toggle Mute;Silenciar
@@ -416,7 +427,8 @@ _help_control_selection_delay;Establece el retardo en milisegundos antes de que 
 _help_control_selection_max_step;Establece el tamaño máximo de paso para el movimiento de selección. El valor predeterminado es 128.
 _help_control_toggle_flip;Configura el(los) control(es) que cambia si la pantalla debe ser rotada o no 180 grados
 _help_control_toggle_fullscreen;Alterna el modo de ventana entre pantalla completa y ventana.
-_help_control_toggle_layout;Configura el(los) control(es) que cambia el script de tema a usar (Depende del tema que está usando si esto hace algo)
+_help_control_prev_layout;Configura el(los) control(es) que cambia el script de tema a usar (Depende del tema que está usando si esto hace algo)
+_help_control_next_layout;Configura el(los) control(es) que cambia el script de tema a usar (Depende del tema que está usando si esto hace algo)
 _help_control_toggle_movie;Configura el(los) control(es) que cambia si los videos son o no reproducidos
 _help_control_toggle_mute;Configura el(los) control(es) que silencia o no el sonido del frontend
 _help_control_toggle_rotate_left;Configura el(los) control(es) que cambia si la pantalla debe ser rotada o no 90 grados a la izquierda
@@ -528,7 +540,10 @@ _help_scraper_flyers;Establecer si se deben descargar los folletos y las carátu
 _help_scraper_marquees;Establecer si se deben descargar las marquesinas y banners del juego al extraer datos
 _help_scraper_snaps;Establece si se deben descargar instantáneas del juego al extraer datos.
 _help_scraper_vids;Establece si se deben descargar los vídeos del juego al extraer datos.
+_help_scraper_overview;Establece si se deben descargar las descripciones del juego al extraer datos.
 _help_scraper_wheels;Establece si se deben descargar los logotipos de los juegos al extraer datos.
+_help_screenscraper_user;Opcional: Su nombre de usuario de ScreenScraper.fr para límites de scraping más altos
+_help_screenscraper_pass;Opcional: Su contraseña de ScreenScraper.fr para la autenticación
 _help_shortcut_artwork_name;Opcionalmente, proporciona un nombre para la imagen que se asociará a este acceso directo. La interfaz intentará cargar las imágenes con este nombre al mostrar el acceso directo.
 _help_shortcut_delete;Eliminar este acceso directo de la lista de ROMs
 _help_shortcut_label;Edita la etiqueta de este acceso directo

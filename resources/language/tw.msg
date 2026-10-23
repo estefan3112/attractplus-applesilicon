@@ -17,6 +17,10 @@ On;開啟
 OR;或
 True;是
 Yes;是
+Stopped;已停止
+Paused;已暫停
+Playing;播放中
+Ended;已結束
 Import;進口
 Cancel;取消
 
@@ -104,8 +108,11 @@ Scrape Flyers/Boxart;搜刮宣傳/盒裝插圖
 Scrape Game Logos (Wheel Art);搜刮遊戲圖標 (輪播插圖)
 Scrape Marquees;搜刮遊戲招牌插圖
 Scrape Snaps;搜刮遊戲捉圖
-Scrape Videos (MAME only);搜刮視訊 (僅 MAME)
+Scrape Videos;搜刮視訊
+Scrape Overview;搜刮遊戲描述
 Scraper;刮擦器
+ScreenScraper Username;ScreenScraper 使用者名稱
+ScreenScraper Password;ScreenScraper 密碼
 Screen Rotation;螢幕旋轉
 Screen Saver Timeout;螢幕保護啟動時間
 Selection Speed;選擇速度
@@ -152,6 +159,8 @@ Tags;分類標籤
 PlayedCount;遊戲次數
 PlayedTime;遊戲時間
 PlayedLast;上次遊玩時間
+PlayedSession;已播放會話
+PlayedLongest;播放時長最長
 FileIsAvailable;檔案可用性
 Shuffle;隨機播放
 
@@ -182,6 +191,8 @@ Displays Menu;主選單
 Previous Filter;上一個遊戲過濾
 Next Filter;下一個遊戲過濾
 Filters Menu;遊戲過濾選單
+Next Layout;下一個佈局
+Previous Layout;上一個佈局
 Toggle Layout;切換畫面佈局
 Toggle Movie;切換影片
 Toggle Mute;切換靜音
@@ -416,7 +427,8 @@ _help_control_selection_delay;設定按鍵重複開始前的延遲時間 (以毫
 _help_control_selection_max_step;設定選擇移動的最大步進大小。預設值為 128
 _help_control_toggle_flip;設定「將顯示畫面旋轉 180 度」的控制鍵
 _help_control_toggle_fullscreen;在全螢幕和視窗模式之間切換
-_help_control_toggle_layout;設定「切換畫面佈局」的控制鍵 (主題資料夾中含有多個畫面佈局檔案時才會進行切換)
+_help_control_prev_layout;設定「切換畫面佈局」的控制鍵 (主題資料夾中含有多個畫面佈局檔案時才會進行切換)
+_help_control_next_layout;設定「切換畫面佈局」的控制鍵 (主題資料夾中含有多個畫面佈局檔案時才會進行切換)
 _help_control_toggle_movie;設定「切換影片播放」的控制鍵
 _help_control_toggle_mute;設定「切換聲音靜音」的控制鍵
 _help_control_toggle_rotate_left;設定「將顯示畫面向左旋轉 90 度」的控制鍵
@@ -528,7 +540,10 @@ _help_scraper_flyers;設定是否要搜刮宣傳/盒裝插圖
 _help_scraper_marquees;設定是否要搜刮遊戲招牌插圖
 _help_scraper_snaps;設定是否要搜刮遊戲捉圖
 _help_scraper_vids;設定是否要搜刮遊戲視訊
+_help_scraper_overview;設定是否要搜刮遊戲描述
 _help_scraper_wheels;設定是否要搜刮遊戲圖標 (輪播插圖)
+_help_screenscraper_user;選填：您的ScreenScraper.fr帳號使用者名稱以獲得更高的刮削限制
+_help_screenscraper_pass;選填：您的ScreenScraper.fr帳號密碼用於身份驗證
 _help_shortcut_artwork_name;提供要與此捷徑關聯的插圖名稱 (Attract-Mode Plus 將會在顯示這個捷徑時嘗試使用這個名稱載入插圖資源)
 _help_shortcut_delete;從遊戲清單刪除這個捷徑
 _help_shortcut_label;編輯這個捷徑的標題名稱

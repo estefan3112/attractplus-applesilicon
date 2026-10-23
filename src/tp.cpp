@@ -25,11 +25,13 @@
 #include <cmath>
 #include <algorithm>
 
+#include "fe_util.hpp"
 #include "fe_present.hpp"
 
 FeTextPrimitive::FeTextPrimitive( )
 	: m_texts( 1, sf::JustifyText( *FePresent::script_get_fep()->get_default_font() )),
-	m_align( Centre ),
+	m_align( FeAlign::Centre ),
+	m_case( None ),
 	m_justify( sf::JustifyText::None ),
 	m_first_line( 1 ),
 	m_lines( 1 ),
@@ -50,9 +52,10 @@ FeTextPrimitive::FeTextPrimitive(
 			sf::Color colour,
 			sf::Color bgcolour,
 			unsigned int charactersize,
-			Alignment align )
+			FeAlign align )
 	: m_texts( 1, sf::JustifyText( *font )),
-	m_align( align ),
+	m_align( FeAlign::Centre ),
+	m_case( None ),
 	m_justify( sf::JustifyText::None ),
 	m_first_line( 1 ),
 	m_lines( 1 ),
@@ -63,6 +66,7 @@ FeTextPrimitive::FeTextPrimitive(
 	m_word_wrap( false ),
 	m_needs_pos_set( false )
 {
+	setAlignment( align );
 	setColor( colour );
 	setBgColor( bgcolour );
 	setCharacterSize( charactersize );
@@ -78,7 +82,8 @@ void FeTextPrimitive::setFrom( const FeTextPrimitive &c )
 	m_bgRect = c.m_bgRect;
 	m_texts = c.m_texts;
 	m_align = c.m_align;
-	m_justify = c.m_justify,
+	m_case = c.m_case;
+	m_justify = c.m_justify;
 	m_first_line = c.m_first_line;
 	m_lines = c.m_lines;
 	m_lines_total = c.m_lines_total;
@@ -257,14 +262,36 @@ void FeTextPrimitive::setString( const std::string &t )
 	// UTF-8 character encoding is assumed.
 	// Need to convert to UTF-32 before giving string to SFML
 	//
-	std::basic_string<std::uint32_t> tmp = utf8_to_utf32( t );
+	std::basic_string<std::uint32_t> text = utf8_to_utf32( t );
+
+	// Transform the text case
+	if ( m_case & Case::Lowercase )
+		std::transform(text.begin(), text.end(), text.begin(), [](uint32_t c) { return std::tolower(c); });
+
+	if ( m_case & Case::Uppercase )
+		std::transform(text.begin(), text.end(), text.begin(), [](uint32_t c) { return std::toupper(c); });
+
+	if ( m_case & Case::Capitalize )
+	{
+		bool start_word = true;
+		for ( size_t i=0, n=text.size(); i<n; ++i)
+		{
+			if ( std::isspace( text[i] ) || ( std::ispunct( text[i] ) && text[i] != '_' ))
+				start_word = true;
+			else if ( start_word )
+			{
+				text[i] = std::toupper( text[i] );
+				start_word = false;
+			}
+		}
+	}
 
 	// We need to add one trailing space to the string
 	// for the word wrap function to work properly
 	//
-	std::fill_n( back_inserter( tmp ), 1, L' ' );
+	std::fill_n( back_inserter( text ), 1, L' ' );
 
-	setString( tmp );
+	setString( text );
 }
 
 sf::Vector2f FeTextPrimitive::setString(
@@ -308,9 +335,7 @@ sf::Vector2f FeTextPrimitive::setString(
 		: m_margin * 2.0;
 
 	float fit_width = m_bgRect.getSize().x - margin;
-	float fit_height = ( m_align & ( Top | Bottom | Middle ))
-		? rectSize.size.y + spacing - glyphSize - margin
-		: rectSize.size.y;
+	float fit_height = rectSize.size.y + spacing - glyphSize - margin;
 
 	int max_lines = (int)floorf( fit_height / spacing );
 	m_lines = std::clamp( max_lines, 1, m_lines_total );
@@ -397,7 +422,11 @@ void FeTextPrimitive::set_positions() const
 	spacing = getLineSpacingFactored( font, spacing );
 
 	sf::Vector2f rectPos = m_bgRect.getPosition();
+	sf::Vector2f rectOrigin = m_bgRect.getOrigin();
+	sf::Vector2f rectTopLeft = rectPos - rectOrigin;
 	sf::FloatRect rectSize = sf::FloatRect( m_bgRect.getPosition(), m_bgRect.getSize() );
+	FeAlign horizontal_align = m_align & ( FeAlign::Left | FeAlign::Right );
+	FeAlign vertical_align = m_align & ( FeAlign::Top | FeAlign::Bottom );
 
 	for ( int i=0; i < (int)m_texts.size(); i++ )
 	{
@@ -413,30 +442,34 @@ void FeTextPrimitive::set_positions() const
 		float outline = ceilf( m_outline );
 
 		// set position x
-		if ( m_align & Left )
-			textPos.x = rectPos.x - outline;
-		else if ( m_align & Right )
-			textPos.x = rectPos.x + floorf( rectSize.size.x ) - textSize.size.x + outline;
-		else if ( m_align & Centre )
-			textPos.x = rectPos.x + floorf(( rectSize.size.x - textSize.size.x ) / 2.0 );
+		switch ( horizontal_align )
+		{
+			case FeAlign::Left:
+				textPos.x = rectTopLeft.x - outline + margin;
+				break;
+			case FeAlign::Right:
+				textPos.x = rectTopLeft.x + floorf( rectSize.size.x ) - textSize.size.x + outline - margin;
+				break;
+			default:
+				textPos.x = rectTopLeft.x + floorf(( rectSize.size.x - textSize.size.x ) / 2.0 );
+				break;
+		}
 
-		if ( m_align & ( Top | Bottom | Middle ))
-			textPos.x -= textSize.position.x;
+		textPos.x -= textSize.position.x;
 
 		// set position y
-		if ( m_align & Top )
-			textPos.y = rectPos.y + ceilf( spacing * i - charSize + glyphSize );
-		else if ( m_align & Bottom )
-			textPos.y = rectPos.y + floorf( rectSize.size.y  - charSize - spacing * ( m_texts.size() - i - 1 ));
-		else if ( m_align & Middle )
-			textPos.y = rectPos.y + floorf( spacing * i + ( rectSize.size.y + glyphSize - charSize * 2 - spacing * ( m_texts.size() - 1 ) + 0.5 ) / 2.0 );
-		else
-			textPos.y = rectPos.y + ceilf( spacing * i + ( rectSize.size.y - ( spacing * m_texts.size() )) / 2.0 );
-
-		if ( m_align & Top ) textPos.y += margin;
-		if ( m_align & Bottom ) textPos.y -= margin;
-		if ( m_align & Left ) textPos.x += margin;
-		if ( m_align & Right ) textPos.x -= margin;
+		switch ( vertical_align )
+		{
+			case FeAlign::Top:
+				textPos.y = rectTopLeft.y + ceilf( spacing * i - charSize + glyphSize ) + margin;
+				break;
+			case FeAlign::Bottom:
+				textPos.y = rectTopLeft.y + floorf( rectSize.size.y  - charSize - spacing * ( m_texts.size() - i - 1 )) - margin;
+				break;
+			default:
+				textPos.y = rectTopLeft.y + floorf( spacing * i + ( rectSize.size.y + glyphSize - charSize * 2 - spacing * ( m_texts.size() - 1 ) + 0.5 ) / 2.0 );
+				break;
+		}
 
 		sf::Transform trans;
 		trans.rotate( m_bgRect.getRotation(), { rectPos.x, rectPos.y });
@@ -550,6 +583,11 @@ sf::Vector2f FeTextPrimitive::getSize() const
 	return m_bgRect.getSize();
 }
 
+sf::Vector2f FeTextPrimitive::getOrigin() const
+{
+	return m_bgRect.getOrigin();
+}
+
 void FeTextPrimitive::setPosition( const sf::Vector2f &p )
 {
 	m_bgRect.setPosition( p );
@@ -562,15 +600,32 @@ void FeTextPrimitive::setSize( const sf::Vector2f &s )
 	m_needs_pos_set = true;
 }
 
-void FeTextPrimitive::setAlignment( Alignment a )
+void FeTextPrimitive::setOrigin( const sf::Vector2f &o )
+{
+	m_bgRect.setOrigin( o );
+	m_needs_pos_set = true;
+}
+
+void FeTextPrimitive::setAlignment( FeAlign a )
 {
 	m_align = a;
 	m_needs_pos_set = true;
 }
 
-FeTextPrimitive::Alignment FeTextPrimitive::getAlignment() const
+FeAlign FeTextPrimitive::getAlignment() const
 {
 	return m_align;
+}
+
+void FeTextPrimitive::setCase( Case c )
+{
+	m_case = c;
+	m_needs_pos_set = true;
+}
+
+FeTextPrimitive::Case FeTextPrimitive::getCase() const
+{
+	return m_case;
 }
 
 void FeTextPrimitive::setStyle( int s )
@@ -714,10 +769,10 @@ void FeTextPrimitive::draw( sf::RenderTarget &target, sf::RenderStates states ) 
 	if ( m_needs_pos_set )
 		set_positions();
 
-	if ( m_bgRect.getFillColor().a > 0 )
+	if ( m_bgRect.getFillColor().a > 0 || m_bgRect.getOutlineColor().a > 0 )
 		target.draw( m_bgRect, states );
 
-	if ( m_texts[0].getFillColor().a > 0 )
+	if ( m_texts[0].getFillColor().a > 0 || m_texts[0].getOutlineColor().a > 0 )
 		for ( unsigned int i=0; i < m_texts.size(); i++ )
 			target.draw( m_texts[i], states );
 }

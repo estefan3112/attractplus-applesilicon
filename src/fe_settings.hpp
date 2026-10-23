@@ -172,6 +172,8 @@ public:
 		ScrapeVids,
 		ScrapeOverview,
 		ThegamesdbKey,
+		ScreenScraperUser,
+		ScreenScraperPass,
 		PowerSaving,
 		CheckForUpdates,
 #ifdef SFML_SYSTEM_WINDOWS
@@ -210,6 +212,10 @@ private:
 
 	// configured API key to use for for thegamesdb.net scraping.  If blank, AM's standard public key is used
 	std::string m_tgdb_key;
+
+	// configured API credentials for screenScraper.fr scraping
+	std::string m_ss_user;
+	std::string m_ss_pass;
 
 	std::string m_default_layout;
 	std::string m_default_romlist;
@@ -329,6 +335,7 @@ private:
 	bool simple_scraper( FeImporterContext &, const char *, const char *, const char *, const char *, bool = false );
 	bool general_mame_scraper( FeImporterContext & );
 	bool thegamesdb_scraper( FeImporterContext & );
+	bool screenscraper_scraper( FeImporterContext & );
 	bool apply_xml_import( FeImporterContext & );
 
 	bool load_game_extras(
@@ -362,6 +369,7 @@ public:
 	void set_default_command( FeInputMap::Command c, FeInputMap::Command v );
 
 	bool get_current_state( FeInputMap::Command c );
+	bool is_input_held();
 	bool get_key_state( std::string key );
 	void get_input_mappings( std::vector < FeMapping > &l ) const { m_inputmap.get_mappings( l ); };
 	void set_input_mapping( FeMapping &m ) { m_inputmap.set_mapping( m ); };
@@ -423,12 +431,10 @@ public:
 	int get_filter_size( int filter_index ) const;
 	int get_filter_count() const;
 
-	// apply a search rule (see FeRule) to the currently selected
-	// filter
-	//
-	// set to an empty string to clear the current search
-	//
-	void set_search_rule( const std::string &rule );
+	// Apply a search rule (see FeRule) to the currently selected filter
+	// - Set to an empty string to clear the current search
+	// - Returns true when results are found, false (and clears the rule) otherwise
+	bool set_search_rule( const std::string &rule );
 	const std::string &get_search_rule() const;
 
 	bool switch_to_clone_group( int index = -1 ); // set index to the index of the clone to select.  -1=default
@@ -455,13 +461,14 @@ public:
 	void get_exit_message( std::string &exit_message ) const;
 	void get_exit_question( std::string &exit_question ) const;
 
-	void toggle_layout();
+	void change_layout( int inc );
 	void set_current_layout_file( const std::string &layout_file );
 
 	int get_rom_index( int filter_index, int offset ) const;
+	int get_rom_index( int filter_index, FeRomInfo* rom ) const;
 
-	void do_text_substitutions( std::string &str, int filter_offset, int index_offset );
-	void do_text_substitutions_absolute( std::string &str, int filter_index, int rom_index );
+	bool do_text_substitutions( std::string &str, int filter_offset, int index_offset );
+	bool do_text_substitutions_absolute( std::string &str, int filter_index, int rom_index );
 	bool get_token_value( std::string &token, int filter_index, int rom_index, std::string &value );
 	bool get_special_token_value( std::string &token, int filter_index, int rom_index, std::string &value );
 

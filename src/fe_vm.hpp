@@ -73,6 +73,34 @@ private:
 	Sqrat::Function m_cached_fn;
 };
 
+class FePluginGlobals
+{
+public:
+	enum Property
+	{
+		GridProperty,
+		GridUniformProperty,
+		PixelSnapProperty
+	};
+
+	FePluginGlobals()
+		: m_values{ GridPixel, true, false }
+	{
+	}
+
+	static int get_property( const char * );
+	void push_property( HSQUIRRELVM, int ) const;
+	void set_property( HSQUIRRELVM, int );
+
+	int get_grid() const { return m_values[GridProperty]; }
+	bool get_grid_uniform() const { return m_values[GridUniformProperty]; }
+	bool get_pixel_snap() const { return m_values[PixelSnapProperty]; }
+
+private:
+	static const char *property_names[];
+	SQInteger m_values[PixelSnapProperty + 1];
+};
+
 class FeVM : public FePresent
 {
 private:
@@ -96,7 +124,7 @@ private:
 	bool m_process_console_input;
 	const FeScriptConfigurable *m_script_cfg;
 	int m_script_id;
-	sf::Time m_last_ui_cmd;
+	std::vector< FePluginGlobals > m_plugin_globals;
 	std::string m_last_layout;
 
 	std::queue< FeInputMap::Command > m_posted_commands;
@@ -155,6 +183,9 @@ public:
 	void init_with_default_layout();
 	int get_script_id() { return m_script_id; };
 	void set_script_id( int id ) { m_script_id=id; };
+	int get_plugin_grid() const override;
+	bool get_plugin_grid_uniform() const override;
+	bool get_plugin_pixel_snap() const override;
 
 	bool script_handle_event( FeInputMap::Command c );
 
@@ -211,8 +242,9 @@ public:
 	static FeText *cb_add_text(const char *,int, int, int, int);
 	static FeListBox *cb_add_listbox(int, int, int, int);
 	static FeRectangle *cb_add_rectangle(float, float, float, float);
-	static FeImage *cb_add_surface(float, float, int, int);
-	static FeImage *cb_add_surface(int, int);
+	static FeImage *cb_add_surface(float, float, float, float);
+	static FeImage *cb_add_surface(float, float, float, float, int, int);
+	static FeImage *cb_add_surface(float, float);
 	static FeSound *cb_add_sound(const char *, bool);
 	static FeSound *cb_add_sound(const char *);
 	static FeMusic *cb_add_music(const char *);
@@ -230,8 +262,10 @@ public:
 	static void cb_add_signal_handler( const char * );
 	static void cb_remove_signal_handler( Sqrat::Object, const char *);
 	static void cb_remove_signal_handler( const char * );
+	static SQInteger cb_plugin_get( HSQUIRRELVM );
+	static SQInteger cb_plugin_set( HSQUIRRELVM );
 	static bool cb_get_input_state( const char *input );
-	static int cb_get_input_pos( const char *input );
+	static float cb_get_input_pos( const char *input );
 	static bool do_nut(const char *);
 	static bool load_module( const char *module_file );
 	static void print_to_console( const char *str );
@@ -258,11 +292,17 @@ public:
 	static time_t cb_get_file_mtime( const char * );
 	static bool cb_set_file_mtime( const char *, time_t );
 	static bool cb_copy_file( const char *, const char * );
+	static const char *cb_read_file( const char * );
+	static bool cb_write_file( const char *, const char * );
+	static bool cb_append_file( const char *, const char * );
 	static Sqrat::Array cb_get_dir( const char * );
 	static bool cb_make_dir( const char * );
 
 	static const char *cb_get_clipboard();
 	static void cb_set_clipboard( const char * );
+
+	static const char *cb_json_stringify( const Sqrat::Object );
+	static Sqrat::Object cb_json_parse( const char * );
 
 	static const char *cb_get_game_info( int, int, int );
 	static const char *cb_get_game_info( int, int );

@@ -1,7 +1,7 @@
 ##
 ##
 ##  Attract-Mode frontend
-##  Copyright (C) 2013-2018 Andrew Mickelson
+##  Copyright (C) 2013-2026 Andrew Mickelson
 ##
 ##  This file is part of Attract-Mode.
 ##
@@ -60,7 +60,7 @@
 #FE_DEBUG=1
 #VERBOSE=1
 
-override FE_VERSION := v3.2.2
+override FE_VERSION := v3.2.3
 
 CC ?= gcc
 CXX ?= g++
@@ -138,6 +138,7 @@ RES_LANGUAGE_FILE=$(RES_LANGUAGE_DIR)/language.h
 _DEP =\
 	fe_base.hpp \
 	fe_file.cpp \
+	fe_color.hpp \
 	fe_util.hpp \
 	fe_util_sq.hpp \
 	fe_info.hpp \
@@ -147,6 +148,7 @@ _DEP =\
 	scraper_xml.hpp \
 	fe_settings.hpp \
 	fe_config.hpp \
+	fe_animation.hpp \
 	fe_presentable.hpp \
 	fe_present.hpp \
 	sprite.hpp \
@@ -179,6 +181,7 @@ _DEP =\
 _OBJ =\
 	fe_base.o \
 	fe_file.o \
+	fe_color.o \
 	fe_util.o \
 	fe_util_sq.o \
 	fe_cmdline.o \
@@ -191,7 +194,9 @@ _OBJ =\
 	scraper_general.o \
 	scraper_net.o \
 	scraper_gamesdb.o \
+	scraper_screenscraper.o \
 	fe_config.o \
+	fe_animation.o \
 	fe_presentable.o \
 	fe_present.o \
 	sprite.o \

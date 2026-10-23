@@ -24,6 +24,7 @@
 #define FE_TEXT_HPP
 
 #include <SFML/Graphics.hpp>
+#include "fe_align.hpp"
 #include "fe_presentable.hpp"
 #include "tp.hpp"
 
@@ -49,6 +50,27 @@ public:
 	void setRotation( float );
 	sf::Color getColor() const;
 	void setColor( sf::Color );
+	int get_transform_origin_type() const;
+	int get_anchor_type() const;
+	int get_rotation_origin_type() const;
+	float get_transform_origin_x() const;
+	float get_transform_origin_y() const;
+	float get_anchor_x() const;
+	float get_anchor_y() const;
+	float get_rotation_origin_x() const;
+	float get_rotation_origin_y() const;
+	void set_transform_origin( float x, float y );
+	void set_transform_origin_type( int t );
+	void set_anchor( float x, float y );
+	void set_anchor_type( int t );
+	void set_rotation_origin( float x, float y );
+	void set_rotation_origin_type( int t );
+	void set_transform_origin_x( float x );
+	void set_transform_origin_y( float y );
+	void set_anchor_x( float x );
+	void set_anchor_y( float y );
+	void set_rotation_origin_x( float x );
+	void set_rotation_origin_y( float y );
 
 	// Overrides from base class:
 	//
@@ -68,8 +90,8 @@ public:
 
 	void set_no_margin( bool );
 	bool get_no_margin();
-	void set_margin( int );
-	int get_margin();
+	void set_margin( float );
+	float get_margin();
 	void set_outline( float );
 	float get_outline();
 	void set_bg_outline( float );
@@ -86,36 +108,61 @@ public:
 
 	float get_cursor_pos( int i );
 
-	int get_actual_width() { return m_draw_text.getActualWidth(); };
-	int get_actual_height() { return m_draw_text.getActualHeight(); };
+	float get_actual_width();
+	float get_actual_height();
 
-	int get_bgr();
-	int get_bgg();
-	int get_bgb();
-	int get_bga();
-	int get_charsize();
-	int get_glyph_size();
+	int get_bg_red();
+	int get_bg_green();
+	int get_bg_blue();
+	int get_bg_alpha();
+	int get_bg_outline_red();
+	int get_bg_outline_green();
+	int get_bg_outline_blue();
+	int get_bg_outline_alpha();
+	int get_outline_red();
+	int get_outline_green();
+	int get_outline_blue();
+	int get_outline_alpha();
+	float get_charsize();
+	float get_glyph_size();
 	float get_spacing();
 	float get_line_spacing();
-	int get_line_height();
+	float get_line_height();
 	int get_style();
 	int get_justify();
 	int get_align();
+	int get_case();
 	const char *get_font();
-	void set_bgr(int r);
-	void set_bgg(int g);
-	void set_bgb(int b);
-	void set_bga(int a);
+	void set_bg_red(int r);
+	void set_bg_green(int g);
+	void set_bg_blue(int b);
+	void set_bg_alpha(int a);
+	void set_bg_outline_red(int r);
+	void set_bg_outline_green(int g);
+	void set_bg_outline_blue(int b);
+	void set_bg_outline_alpha(int a);
+	void set_outline_red(int r);
+	void set_outline_green(int g);
+	void set_outline_blue(int b);
+	void set_outline_alpha(int a);
+	void set_rgb(int r, int g, int b, int a) override;
 	void set_bg_rgb( int, int, int );
+	void set_bg_rgb( int, int, int, int );
 	void set_bg_outline_rgb( int, int, int );
+	void set_bg_outline_rgb( int, int, int, int );
 	void set_outline_rgb( int, int, int );
-	void set_charsize(int s);
+	void set_outline_rgb( int, int, int, int );
+	void set_charsize(float s);
 	void set_spacing(float s);
 	void set_line_spacing(float s);
 	void set_style(int s);
 	void set_justify(int j);
 	void set_align(int a);
+	void set_case(int c);
 	void set_font(const char *f);
+	int get_type() const;
+	bool get_magic() const;
+	void refresh_script_geometry() override;
 
 protected:
 	void draw( sf::RenderTarget &target, sf::RenderStates states ) const;
@@ -125,6 +172,9 @@ private:
 	FeText &operator=( const FeText & );
 
 	void update_font_size();
+	void update_margin();
+	void update_outline();
+	void update_transform();
 
 	FeTextPrimitive m_draw_text;
 	std::string m_string;
@@ -132,10 +182,23 @@ private:
 	std::string m_font_name;
 	int m_index_offset;
 	int m_filter_offset;
-	int m_user_charsize;	 	// -1 if no charsize specified
+	float m_user_charsize;	 	// -1 if no charsize specified
+	float m_user_margin;	 	// -1 if automatic margin is used
+	float m_outline;
+	float m_bg_outline;
 	sf::Vector2f m_size;		// unscaled size
 	sf::Vector2f m_position;	// unscaled position
+	sf::Vector2f m_transform_origin;
+	sf::Vector2f m_anchor;
+	sf::Vector2f m_rotation_origin;
+	FeAlign m_transform_origin_type;
+	FeAlign m_anchor_type;
+	FeAlign m_rotation_origin_type;
+	float m_rotation;
 	float m_scale_factor;
+	bool m_magic;
+	bool m_link_outline_alpha{true}; // legacy - outline_alpha linked to alpha
+	bool m_link_bg_outline_alpha{true}; // legacy - bg_outline_alpha linked to bg_alpha
 };
 
 #endif

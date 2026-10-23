@@ -24,6 +24,7 @@
 // #define FE_DEBUG_USERCONFIG
 
 #include "fe_vm.hpp"
+#include "fe_animation.hpp"
 #include "fe_settings.hpp"
 #include "fe_present.hpp"
 #include "fe_text.hpp"
@@ -60,6 +61,8 @@
 #include <stdarg.h>
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <sstream>
 
 #ifndef SFML_SYSTEM_WINDOWS
 #include <sys/stat.h>
@@ -99,6 +102,32 @@ namespace
 		}
 
 		return false;
+	}
+
+	Sqrat::Function get_magic_function( const std::string &magic )
+	{
+		Sqrat::Object environment = Sqrat::RootTable();
+		size_t start = 0;
+		size_t dot = magic.find( '.' );
+
+		while ( dot != std::string::npos )
+		{
+			if ( dot == start )
+				return Sqrat::Function();
+
+			std::string name = magic.substr( start, dot - start );
+			environment = environment.GetSlot( name.c_str() );
+			if ( environment.IsNull() )
+				return Sqrat::Function();
+
+			start = dot + 1;
+			dot = magic.find( '.', start );
+		}
+
+		if ( start == magic.size() )
+			return Sqrat::Function();
+
+		return Sqrat::Function( environment, magic.c_str() + start );
 	}
 
 	bool run_script( const std::string &path,
@@ -213,6 +242,75 @@ namespace
 		}
 		return ret;
 	}
+
+	void register_ease_enum()
+	{
+		Sqrat::Enumeration ease;
+		ease
+			.Const( _SC("Linear"), EaseLinear )
+			.Const( _SC("Inertia"), EaseInertia )
+			.Const( _SC("InQuad"), EaseInQuad )
+			.Const( _SC("OutQuad"), EaseOutQuad )
+			.Const( _SC("InOutQuad"), EaseInOutQuad )
+			.Const( _SC("OutInQuad"), EaseOutInQuad )
+			.Const( _SC("InCubic"), EaseInCubic )
+			.Const( _SC("OutCubic"), EaseOutCubic )
+			.Const( _SC("InOutCubic"), EaseInOutCubic )
+			.Const( _SC("OutInCubic"), EaseOutInCubic )
+			.Const( _SC("InQuart"), EaseInQuart )
+			.Const( _SC("OutQuart"), EaseOutQuart )
+			.Const( _SC("InOutQuart"), EaseInOutQuart )
+			.Const( _SC("OutInQuart"), EaseOutInQuart )
+			.Const( _SC("InQuint"), EaseInQuint )
+			.Const( _SC("OutQuint"), EaseOutQuint )
+			.Const( _SC("InOutQuint"), EaseInOutQuint )
+			.Const( _SC("OutInQuint"), EaseOutInQuint )
+			.Const( _SC("InSine"), EaseInSine )
+			.Const( _SC("OutSine"), EaseOutSine )
+			.Const( _SC("InOutSine"), EaseInOutSine )
+			.Const( _SC("OutInSine"), EaseOutInSine )
+			.Const( _SC("InExpo"), EaseInExpo )
+			.Const( _SC("OutExpo"), EaseOutExpo )
+			.Const( _SC("InOutExpo"), EaseInOutExpo )
+			.Const( _SC("OutInExpo"), EaseOutInExpo )
+			.Const( _SC("InExpo2"), EaseInExpo2 )
+			.Const( _SC("OutExpo2"), EaseOutExpo2 )
+			.Const( _SC("InOutExpo2"), EaseInOutExpo2 )
+			.Const( _SC("OutInExpo2"), EaseOutInExpo2 )
+			.Const( _SC("InCirc"), EaseInCirc )
+			.Const( _SC("OutCirc"), EaseOutCirc )
+			.Const( _SC("InOutCirc"), EaseInOutCirc )
+			.Const( _SC("OutInCirc"), EaseOutInCirc )
+			.Const( _SC("InBack"), EaseInBack )
+			.Const( _SC("OutBack"), EaseOutBack )
+			.Const( _SC("InOutBack"), EaseInOutBack )
+			.Const( _SC("OutInBack"), EaseOutInBack )
+			.Const( _SC("InBack2"), EaseInBack2 )
+			.Const( _SC("OutBack2"), EaseOutBack2 )
+			.Const( _SC("InOutBack2"), EaseInOutBack2 )
+			.Const( _SC("OutInBack2"), EaseOutInBack2 )
+			.Const( _SC("InBounce"), EaseInBounce )
+			.Const( _SC("OutBounce"), EaseOutBounce )
+			.Const( _SC("InOutBounce"), EaseInOutBounce )
+			.Const( _SC("OutInBounce"), EaseOutInBounce )
+			.Const( _SC("InBounce2"), EaseInBounce2 )
+			.Const( _SC("OutBounce2"), EaseOutBounce2 )
+			.Const( _SC("InOutBounce2"), EaseInOutBounce2 )
+			.Const( _SC("OutInBounce2"), EaseOutInBounce2 )
+			.Const( _SC("InElastic"), EaseInElastic )
+			.Const( _SC("OutElastic"), EaseOutElastic )
+			.Const( _SC("InOutElastic"), EaseInOutElastic )
+			.Const( _SC("OutInElastic"), EaseOutInElastic )
+			.Const( _SC("InElastic2"), EaseInElastic2 )
+			.Const( _SC("OutElastic2"), EaseOutElastic2 )
+			.Const( _SC("InOutElastic2"), EaseInOutElastic2 )
+			.Const( _SC("OutInElastic2"), EaseOutInElastic2 )
+			.Const( _SC("Bezier"), EaseBezier )
+			.Const( _SC("Steps"), EaseSteps );
+
+		Sqrat::ConstTable().Enum( _SC("Ease"), ease );
+	}
+
 };
 
 FeCallback::FeCallback( int pid,
@@ -264,6 +362,43 @@ const char *FeVM::transitionTypeStrings[] =
 		"ChangedTag",
 		NULL
 };
+
+const char *FePluginGlobals::property_names[] =
+{
+	"grid",
+	"grid_uniform",
+	"pixel_snap",
+	NULL
+};
+
+int FePluginGlobals::get_property( const char *name )
+{
+	for ( int i=0; property_names[i]; i++ )
+		if ( strcmp( name, property_names[i] ) == 0 )
+			return i;
+
+	return -1;
+}
+
+void FePluginGlobals::push_property( HSQUIRRELVM vm, int property ) const
+{
+	if ( property == GridProperty )
+		sq_pushinteger( vm, m_values[property] );
+	else
+		sq_pushbool( vm, m_values[property] );
+}
+
+void FePluginGlobals::set_property( HSQUIRRELVM vm, int property )
+{
+	if ( property == GridProperty )
+		sq_getinteger( vm, 3, &m_values[property] );
+	else
+	{
+		SQBool value = false;
+		sq_getbool( vm, 3, &value );
+		m_values[property] = value;
+	}
+}
 
 struct TransitionTypeMapping
 {
@@ -356,6 +491,17 @@ void FeVM::load_layout_nv() {
 	sq_run_code( "if (\"layout\" in fe) try { fe.layout.nv = " + layout_nv + "[\"" + key + "\"] } catch (err) { fe.layout.nv = {} }" );
 }
 
+namespace {
+	std::string temp_id()
+	{
+		std::stringstream id;
+		id << std::setfill('0') << "temp_"
+			<< std::setw(10) << SqMath::random( 0, std::numeric_limits<int>::max() )
+			<< std::setw(10) << SqMath::random( 0, std::numeric_limits<int>::max() );
+		return id.str();
+	}
+}
+
 // Save the fe.layout.nv for the *last loaded* layout
 void FeVM::save_layout_nv() {
 	if ( m_last_layout.empty() )
@@ -367,7 +513,7 @@ void FeVM::save_layout_nv() {
 
 	// All layout nv's are stored in one table
 	// - Rebuild the full table in a temp variable, save it, then remove it
-	std::string temp = "_fe_layout_nv";
+	std::string temp = temp_id();
 	std::string key = sq_escape_string( m_last_layout );
 	sq_run_code( "try { " + temp + " <- " + layout_nv + "\n" + temp + "[\"" + key + "\"] <- fe.layout.nv } catch(err) {}" );
 	std::string json = sq_slot_to_json( temp );
@@ -397,6 +543,7 @@ void FeVM::post_command( FeInputMap::Command c )
 bool FeVM::poll_command( FeInputMap::Command &c, std::optional<sf::Event> &ev, bool &from_ui )
 {
 	from_ui = false;
+	ev = std::nullopt;
 
 	if ( !m_posted_commands.empty() )
 	{
@@ -409,31 +556,20 @@ bool FeVM::poll_command( FeInputMap::Command &c, std::optional<sf::Event> &ev, b
 		if ( event.has_value() )
 		{
 			ev = event;
-			int t = m_layout_time.getElapsedTime().asMilliseconds();
-
-			// Debounce to stop multiples when triggered by a key combo
-			//
-			if ( t - m_last_ui_cmd.asMilliseconds() < 30 )
-				return false;
 
 			c = m_feSettings->map_input( ev );
-
-			if ( c != FeInputMap::LAST_COMMAND )
-				m_last_ui_cmd = m_layout_time.getElapsedTime();
 
 			from_ui = true;
 			return true;
 		}
 	}
 
-	ev = std::nullopt; // An empty event
 	return false;
 }
 
 void FeVM::clear_handlers()
 {
 	FePresent::clear_layout();
-	m_last_ui_cmd = sf::Time();
 	m_ticks.clear();
 	m_trans.clear();
 	m_sig_handlers.clear();
@@ -443,6 +579,7 @@ void FeVM::clear_handlers()
 void FeVM::clear_layout()
 {
 	clear_handlers();
+	m_plugin_globals.clear();
 	m_overlay->init();
 }
 
@@ -527,6 +664,9 @@ namespace {
 		rt.Func( _SC("get_clipboard"), &FeVM::cb_get_clipboard );
 		rt.Func( _SC("set_clipboard"), &FeVM::cb_set_clipboard );
 
+		rt.Func( _SC("json_stringify"), &FeVM::cb_json_stringify );
+		rt.Func( _SC("json_parse"), &FeVM::cb_json_parse );
+
 		// Filesystem namespace
 		Sqrat::Table fs( vm );
 		rt.Bind( _SC("fs"), fs );
@@ -535,6 +675,9 @@ namespace {
 		fs.Func( _SC("get_file_mtime"), &FeVM::cb_get_file_mtime );
 		fs.Func( _SC("set_file_mtime"), &FeVM::cb_set_file_mtime );
 		fs.Func( _SC("copy_file"), &FeVM::cb_copy_file );
+		fs.Func( _SC("read_file"), &FeVM::cb_read_file );
+		fs.Func( _SC("write_file"), &FeVM::cb_write_file );
+		fs.Func( _SC("append_file"), &FeVM::cb_append_file );
 		fs.Func( _SC("get_dir"), &FeVM::cb_get_dir );
 		fs.Func( _SC("make_dir"), &FeVM::cb_make_dir );
 
@@ -756,6 +899,7 @@ bool FeVM::on_new_layout()
 		.Const( _SC("OS"), get_OS_string() )
 		.Const( _SC("ShadersAvailable"), sf::Shader::isAvailable() )
 		.Const( _SC("FeConfigDirectory"), m_feSettings->get_config_dir().c_str() )
+		.Const( _SC("Infinity"), std::numeric_limits<float>::infinity())
 #ifdef DATA_PATH
 		.Const( _SC("FeDataDirectory"), DATA_PATH )
 #else
@@ -776,24 +920,32 @@ bool FeVM::on_new_layout()
 			.Const( _SC("Character"), sf::JustifyText::Character )
 			)
 		.Enum( _SC("Align"), Enumeration()
-			.Const( _SC("Left"), FeTextPrimitive::Left )
-			.Const( _SC("Centre"), FeTextPrimitive::Centre )
-			.Const( _SC("Right"), FeTextPrimitive::Right )
-			.Const( _SC("TopLeft"), FeTextPrimitive::Top | FeTextPrimitive::Left )
-			.Const( _SC("TopCentre"), FeTextPrimitive::Top | FeTextPrimitive::Centre )
-			.Const( _SC("TopRight"), FeTextPrimitive::Top | FeTextPrimitive::Right )
-			.Const( _SC("BottomLeft"), FeTextPrimitive::Bottom | FeTextPrimitive::Left )
-			.Const( _SC("BottomCentre"), FeTextPrimitive::Bottom | FeTextPrimitive::Centre )
-			.Const( _SC("BottomRight"), FeTextPrimitive::Bottom | FeTextPrimitive::Right )
-			.Const( _SC("MiddleLeft"), FeTextPrimitive::Middle | FeTextPrimitive::Left )
-			.Const( _SC("MiddleCentre"), FeTextPrimitive::Middle | FeTextPrimitive::Centre )
-			.Const( _SC("MiddleRight"), FeTextPrimitive::Middle | FeTextPrimitive::Right )
+			.Const( _SC("Left"), FeAlign::Left )
+			.Const( _SC("Centre"), FeAlign::Centre )
+			.Const( _SC("Right"), FeAlign::Right )
+			.Const( _SC("Top"), FeAlign::Top )
+			.Const( _SC("Bottom"), FeAlign::Bottom )
+			.Const( _SC("TopLeft"), FeAlign::TopLeft )
+			.Const( _SC("TopCentre"), FeAlign::TopCentre )
+			.Const( _SC("TopRight"), FeAlign::TopRight )
+			.Const( _SC("BottomLeft"), FeAlign::BottomLeft )
+			.Const( _SC("BottomCentre"), FeAlign::BottomCentre )
+			.Const( _SC("BottomRight"), FeAlign::BottomRight )
+			.Const( _SC("MiddleLeft"), FeAlign::MiddleLeft )
+			.Const( _SC("MiddleCentre"), FeAlign::MiddleCentre )
+			.Const( _SC("MiddleRight"), FeAlign::MiddleRight )
+			)
+		.Enum( _SC("Case"), Enumeration()
+			.Const( _SC("None"), FeTextPrimitive::None )
+			.Const( _SC("Uppercase"), FeTextPrimitive::Uppercase )
+			.Const( _SC("Lowercase"), FeTextPrimitive::Lowercase )
+			.Const( _SC("Capitalize"), FeTextPrimitive::Capitalize )
 			)
 		.Enum( _SC("ListAlign"), Enumeration()
 			.Const( _SC("Selection"), 0 )
-			.Const( _SC("Top"), FeTextPrimitive::Top )
-			.Const( _SC("Middle"), FeTextPrimitive::Middle )
-			.Const( _SC("Bottom"), FeTextPrimitive::Bottom )
+			.Const( _SC("Top"), FeAlign::Top )
+			.Const( _SC("Middle"), FeAlign::Centre )
+			.Const( _SC("Bottom"), FeAlign::Bottom )
 			)
 		.Enum( _SC("RotateScreen"), Enumeration()
 			.Const( _SC("None"), FeSettings::RotateNone )
@@ -824,6 +976,19 @@ bool FeVM::on_new_layout()
 			.Const( _SC("ImagesOnly"), AF_ImagesOnly )
 			.Const( _SC("FullList"), AF_FullList )
 			)
+		.Enum( _SC("Type"), Enumeration()
+			.Const( _SC("Image"), FePresentableTypeImage )
+			.Const( _SC("Artwork"), FePresentableTypeArtwork )
+			.Const( _SC("Surface"), FePresentableTypeSurface )
+			.Const( _SC("Text"), FePresentableTypeText )
+			.Const( _SC("Listbox"), FePresentableTypeListbox )
+			.Const( _SC("Rectangle"), FePresentableTypeRectangle )
+			)
+		.Enum( _SC("Grid"), Enumeration()
+			.Const( _SC("Pixel"), GridPixel )
+			.Const( _SC("Percent"), GridPercent )
+			.Const( _SC("Normalised"), GridNormalised )
+			)
 		.Enum( _SC("Overlay"), Enumeration()
 			.Const( "Custom", 0 )
 			.Const( "Exit", FeInputMap::Exit )
@@ -849,28 +1014,31 @@ bool FeVM::on_new_layout()
 			.Const( _SC("Overlay"), FeBlend::Overlay )
 			.Const( _SC("Premultiplied"), FeBlend::Premultiplied )
 			.Const( _SC("None"), FeBlend::None )
+			.Const( _SC("IgnoreAlpha"), FeBlend::IgnoreAlpha )
+			.Const( _SC("InvertAlpha"), FeBlend::InvertAlpha )
+			.Const( _SC("InvertRGB"), FeBlend::InvertRGB )
 			)
 		.Enum( _SC("Anchor"), Enumeration()
-			.Const( _SC("Left"), FeImage::Left )
-			.Const( _SC("Centre"), FeImage::Centre )
-			.Const( _SC("Right"), FeImage::Right )
-			.Const( _SC("Top"), FeImage::Top )
-			.Const( _SC("Bottom"), FeImage::Bottom )
-			.Const( _SC("TopLeft"), FeImage::TopLeft )
-			.Const( _SC("TopRight"), FeImage::TopRight )
-			.Const( _SC("BottomLeft"), FeImage::BottomLeft )
-			.Const( _SC("BottomRight"), FeImage::BottomRight )
+			.Const( _SC("Left"), FeAlign::Left )
+			.Const( _SC("Centre"), FeAlign::Centre )
+			.Const( _SC("Right"), FeAlign::Right )
+			.Const( _SC("Top"), FeAlign::Top )
+			.Const( _SC("Bottom"), FeAlign::Bottom )
+			.Const( _SC("TopLeft"), FeAlign::TopLeft )
+			.Const( _SC("TopRight"), FeAlign::TopRight )
+			.Const( _SC("BottomLeft"), FeAlign::BottomLeft )
+			.Const( _SC("BottomRight"), FeAlign::BottomRight )
 			)
 		.Enum( _SC("Origin"), Enumeration()
-			.Const( _SC("Left"), FeImage::Left )
-			.Const( _SC("Centre"), FeImage::Centre )
-			.Const( _SC("Right"), FeImage::Right )
-			.Const( _SC("Top"), FeImage::Top )
-			.Const( _SC("Bottom"), FeImage::Bottom )
-			.Const( _SC("TopLeft"), FeImage::TopLeft )
-			.Const( _SC("TopRight"), FeImage::TopRight )
-			.Const( _SC("BottomLeft"), FeImage::BottomLeft )
-			.Const( _SC("BottomRight"), FeImage::BottomRight )
+			.Const( _SC("Left"), FeAlign::Left )
+			.Const( _SC("Centre"), FeAlign::Centre )
+			.Const( _SC("Right"), FeAlign::Right )
+			.Const( _SC("Top"), FeAlign::Top )
+			.Const( _SC("Bottom"), FeAlign::Bottom )
+			.Const( _SC("TopLeft"), FeAlign::TopLeft )
+			.Const( _SC("TopRight"), FeAlign::TopRight )
+			.Const( _SC("BottomLeft"), FeAlign::BottomLeft )
+			.Const( _SC("BottomRight"), FeAlign::BottomRight )
 			)
 		.Enum( _SC("Fit"), Enumeration()
 			.Const( _SC("Fill"), FeImage::Fill )
@@ -890,7 +1058,20 @@ bool FeVM::on_new_layout()
 			.Const( _SC("None"), SqJumpFlags::JumpNone )
 			.Const( _SC("Both"), SqJumpFlags::JumpBoth )
 			)
+		.Enum( _SC("Status"), Enumeration()
+			.Const( _SC("Stopped"), FePlaybackStatusStopped )
+			.Const( _SC("Paused"), FePlaybackStatusPaused )
+			.Const( _SC("Playing"), FePlaybackStatusPlaying )
+			.Const( _SC("Ended"), FePlaybackStatusEnded )
+			)
+		.Enum( _SC("Direction"), Enumeration()
+			.Const( _SC("Normal"), FeDirection::Normal )
+			.Const( _SC("Reverse"), FeDirection::Reverse )
+			.Const( _SC("Alternate"), FeDirection::Alternate )
+			.Const( _SC("AlternateReverse"), FeDirection::AlternateReverse )
+			)
 		;
+	register_ease_enum();
 
 	Enumeration info;
 	int i=0;
@@ -925,49 +1106,77 @@ bool FeVM::on_new_layout()
 	// Define classes for fe objects that get exposed to Squirrel
 	//
 
+#define ANIM_PROP( name, getter, setter ) \
+		.Prop( FeAnimation::animated_property( name, getter, setter ), getter, setter )
+
+	fe.Bind( _SC("Animation"),
+		Class<FeAnimationObject, CopyOnly<FeAnimationObject> >()
+		.Prop(_SC("to"), &FeAnimationObject::get_to, &FeAnimationObject::set_to )
+		.Prop(_SC("duration"), &FeAnimationObject::get_duration, &FeAnimationObject::set_duration )
+		.Prop(_SC("time"), &FeAnimationObject::get_time, &FeAnimationObject::set_time )
+		.Prop(_SC("ease"), &FeAnimationObject::get_ease, &FeAnimationObject::set_ease )
+		.Prop(_SC("mass"), &FeAnimationObject::get_mass, &FeAnimationObject::set_mass )
+		.Prop(_SC("period"), &FeAnimationObject::get_period, &FeAnimationObject::set_period )
+		.Prop(_SC("amplitude"), &FeAnimationObject::get_amplitude, &FeAnimationObject::set_amplitude )
+		.Prop(_SC("strength"), &FeAnimationObject::get_strength, &FeAnimationObject::set_strength )
+		.Prop(_SC("x1"), &FeAnimationObject::get_x1, &FeAnimationObject::set_x1 )
+		.Prop(_SC("y1"), &FeAnimationObject::get_y1, &FeAnimationObject::set_y1 )
+		.Prop(_SC("x2"), &FeAnimationObject::get_x2, &FeAnimationObject::set_x2 )
+		.Prop(_SC("y2"), &FeAnimationObject::get_y2, &FeAnimationObject::set_y2 )
+		.Prop(_SC("steps"), &FeAnimationObject::get_steps, &FeAnimationObject::set_steps )
+		.Prop(_SC("jump"), &FeAnimationObject::get_jump, &FeAnimationObject::set_jump )
+		.Prop(_SC("play_count"), &FeAnimationObject::get_play_count, &FeAnimationObject::set_play_count )
+		.Prop(_SC("direction"), &FeAnimationObject::get_direction, &FeAnimationObject::set_direction )
+		.Prop(_SC("running"), &FeAnimationObject::get_running )
+	);
+
 	// Base Presentable Object Class
 	//
 	fe.Bind( _SC("Presentable"),
 		Class<FeBasePresentable, NoConstructor>()
 		.Prop(_SC("visible"),
 			&FeBasePresentable::get_visible, &FeBasePresentable::set_visible )
-		.Prop(_SC("x"), &FeBasePresentable::get_x, &FeBasePresentable::set_x )
-		.Prop(_SC("y"), &FeBasePresentable::get_y, &FeBasePresentable::set_y )
-		.Prop(_SC("width"),
-			&FeBasePresentable::get_width, &FeBasePresentable::set_width )
-		.Prop(_SC("height"),
-			&FeBasePresentable::get_height, &FeBasePresentable::set_height )
-		.Prop(_SC("rotation"),
-			&FeBasePresentable::getRotation, &FeBasePresentable::setRotation )
-		.Prop(_SC("red"), &FeBasePresentable::get_r, &FeBasePresentable::set_r )
-		.Prop(_SC("green"), &FeBasePresentable::get_g, &FeBasePresentable::set_g )
-		.Prop(_SC("blue"), &FeBasePresentable::get_b, &FeBasePresentable::set_b )
-		.Prop(_SC("alpha"), &FeBasePresentable::get_a, &FeBasePresentable::set_a )
+		ANIM_PROP( _SC("x"), &FeBasePresentable::get_x, &FeBasePresentable::set_x )
+		ANIM_PROP( _SC("y"), &FeBasePresentable::get_y, &FeBasePresentable::set_y )
+		ANIM_PROP( _SC("width"), &FeBasePresentable::get_width, &FeBasePresentable::set_width )
+		ANIM_PROP( _SC("height"), &FeBasePresentable::get_height, &FeBasePresentable::set_height )
+		ANIM_PROP( _SC("rotation"), &FeBasePresentable::getRotation, &FeBasePresentable::setRotation )
+		ANIM_PROP( _SC("red"), &FeBasePresentable::get_r, &FeBasePresentable::set_r )
+		ANIM_PROP( _SC("green"), &FeBasePresentable::get_g, &FeBasePresentable::set_g )
+		ANIM_PROP( _SC("blue"), &FeBasePresentable::get_b, &FeBasePresentable::set_b )
+		ANIM_PROP( _SC("alpha"), &FeBasePresentable::get_a, &FeBasePresentable::set_a )
 		.Prop(_SC("index_offset"), &FeBasePresentable::getIndexOffset, &FeBasePresentable::setIndexOffset )
 		.Prop(_SC("filter_offset"), &FeBasePresentable::getFilterOffset, &FeBasePresentable::setFilterOffset )
 		.Prop(_SC("shader"), &FeBasePresentable::script_get_shader, &FeBasePresentable::script_set_shader )
 		.Prop(_SC("zorder"), &FeBasePresentable::get_zorder, &FeBasePresentable::set_zorder )
-		.Func( _SC("set_rgb"), &FeBasePresentable::set_rgb )
+		.Prop(_SC("magic"), &FeBasePresentable::get_magic )
+		.Prop(_SC("type"), &FeBasePresentable::get_type )
+		.Prop(_SC("grid"), &FeBasePresentable::get_grid, &FeBasePresentable::set_grid )
+		.Prop(_SC("grid_uniform"), &FeBasePresentable::get_grid_uniform, &FeBasePresentable::set_grid_uniform )
+		.Prop(_SC("pixel_snap"), &FeBasePresentable::get_pixel_snap, &FeBasePresentable::set_pixel_snap )
+		.Overload<void (FeBasePresentable::*)(int, int, int)>(_SC("set_rgb"), &FeBasePresentable::set_rgb)
+		.Overload<void (FeBasePresentable::*)(int, int, int, int)>(_SC("set_rgb"), &FeBasePresentable::set_rgb)
 		.Overload<void (FeBasePresentable::*)(float, float)>(_SC("set_pos"), &FeBasePresentable::set_pos)
 		.Overload<void (FeBasePresentable::*)(float, float, float, float)>(_SC("set_pos"), &FeBasePresentable::set_pos)
+		.SquirrelFunc(_SC("move"), &FeAnimation::script_move)
 	);
 
 	fe.Bind( _SC("Image"),
 		DerivedClass<FeImage, FeBasePresentable, NoConstructor>()
-		.Prop(_SC("width"), &FeImage::get_width, &FeImage::set_width )
-		.Prop(_SC("height"), &FeImage::get_height, &FeImage::set_height )
+		ANIM_PROP( _SC("width"), &FeImage::get_width, &FeImage::set_width )
+		ANIM_PROP( _SC("height"), &FeImage::get_height, &FeImage::set_height )
 		.Prop(_SC("auto_width"), &FeImage::get_auto_width, &FeImage::set_auto_width )
 		.Prop(_SC("auto_height"), &FeImage::get_auto_height, &FeImage::set_auto_height )
-		.Prop(_SC("origin_x"), &FeImage::get_origin_x, &FeImage::set_origin_x )
-		.Prop(_SC("origin_y"), &FeImage::get_origin_y, &FeImage::set_origin_y )
+		ANIM_PROP( _SC("origin_x"), &FeImage::get_origin_x, &FeImage::set_origin_x )
+		ANIM_PROP( _SC("origin_y"), &FeImage::get_origin_y, &FeImage::set_origin_y )
 		.Prop(_SC("transform_origin"), &FeImage::get_transform_origin_type, &FeImage::set_transform_origin_type )
-		.Prop(_SC("transform_origin_x"), &FeImage::get_transform_origin_x, &FeImage::set_transform_origin_x )
-		.Prop(_SC("transform_origin_y"), &FeImage::get_transform_origin_y, &FeImage::set_transform_origin_y )
+		ANIM_PROP( _SC("transform_origin_x"), &FeImage::get_transform_origin_x, &FeImage::set_transform_origin_x )
+		ANIM_PROP( _SC("transform_origin_y"), &FeImage::get_transform_origin_y, &FeImage::set_transform_origin_y )
 		.Prop(_SC("crop"), &FeImage::get_crop, &FeImage::set_crop )
 		.Prop(_SC("fit"), &FeImage::get_fit, &FeImage::set_fit )
 		.Prop(_SC("fit_anchor"), &FeImage::get_fit_anchor_type, &FeImage::set_fit_anchor_type )
-		.Prop(_SC("fit_anchor_x"), &FeImage::get_fit_anchor_x, &FeImage::set_fit_anchor_x )
-		.Prop(_SC("fit_anchor_y"), &FeImage::get_fit_anchor_y, &FeImage::set_fit_anchor_y )
+		ANIM_PROP( _SC("fit_anchor_x"), &FeImage::get_fit_anchor_x, &FeImage::set_fit_anchor_x )
+		ANIM_PROP( _SC("fit_anchor_y"), &FeImage::get_fit_anchor_y, &FeImage::set_fit_anchor_y )
 		.Prop(_SC("fit_x"), &FeImage::get_fit_x )
 		.Prop(_SC("fit_y"), &FeImage::get_fit_y )
 		.Prop(_SC("fit_width"), &FeImage::get_fit_width )
@@ -976,21 +1185,21 @@ bool FeVM::on_new_layout()
 		// "origin" deprecated as of 3.0.5, use the rotation_origin property instead
 		.Prop(_SC("origin"), &FeImage::get_rotation_origin_type, &FeImage::set_rotation_origin_type )
 		.Prop(_SC("rotation_origin"), &FeImage::get_rotation_origin_type, &FeImage::set_rotation_origin_type )
-		.Prop(_SC("anchor_x"), &FeImage::get_anchor_x, &FeImage::set_anchor_x )
-		.Prop(_SC("anchor_y"), &FeImage::get_anchor_y, &FeImage::set_anchor_y )
-		.Prop(_SC("rotation_origin_x"), &FeImage::get_rotation_origin_x, &FeImage::set_rotation_origin_x )
-		.Prop(_SC("rotation_origin_y"), &FeImage::get_rotation_origin_y, &FeImage::set_rotation_origin_y )
-		.Prop(_SC("skew_x"), &FeImage::get_skew_x, &FeImage::set_skew_x )
-		.Prop(_SC("skew_y"), &FeImage::get_skew_y, &FeImage::set_skew_y )
-		.Prop(_SC("pinch_x"), &FeImage::get_pinch_x, &FeImage::set_pinch_x )
-		.Prop(_SC("pinch_y"), &FeImage::get_pinch_y, &FeImage::set_pinch_y )
+		ANIM_PROP( _SC("anchor_x"), &FeImage::get_anchor_x, &FeImage::set_anchor_x )
+		ANIM_PROP( _SC("anchor_y"), &FeImage::get_anchor_y, &FeImage::set_anchor_y )
+		ANIM_PROP( _SC("rotation_origin_x"), &FeImage::get_rotation_origin_x, &FeImage::set_rotation_origin_x )
+		ANIM_PROP( _SC("rotation_origin_y"), &FeImage::get_rotation_origin_y, &FeImage::set_rotation_origin_y )
+		ANIM_PROP( _SC("skew_x"), &FeImage::get_skew_x, &FeImage::set_skew_x )
+		ANIM_PROP( _SC("skew_y"), &FeImage::get_skew_y, &FeImage::set_skew_y )
+		ANIM_PROP( _SC("pinch_x"), &FeImage::get_pinch_x, &FeImage::set_pinch_x )
+		ANIM_PROP( _SC("pinch_y"), &FeImage::get_pinch_y, &FeImage::set_pinch_y )
 		.Prop(_SC("texture_width"), &FeImage::get_texture_width )
 		.Prop(_SC("texture_height"), &FeImage::get_texture_height )
-		.Prop(_SC("subimg_x"), &FeImage::get_subimg_x, &FeImage::set_subimg_x )
-		.Prop(_SC("subimg_y"), &FeImage::get_subimg_y, &FeImage::set_subimg_y )
-		.Prop(_SC("subimg_width"), &FeImage::get_subimg_width, &FeImage::set_subimg_width )
-		.Prop(_SC("subimg_height"), &FeImage::get_subimg_height, &FeImage::set_subimg_height )
-		.Prop(_SC("force_aspect_ratio"), &FeImage::get_force_aspect_ratio, &FeImage::set_force_aspect_ratio )
+		ANIM_PROP( _SC("subimg_x"), &FeImage::get_subimg_x, &FeImage::set_subimg_x )
+		ANIM_PROP( _SC("subimg_y"), &FeImage::get_subimg_y, &FeImage::set_subimg_y )
+		ANIM_PROP( _SC("subimg_width"), &FeImage::get_subimg_width, &FeImage::set_subimg_width )
+		ANIM_PROP( _SC("subimg_height"), &FeImage::get_subimg_height, &FeImage::set_subimg_height )
+		ANIM_PROP( _SC("force_aspect_ratio"), &FeImage::get_force_aspect_ratio, &FeImage::set_force_aspect_ratio )
 		.Prop(_SC("sample_aspect_ratio"), &FeImage::get_sample_aspect_ratio )
 		// "movie_enabled" deprecated as of version 1.3, use the video_flags property instead:
 		.Prop(_SC("movie_enabled"), &FeImage::getMovieEnabled, &FeImage::setMovieEnabled )
@@ -1004,8 +1213,8 @@ bool FeVM::on_new_layout()
 		.Prop(_SC("smooth"), &FeImage::get_smooth, &FeImage::set_smooth )
 		.Prop(_SC("blend_mode"), &FeImage::get_blend_mode, &FeImage::set_blend_mode )
 		.Prop(_SC("mipmap"), &FeImage::get_mipmap, &FeImage::set_mipmap )
-		.Prop(_SC("volume"), &FeImage::get_volume, &FeImage::set_volume )
-		.Prop(_SC("pan"), &FeImage::get_pan, &FeImage::set_pan )
+		ANIM_PROP( _SC("volume"), &FeImage::get_volume, &FeImage::set_volume )
+		ANIM_PROP( _SC("pan"), &FeImage::get_pan, &FeImage::set_pan )
 		.Prop(_SC("vu"), &FeImage::get_vu_mono )
 		.Prop(_SC("vu_left"), &FeImage::get_vu_left )
 		.Prop(_SC("vu_right"), &FeImage::get_vu_right )
@@ -1013,15 +1222,15 @@ bool FeVM::on_new_layout()
 		.Prop(_SC("fft_left"), &FeImage::get_fft_array_left )
 		.Prop(_SC("fft_right"), &FeImage::get_fft_array_right )
 		.Prop(_SC("fft_bands"), &FeImage::get_fft_bands, &FeImage::set_fft_bands )
-		.Prop(_SC("padding_left"), &FeImage::get_padding_left, &FeImage::set_padding_left )
-		.Prop(_SC("padding_right"), &FeImage::get_padding_right, &FeImage::set_padding_right )
-		.Prop(_SC("padding_top"), &FeImage::get_padding_top, &FeImage::set_padding_top )
-		.Prop(_SC("padding_bottom"), &FeImage::get_padding_bottom, &FeImage::set_padding_bottom )
-		.Prop(_SC("border_left"), &FeImage::get_border_left, &FeImage::set_border_left )
-		.Prop(_SC("border_right"), &FeImage::get_border_right, &FeImage::set_border_right )
-		.Prop(_SC("border_top"), &FeImage::get_border_top, &FeImage::set_border_top )
-		.Prop(_SC("border_bottom"), &FeImage::get_border_bottom, &FeImage::set_border_bottom )
-		.Prop(_SC("border_scale"), &FeImage::get_border_scale, &FeImage::set_border_scale )
+		ANIM_PROP( _SC("padding_left"), &FeImage::get_padding_left, &FeImage::set_padding_left )
+		ANIM_PROP( _SC("padding_right"), &FeImage::get_padding_right, &FeImage::set_padding_right )
+		ANIM_PROP( _SC("padding_top"), &FeImage::get_padding_top, &FeImage::set_padding_top )
+		ANIM_PROP( _SC("padding_bottom"), &FeImage::get_padding_bottom, &FeImage::set_padding_bottom )
+		ANIM_PROP( _SC("border_left"), &FeImage::get_border_left, &FeImage::set_border_left )
+		ANIM_PROP( _SC("border_right"), &FeImage::get_border_right, &FeImage::set_border_right )
+		ANIM_PROP( _SC("border_top"), &FeImage::get_border_top, &FeImage::set_border_top )
+		ANIM_PROP( _SC("border_bottom"), &FeImage::get_border_bottom, &FeImage::set_border_bottom )
+		ANIM_PROP( _SC("border_scale"), &FeImage::get_border_scale, &FeImage::set_border_scale )
 		.Func(_SC("set_anchor"), &FeImage::set_anchor )
 		.Func(_SC("set_fit_anchor"), &FeImage::set_fit_anchor )
 		.Func(_SC("set_transform_origin"), &FeImage::set_transform_origin )
@@ -1052,28 +1261,47 @@ bool FeVM::on_new_layout()
 		.Func( _SC("add_text"), &FeImage::add_text )
 		.Func( _SC("add_listbox"), &FeImage::add_listbox )
 		.Func( _SC("add_rectangle"), &FeImage::add_rectangle )
-		.Overload<FeImage * (FeImage::*)(float, float, int, int)>(_SC("add_surface"), &FeImage::add_surface)
-		.Overload<FeImage * (FeImage::*)(int, int)>(_SC("add_surface"), &FeImage::add_surface)
+		.Overload<FeImage * (FeImage::*)(float, float, float, float, int, int)>(_SC("add_surface"), &FeImage::add_surface)
+		.Overload<FeImage * (FeImage::*)(float, float, float, float)>(_SC("add_surface"), &FeImage::add_surface)
+		.Overload<FeImage * (FeImage::*)(float, float)>(_SC("add_surface"), &FeImage::add_surface)
 	);
 
 	fe.Bind( _SC("Text"),
 		DerivedClass<FeText, FeBasePresentable, NoConstructor>()
 		.Prop(_SC("msg"), &FeText::get_string, &FeText::set_string )
 		.Prop(_SC("msg_wrapped"), &FeText::get_string_wrapped )
-		.Prop(_SC("bg_red"), &FeText::get_bgr, &FeText::set_bgr )
-		.Prop(_SC("bg_green"), &FeText::get_bgg, &FeText::set_bgg )
-		.Prop(_SC("bg_blue"), &FeText::get_bgb, &FeText::set_bgb )
-		.Prop(_SC("bg_alpha"), &FeText::get_bga, &FeText::set_bga )
+		.Prop(_SC("transform_origin"), &FeText::get_transform_origin_type, &FeText::set_transform_origin_type )
+		ANIM_PROP( _SC("transform_origin_x"), &FeText::get_transform_origin_x, &FeText::set_transform_origin_x )
+		ANIM_PROP( _SC("transform_origin_y"), &FeText::get_transform_origin_y, &FeText::set_transform_origin_y )
+		.Prop(_SC("anchor"), &FeText::get_anchor_type, &FeText::set_anchor_type )
+		.Prop(_SC("rotation_origin"), &FeText::get_rotation_origin_type, &FeText::set_rotation_origin_type )
+		ANIM_PROP( _SC("anchor_x"), &FeText::get_anchor_x, &FeText::set_anchor_x )
+		ANIM_PROP( _SC("anchor_y"), &FeText::get_anchor_y, &FeText::set_anchor_y )
+		ANIM_PROP( _SC("rotation_origin_x"), &FeText::get_rotation_origin_x, &FeText::set_rotation_origin_x )
+		ANIM_PROP( _SC("rotation_origin_y"), &FeText::get_rotation_origin_y, &FeText::set_rotation_origin_y )
+		ANIM_PROP( _SC("bg_red"), &FeText::get_bg_red, &FeText::set_bg_red )
+		ANIM_PROP( _SC("bg_green"), &FeText::get_bg_green, &FeText::set_bg_green )
+		ANIM_PROP( _SC("bg_blue"), &FeText::get_bg_blue, &FeText::set_bg_blue )
+		ANIM_PROP( _SC("bg_alpha"), &FeText::get_bg_alpha, &FeText::set_bg_alpha )
+		ANIM_PROP( _SC("bg_outline_red"), &FeText::get_bg_outline_red, &FeText::set_bg_outline_red )
+		ANIM_PROP( _SC("bg_outline_green"), &FeText::get_bg_outline_green, &FeText::set_bg_outline_green )
+		ANIM_PROP( _SC("bg_outline_blue"), &FeText::get_bg_outline_blue, &FeText::set_bg_outline_blue )
+		ANIM_PROP( _SC("bg_outline_alpha"), &FeText::get_bg_outline_alpha, &FeText::set_bg_outline_alpha )
+		ANIM_PROP( _SC("outline_red"), &FeText::get_outline_red, &FeText::set_outline_red )
+		ANIM_PROP( _SC("outline_green"), &FeText::get_outline_green, &FeText::set_outline_green )
+		ANIM_PROP( _SC("outline_blue"), &FeText::get_outline_blue, &FeText::set_outline_blue )
+		ANIM_PROP( _SC("outline_alpha"), &FeText::get_outline_alpha, &FeText::set_outline_alpha )
 		// "charsize" deprecated, use the char_size property instead
 		.Prop(_SC("charsize"), &FeText::get_charsize, &FeText::set_charsize )
 		.Prop(_SC("char_size"), &FeText::get_charsize, &FeText::set_charsize )
 		.Prop(_SC("glyph_size"), &FeText::get_glyph_size )
-		.Prop(_SC("char_spacing"), &FeText::get_spacing, &FeText::set_spacing )
-		.Prop(_SC("line_spacing"), &FeText::get_line_spacing, &FeText::set_line_spacing )
+		ANIM_PROP( _SC("char_spacing"), &FeText::get_spacing, &FeText::set_spacing )
+		ANIM_PROP( _SC("line_spacing"), &FeText::get_line_spacing, &FeText::set_line_spacing )
 		.Prop(_SC("line_height"), &FeText::get_line_height )
 		.Prop(_SC("style"), &FeText::get_style, &FeText::set_style )
 		.Prop(_SC("justify"), &FeText::get_justify, &FeText::set_justify )
 		.Prop(_SC("align"), &FeText::get_align, &FeText::set_align )
+		.Prop(_SC("case"), &FeText::get_case, &FeText::set_case )
 		.Prop(_SC("word_wrap"), &FeText::get_word_wrap, &FeText::set_word_wrap )
 		.Prop(_SC("first_line_hint"), &FeText::get_first_line_hint, &FeText::set_first_line_hint )
 		.Prop(_SC("lines"), &FeText::get_lines )
@@ -1083,31 +1311,58 @@ bool FeVM::on_new_layout()
 		.Prop(_SC("font"), &FeText::get_font, &FeText::set_font )
 		// "nomargin" deprecated, use the margin property instead
 		.Prop(_SC("nomargin"), &FeText::get_no_margin, &FeText::set_no_margin )
-		.Prop(_SC("margin"), &FeText::get_margin, &FeText::set_margin )
-		.Prop(_SC("outline"), &FeText::get_outline, &FeText::set_outline )
-		.Prop(_SC("bg_outline"), &FeText::get_bg_outline, &FeText::set_bg_outline )
+		ANIM_PROP( _SC("margin"), &FeText::get_margin, &FeText::set_margin )
+		ANIM_PROP( _SC("outline"), &FeText::get_outline, &FeText::set_outline )
+		ANIM_PROP( _SC("bg_outline"), &FeText::get_bg_outline, &FeText::set_bg_outline )
+		.Func(_SC("set_transform_origin"), &FeText::set_transform_origin )
+		.Func(_SC("set_anchor"), &FeText::set_anchor )
+		.Func(_SC("set_rotation_origin"), &FeText::set_rotation_origin )
 		.Func(_SC("get_cursor_pos"), &FeText::get_cursor_pos )
-		.Func(_SC("set_bg_rgb"), &FeText::set_bg_rgb )
-		.Func(_SC("set_bg_outline_rgb"), &FeText::set_bg_outline_rgb )
-		.Func(_SC("set_outline_rgb"), &FeText::set_outline_rgb )
+		.Overload<void (FeText::*)(int, int, int)>(_SC("set_bg_rgb"), &FeText::set_bg_rgb)
+		.Overload<void (FeText::*)(int, int, int, int)>(_SC("set_bg_rgb"), &FeText::set_bg_rgb)
+		.Overload<void (FeText::*)(int, int, int)>(_SC("set_bg_outline_rgb"), &FeText::set_bg_outline_rgb)
+		.Overload<void (FeText::*)(int, int, int, int)>(_SC("set_bg_outline_rgb"), &FeText::set_bg_outline_rgb)
+		.Overload<void (FeText::*)(int, int, int)>(_SC("set_outline_rgb"), &FeText::set_outline_rgb)
+		.Overload<void (FeText::*)(int, int, int, int)>(_SC("set_outline_rgb"), &FeText::set_outline_rgb)
 	);
 
 	fe.Bind( _SC("ListBox"),
 		DerivedClass<FeListBox, FeBasePresentable, NoConstructor>()
-		.Prop(_SC("bg_red"), &FeListBox::get_bgr, &FeListBox::set_bgr )
-		.Prop(_SC("bg_green"), &FeListBox::get_bgg, &FeListBox::set_bgg )
-		.Prop(_SC("bg_blue"), &FeListBox::get_bgb, &FeListBox::set_bgb )
-		.Prop(_SC("bg_alpha"), &FeListBox::get_bga, &FeListBox::set_bga )
-		.Prop(_SC("sel_red"), &FeListBox::get_selr, &FeListBox::set_selr )
-		.Prop(_SC("sel_green"), &FeListBox::get_selg, &FeListBox::set_selg )
-		.Prop(_SC("sel_blue"), &FeListBox::get_selb, &FeListBox::set_selb )
-		.Prop(_SC("sel_alpha"), &FeListBox::get_sela, &FeListBox::set_sela )
-		.Prop(_SC("selbg_red"), &FeListBox::get_selbgr, &FeListBox::set_selbgr )
-		.Prop(_SC("selbg_green"), &FeListBox::get_selbgg, &FeListBox::set_selbgg )
-		.Prop(_SC("selbg_blue"), &FeListBox::get_selbgb, &FeListBox::set_selbgb )
-		.Prop(_SC("selbg_alpha"), &FeListBox::get_selbga, &FeListBox::set_selbga )
-		.Prop(_SC("outline"), &FeListBox::get_outline, &FeListBox::set_outline )
-		.Prop(_SC("sel_outline"), &FeListBox::get_sel_outline, &FeListBox::set_sel_outline )
+		.Prop(_SC("transform_origin"), &FeListBox::get_transform_origin_type, &FeListBox::set_transform_origin_type )
+		ANIM_PROP( _SC("transform_origin_x"), &FeListBox::get_transform_origin_x, &FeListBox::set_transform_origin_x )
+		ANIM_PROP( _SC("transform_origin_y"), &FeListBox::get_transform_origin_y, &FeListBox::set_transform_origin_y )
+		.Prop(_SC("anchor"), &FeListBox::get_anchor_type, &FeListBox::set_anchor_type )
+		.Prop(_SC("rotation_origin"), &FeListBox::get_rotation_origin_type, &FeListBox::set_rotation_origin_type )
+		ANIM_PROP( _SC("anchor_x"), &FeListBox::get_anchor_x, &FeListBox::set_anchor_x )
+		ANIM_PROP( _SC("anchor_y"), &FeListBox::get_anchor_y, &FeListBox::set_anchor_y )
+		ANIM_PROP( _SC("rotation_origin_x"), &FeListBox::get_rotation_origin_x, &FeListBox::set_rotation_origin_x )
+		ANIM_PROP( _SC("rotation_origin_y"), &FeListBox::get_rotation_origin_y, &FeListBox::set_rotation_origin_y )
+		ANIM_PROP( _SC("bg_red"), &FeListBox::get_bg_red, &FeListBox::set_bg_red )
+		ANIM_PROP( _SC("bg_green"), &FeListBox::get_bg_green, &FeListBox::set_bg_green )
+		ANIM_PROP( _SC("bg_blue"), &FeListBox::get_bg_blue, &FeListBox::set_bg_blue )
+		ANIM_PROP( _SC("bg_alpha"), &FeListBox::get_bg_alpha, &FeListBox::set_bg_alpha )
+		ANIM_PROP( _SC("sel_red"), &FeListBox::get_sel_red, &FeListBox::set_sel_red )
+		ANIM_PROP( _SC("sel_green"), &FeListBox::get_sel_green, &FeListBox::set_sel_green )
+		ANIM_PROP( _SC("sel_blue"), &FeListBox::get_sel_blue, &FeListBox::set_sel_blue )
+		ANIM_PROP( _SC("sel_alpha"), &FeListBox::get_sel_alpha, &FeListBox::set_sel_alpha )
+		ANIM_PROP( _SC("selbg_red"), &FeListBox::get_sel_bg_red, &FeListBox::set_sel_bg_red ) // Deprectaed 3.2.3+, use sel_bg_red
+		ANIM_PROP( _SC("selbg_green"), &FeListBox::get_sel_bg_green, &FeListBox::set_sel_bg_green ) // Deprectaed 3.2.3+, use sel_bg_green
+		ANIM_PROP( _SC("selbg_blue"), &FeListBox::get_sel_bg_blue, &FeListBox::set_sel_bg_blue ) // Deprectaed 3.2.3+, use sel_bg_blue
+		ANIM_PROP( _SC("selbg_alpha"), &FeListBox::get_sel_bg_alpha, &FeListBox::set_sel_bg_alpha ) // Deprectaed 3.2.3+, use sel_bg_alpha
+		ANIM_PROP( _SC("sel_bg_red"), &FeListBox::get_sel_bg_red, &FeListBox::set_sel_bg_red )
+		ANIM_PROP( _SC("sel_bg_green"), &FeListBox::get_sel_bg_green, &FeListBox::set_sel_bg_green )
+		ANIM_PROP( _SC("sel_bg_blue"), &FeListBox::get_sel_bg_blue, &FeListBox::set_sel_bg_blue )
+		ANIM_PROP( _SC("sel_bg_alpha"), &FeListBox::get_sel_bg_alpha, &FeListBox::set_sel_bg_alpha )
+		ANIM_PROP( _SC("outline"), &FeListBox::get_outline, &FeListBox::set_outline )
+		ANIM_PROP( _SC("outline_red"), &FeListBox::get_outline_red, &FeListBox::set_outline_red )
+		ANIM_PROP( _SC("outline_green"), &FeListBox::get_outline_green, &FeListBox::set_outline_green )
+		ANIM_PROP( _SC("outline_blue"), &FeListBox::get_outline_blue, &FeListBox::set_outline_blue )
+		ANIM_PROP( _SC("outline_alpha"), &FeListBox::get_outline_alpha, &FeListBox::set_outline_alpha )
+		ANIM_PROP( _SC("sel_outline"), &FeListBox::get_sel_outline, &FeListBox::set_sel_outline )
+		ANIM_PROP( _SC("sel_outline_red"), &FeListBox::get_sel_outline_red, &FeListBox::set_sel_outline_red )
+		ANIM_PROP( _SC("sel_outline_green"), &FeListBox::get_sel_outline_green, &FeListBox::set_sel_outline_green )
+		ANIM_PROP( _SC("sel_outline_blue"), &FeListBox::get_sel_outline_blue, &FeListBox::set_sel_outline_blue )
+		ANIM_PROP( _SC("sel_outline_alpha"), &FeListBox::get_sel_outline_alpha, &FeListBox::set_sel_outline_alpha )
 		.Prop(_SC("rows"), &FeListBox::get_rows, &FeListBox::set_rows )
 		.Prop(_SC("list_align"), &FeListBox::get_list_align, &FeListBox::set_list_align )
 		.Prop(_SC("list_size"), &FeListBox::get_list_size )
@@ -1115,53 +1370,71 @@ bool FeVM::on_new_layout()
 		.Prop(_SC("charsize"), &FeListBox::get_charsize, &FeListBox::set_charsize )
 		.Prop(_SC("char_size"), &FeListBox::get_charsize, &FeListBox::set_charsize )
 		.Prop(_SC("glyph_size"), &FeListBox::get_glyph_size )
-		.Prop(_SC("char_spacing"), &FeListBox::get_spacing, &FeListBox::set_spacing )
+		ANIM_PROP( _SC("char_spacing"), &FeListBox::get_spacing, &FeListBox::set_spacing )
 		.Prop(_SC("style"), &FeListBox::get_style, &FeListBox::set_style )
 		.Prop(_SC("justify"), &FeListBox::get_justify, &FeListBox::set_justify )
 		.Prop(_SC("align"), &FeListBox::get_align, &FeListBox::set_align )
+		.Prop(_SC("case"), &FeListBox::get_case, &FeListBox::set_case )
 		.Prop(_SC("sel_style"), &FeListBox::getSelStyle, &FeListBox::setSelStyle )
 		.Prop(_SC("sel_mode"), &FeListBox::get_selection_mode, &FeListBox::set_selection_mode )
 		.Prop(_SC("sel_margin"), &FeListBox::get_selection_margin, &FeListBox::set_selection_margin )
 		.Prop(_SC("sel_row"), &FeListBox::get_selected_row, &FeListBox::set_selected_row )
+		.Prop(_SC("sel_y"), &FeListBox::get_sel_y )
+		.Prop(_SC("row_height"), &FeListBox::get_row_height )
 		.Prop(_SC("font"), &FeListBox::get_font, &FeListBox::set_font )
 		// "nomargin" deprecated, use the margin property instead
 		.Prop(_SC("nomargin"), &FeListBox::get_no_margin, &FeListBox::set_no_margin )
-		.Prop(_SC("margin"), &FeListBox::get_margin, &FeListBox::set_margin )
+		ANIM_PROP( _SC("margin"), &FeListBox::get_margin, &FeListBox::set_margin )
 		.Prop(_SC("format_string"), &FeListBox::get_format_string, &FeListBox::set_format_string )
-		.Func( _SC("set_bg_rgb"), &FeListBox::set_bg_rgb )
-		.Func( _SC("set_sel_rgb"), &FeListBox::set_sel_rgb )
-		.Func( _SC("set_selbg_rgb"), &FeListBox::set_selbg_rgb )
-		.Func( _SC("set_outline_rgb"), &FeListBox::set_outline_rgb )
-		.Func( _SC("set_sel_outline_rgb"), &FeListBox::set_sel_outline_rgb )
+		.Func(_SC("set_transform_origin"), &FeListBox::set_transform_origin )
+		.Func(_SC("set_anchor"), &FeListBox::set_anchor )
+		.Func(_SC("set_rotation_origin"), &FeListBox::set_rotation_origin )
+		.Overload<void (FeListBox::*)(int, int, int)>(_SC("set_bg_rgb"), &FeListBox::set_bg_rgb)
+		.Overload<void (FeListBox::*)(int, int, int, int)>(_SC("set_bg_rgb"), &FeListBox::set_bg_rgb)
+		.Overload<void (FeListBox::*)(int, int, int)>(_SC("set_sel_rgb"), &FeListBox::set_sel_rgb)
+		.Overload<void (FeListBox::*)(int, int, int, int)>(_SC("set_sel_rgb"), &FeListBox::set_sel_rgb)
+		.Overload<void (FeListBox::*)(int, int, int)>(_SC("set_selbg_rgb"), &FeListBox::set_sel_bg_rgb) // Deprecated 3.2.3+, use set_sel_bg_rgb
+		.Overload<void (FeListBox::*)(int, int, int, int)>(_SC("set_selbg_rgb"), &FeListBox::set_sel_bg_rgb) // Deprecated 3.2.3+, use set_sel_bg_rgb
+		.Overload<void (FeListBox::*)(int, int, int)>(_SC("set_sel_bg_rgb"), &FeListBox::set_sel_bg_rgb)
+		.Overload<void (FeListBox::*)(int, int, int, int)>(_SC("set_sel_bg_rgb"), &FeListBox::set_sel_bg_rgb)
+		.Overload<void (FeListBox::*)(int, int, int)>(_SC("set_outline_rgb"), &FeListBox::set_outline_rgb)
+		.Overload<void (FeListBox::*)(int, int, int, int)>(_SC("set_outline_rgb"), &FeListBox::set_outline_rgb)
+		.Overload<void (FeListBox::*)(int, int, int)>(_SC("set_sel_outline_rgb"), &FeListBox::set_sel_outline_rgb)
+		.Overload<void (FeListBox::*)(int, int, int, int)>(_SC("set_sel_outline_rgb"), &FeListBox::set_sel_outline_rgb)
 	);
 
 	fe.Bind( _SC("Rectangle"), DerivedClass<FeRectangle, FeBasePresentable, NoConstructor>()
-		.Prop(_SC("origin_x"), &FeRectangle::get_origin_x, &FeRectangle::set_origin_x )
-		.Prop(_SC("origin_y"), &FeRectangle::get_origin_y, &FeRectangle::set_origin_y )
+		ANIM_PROP( _SC("origin_x"), &FeRectangle::get_origin_x, &FeRectangle::set_origin_x )
+		ANIM_PROP( _SC("origin_y"), &FeRectangle::get_origin_y, &FeRectangle::set_origin_y )
+		.Prop(_SC("transform_origin"), &FeRectangle::get_transform_origin_type, &FeRectangle::set_transform_origin_type )
+		ANIM_PROP( _SC("transform_origin_x"), &FeRectangle::get_transform_origin_x, &FeRectangle::set_transform_origin_x )
+		ANIM_PROP( _SC("transform_origin_y"), &FeRectangle::get_transform_origin_y, &FeRectangle::set_transform_origin_y )
 		.Prop(_SC("anchor"), &FeRectangle::get_anchor_type, &FeRectangle::set_anchor_type )
 		// "origin" deprecated as of 3.0.5, use the rotation_origin property instead
 		.Prop(_SC("origin"), &FeRectangle::get_rotation_origin_type, &FeRectangle::set_rotation_origin_type )
 		.Prop(_SC("rotation_origin"), &FeRectangle::get_rotation_origin_type, &FeRectangle::set_rotation_origin_type )
-		.Prop(_SC("anchor_x"), &FeRectangle::get_anchor_x, &FeRectangle::set_anchor_x )
-		.Prop(_SC("anchor_y"), &FeRectangle::get_anchor_y, &FeRectangle::set_anchor_y )
-		.Prop(_SC("rotation_origin_x"), &FeRectangle::get_rotation_origin_x, &FeRectangle::set_rotation_origin_x )
-		.Prop(_SC("rotation_origin_y"), &FeRectangle::get_rotation_origin_y, &FeRectangle::set_rotation_origin_y )
-		.Prop(_SC("outline"), &FeRectangle::get_outline, &FeRectangle::set_outline )
-		.Prop(_SC("outline_red"), &FeRectangle::get_olr, &FeRectangle::set_olr )
-		.Prop(_SC("outline_green"), &FeRectangle::get_olg, &FeRectangle::set_olg )
-		.Prop(_SC("outline_blue"), &FeRectangle::get_olb, &FeRectangle::set_olb )
-		.Prop(_SC("outline_alpha"), &FeRectangle::get_ola, &FeRectangle::set_ola )
+		ANIM_PROP( _SC("anchor_x"), &FeRectangle::get_anchor_x, &FeRectangle::set_anchor_x )
+		ANIM_PROP( _SC("anchor_y"), &FeRectangle::get_anchor_y, &FeRectangle::set_anchor_y )
+		ANIM_PROP( _SC("rotation_origin_x"), &FeRectangle::get_rotation_origin_x, &FeRectangle::set_rotation_origin_x )
+		ANIM_PROP( _SC("rotation_origin_y"), &FeRectangle::get_rotation_origin_y, &FeRectangle::set_rotation_origin_y )
+		ANIM_PROP( _SC("outline"), &FeRectangle::get_outline, &FeRectangle::set_outline )
+		ANIM_PROP( _SC("outline_red"), &FeRectangle::get_outline_red, &FeRectangle::set_outline_red )
+		ANIM_PROP( _SC("outline_green"), &FeRectangle::get_outline_green, &FeRectangle::set_outline_green )
+		ANIM_PROP( _SC("outline_blue"), &FeRectangle::get_outline_blue, &FeRectangle::set_outline_blue )
+		ANIM_PROP( _SC("outline_alpha"), &FeRectangle::get_outline_alpha, &FeRectangle::set_outline_alpha )
 		.Prop(_SC("corner_points"), &FeRectangle::get_corner_point_count, &FeRectangle::set_corner_point_count )
-		.Prop(_SC("corner_radius_x"), &FeRectangle::get_corner_radius_x, &FeRectangle::set_corner_radius_x )
-		.Prop(_SC("corner_radius_y"), &FeRectangle::get_corner_radius_y, &FeRectangle::set_corner_radius_y )
-		.Prop(_SC("corner_radius"), &FeRectangle::get_corner_radius, &FeRectangle::set_corner_radius )
+		ANIM_PROP( _SC("corner_radius_x"), &FeRectangle::get_corner_radius_x, &FeRectangle::set_corner_radius_x )
+		ANIM_PROP( _SC("corner_radius_y"), &FeRectangle::get_corner_radius_y, &FeRectangle::set_corner_radius_y )
+		ANIM_PROP( _SC("corner_radius"), &FeRectangle::get_corner_radius, &FeRectangle::set_corner_radius )
 		.Overload<void (FeRectangle::*)(float, float)>(_SC("set_corner_radius"), &FeRectangle::set_corner_radius)
-		.Prop(_SC("corner_ratio_x"), &FeRectangle::get_corner_ratio_x, &FeRectangle::set_corner_ratio_x )
-		.Prop(_SC("corner_ratio_y"), &FeRectangle::get_corner_ratio_y, &FeRectangle::set_corner_ratio_y )
-		.Prop(_SC("corner_ratio"), &FeRectangle::get_corner_ratio, &FeRectangle::set_corner_ratio )
+		ANIM_PROP( _SC("corner_ratio_x"), &FeRectangle::get_corner_ratio_x, &FeRectangle::set_corner_ratio_x )
+		ANIM_PROP( _SC("corner_ratio_y"), &FeRectangle::get_corner_ratio_y, &FeRectangle::set_corner_ratio_y )
+		ANIM_PROP( _SC("corner_ratio"), &FeRectangle::get_corner_ratio, &FeRectangle::set_corner_ratio )
 		.Overload<void (FeRectangle::*)(float, float)>(_SC("set_corner_ratio"), &FeRectangle::set_corner_ratio)
 		.Prop(_SC("blend_mode"), &FeRectangle::get_blend_mode, &FeRectangle::set_blend_mode )
-		.Func(_SC("set_outline_rgb"), &FeRectangle::set_olrgb )
+		.Overload<void (FeRectangle::*)(int, int, int)>(_SC("set_outline_rgb"), &FeRectangle::set_outline_rgb)
+		.Overload<void (FeRectangle::*)(int, int, int, int)>(_SC("set_outline_rgb"), &FeRectangle::set_outline_rgb)
+		.Func(_SC("set_transform_origin"), &FeRectangle::set_transform_origin )
 		.Func(_SC("set_anchor"), &FeRectangle::set_anchor )
 		// "set_origin" function deprecated as of 3.0.5, use the set_rotation_origin function instead
 		.Func(_SC("set_origin"), &FeRectangle::set_rotation_origin )
@@ -1169,9 +1442,17 @@ bool FeVM::on_new_layout()
 
 	);
 
+#undef ANIM_PROP
+
 	fe.Bind( _SC("LayoutGlobals"), Class <FePresent, NoConstructor>()
 		.Prop( _SC("width"), &FePresent::get_layout_width, &FePresent::set_layout_width )
 		.Prop( _SC("height"), &FePresent::get_layout_height, &FePresent::set_layout_height )
+		.Prop( _SC("aspect_ratio"), &FePresent::get_layout_aspect_ratio, &FePresent::set_layout_aspect_ratio )
+		.Prop( _SC("grid"), &FePresent::get_layout_grid, &FePresent::set_layout_grid )
+		.Prop( _SC("grid_uniform"), &FePresent::get_layout_grid_uniform, &FePresent::set_layout_grid_uniform )
+		.Prop( _SC("pixel_snap"), &FePresent::get_layout_pixel_snap, &FePresent::set_layout_pixel_snap )
+		.Prop( _SC("grid_offset_x"), &FePresent::get_layout_grid_offset_x, &FePresent::set_layout_grid_offset_x )
+		.Prop( _SC("grid_offset_y"), &FePresent::get_layout_grid_offset_y, &FePresent::set_layout_grid_offset_y )
 		.Prop( _SC("font"), &FePresent::get_layout_font_name, &FePresent::set_layout_font_name )
 		// orient property deprecated as of 1.3.2, use "base_rotation" instead
 		.Prop( _SC("orient"), &FePresent::get_base_rotation, &FePresent::set_base_rotation )
@@ -1179,10 +1460,12 @@ bool FeVM::on_new_layout()
 		.Prop( _SC("toggle_rotation"), &FePresent::get_toggle_rotation, &FePresent::set_toggle_rotation )
 		.Prop( _SC("page_size"), &FePresent::get_page_size, &FePresent::set_page_size )
 		.Prop(_SC("preserve_aspect_ratio"), &FePresent::get_preserve_aspect_ratio, &FePresent::set_preserve_aspect_ratio )
+		.Prop(_SC("crop"), &FePresent::get_layout_crop, &FePresent::set_layout_crop )
 		.Prop(_SC("time"), &FePresent::get_layout_ms )
 		.Prop(_SC("frame_time"), &FePresent::get_layout_frame_time )
 		.Prop(_SC("mouse_pointer"), &FePresent::get_mouse_pointer, &FePresent::set_mouse_pointer )
 		.Func(_SC("redraw"), &FePresent::redraw )
+		.Func(_SC("set_grid_offset"), &FePresent::set_layout_grid_offset )
 	);
 
 	// Create a slot for fe.layout.nv data
@@ -1227,6 +1510,9 @@ bool FeVM::on_new_layout()
 	fe.Bind( _SC("Sound"), Class <FeSound, NoConstructor>()
 		.Prop( _SC("file_name"), &FeSound::get_file_name, &FeSound::set_file_name ) // deprecated as of 3.1.0 For switchable audio files use FeMusic
 		.Prop( _SC("playing"), &FeSound::get_playing, &FeSound::set_playing )
+		.Prop( _SC("rewind"), &FeSound::get_rewind, &FeSound::set_rewind )
+		.Prop( _SC("status"), &FeSound::get_status )
+		.Prop( _SC("status_msg"), &FeSound::get_status_msg )
 		.Prop( _SC("loop"), &FeSound::get_loop, &FeSound::set_loop )
 		.Prop( _SC("pitch"), &FeSound::get_pitch, &FeSound::set_pitch )
 		.Prop( _SC("x"), &FeSound::get_x, &FeSound::set_x )
@@ -1241,13 +1527,16 @@ bool FeVM::on_new_layout()
 	fe.Bind( _SC("Music"), Class <FeMusic, NoConstructor>()
 		.Prop( _SC("file_name"), &FeMusic::get_file_name, &FeMusic::set_file_name )
 		.Prop( _SC("playing"), &FeMusic::get_playing, &FeMusic::set_playing )
+		.Prop( _SC("rewind"), &FeMusic::get_rewind, &FeMusic::set_rewind )
+		.Prop( _SC("status"), &FeMusic::get_status )
+		.Prop( _SC("status_msg"), &FeMusic::get_status_msg )
 		.Prop( _SC("loop"), &FeMusic::get_loop, &FeMusic::set_loop )
 		.Prop( _SC("pitch"), &FeMusic::get_pitch, &FeMusic::set_pitch )
 		.Prop( _SC("x"), &FeMusic::get_x, &FeMusic::set_x )
 		.Prop( _SC("y"), &FeMusic::get_y, &FeMusic::set_y )
 		.Prop( _SC("z"), &FeMusic::get_z, &FeMusic::set_z )
 		.Prop( _SC("duration"), &FeMusic::get_duration )
-		.Prop( _SC("time"), &FeMusic::get_time )
+		.Prop( _SC("time"), &FeMusic::get_time, &FeMusic::set_time )
 		.Prop( _SC("volume"), &FeMusic::get_volume, &FeMusic::set_volume )
 		.Prop( _SC("pan"), &FeMusic::get_pan, &FeMusic::set_pan )
 		.Prop( _SC("vu"), &FeMusic::get_vu_mono )
@@ -1298,8 +1587,9 @@ bool FeVM::on_new_layout()
 		.Func( _SC("add_text"), &FePresentableParent::add_text )
 		.Func( _SC("add_listbox"), &FePresentableParent::add_listbox )
 		.Func( _SC("add_rectangle"), &FePresentableParent::add_rectangle )
-		.Overload<FeImage * (FePresentableParent::*)(float, float, int, int)>(_SC("add_surface"), &FePresentableParent::add_surface)
-		.Overload<FeImage * (FePresentableParent::*)(int, int)>(_SC("add_surface"), &FePresentableParent::add_surface)
+		.Overload<FeImage * (FePresentableParent::*)(float, float, float, float, int, int)>(_SC("add_surface"), &FePresentableParent::add_surface)
+		.Overload<FeImage * (FePresentableParent::*)(float, float, float, float)>(_SC("add_surface"), &FePresentableParent::add_surface)
+		.Overload<FeImage * (FePresentableParent::*)(float, float)>(_SC("add_surface"), &FePresentableParent::add_surface)
 	);
 
 	fe.Bind( _SC("Monitor"),
@@ -1341,8 +1631,9 @@ bool FeVM::on_new_layout()
 	fe.Overload<FeText* (*)(const char *, int, int, int, int)>(_SC("add_text"), &FeVM::cb_add_text);
 	fe.Func<FeListBox* (*)(int, int, int, int)>(_SC("add_listbox"), &FeVM::cb_add_listbox);
 	fe.Func<FeRectangle* (*)(float, float, float, float)>(_SC("add_rectangle"), &FeVM::cb_add_rectangle);
-	fe.Overload<FeImage* (*)(float, float, int, int)>(_SC("add_surface"), &FeVM::cb_add_surface);
-	fe.Overload<FeImage* (*)(int, int)>(_SC("add_surface"), &FeVM::cb_add_surface);
+	fe.Overload<FeImage* (*)(float, float, float, float, int, int)>(_SC("add_surface"), &FeVM::cb_add_surface);
+	fe.Overload<FeImage* (*)(float, float, float, float)>(_SC("add_surface"), &FeVM::cb_add_surface);
+	fe.Overload<FeImage* (*)(float, float)>(_SC("add_surface"), &FeVM::cb_add_surface);
 	fe.Overload<FeSound* (*)(const char *, bool)>(_SC("add_sound"), &FeVM::cb_add_sound);
 	fe.Overload<FeSound* (*)(const char *)>(_SC("add_sound"), &FeVM::cb_add_sound);
 	fe.Overload<FeMusic* (*)(const char *)>(_SC("add_music"), &FeVM::cb_add_music);
@@ -1361,7 +1652,7 @@ bool FeVM::on_new_layout()
 	fe.Overload<void (*)(const char *)>(_SC("remove_signal_handler"), &FeVM::cb_remove_signal_handler);
 	fe.Overload<void (*)(Object, const char *)>(_SC("remove_signal_handler"), &FeVM::cb_remove_signal_handler);
 	fe.Func<bool (*)(const char *)>(_SC("get_input_state"), &FeVM::cb_get_input_state);
-	fe.Func<int (*)(const char *)>(_SC("get_input_pos"), &FeVM::cb_get_input_pos);
+	fe.Func<float (*)(const char *)>(_SC("get_input_pos"), &FeVM::cb_get_input_pos);
 	fe.Func<bool (*)(const char *)>(_SC("do_nut"), &FeVM::do_nut);
 	fe.Func<bool (*)(const char *)>(_SC("load_module"), &FeVM::load_module);
 	fe.Func<void (*)(const char *)>(_SC("log"), &FeVM::print_to_console);
@@ -1441,7 +1732,16 @@ bool FeVM::on_new_layout()
 
 	FeImageLoader &il = FeImageLoader::get_ref();
 	fe.SetInstance( _SC("image_cache"), &il );
-	fe.SetValue( _SC("plugin"), Table() ); // an empty table for plugins to use/abuse
+	Table plugin( vm );
+	Table plugin_delegate( vm );
+	plugin_delegate
+		.SquirrelFunc( _SC("_get"), &FeVM::cb_plugin_get )
+		.SquirrelFunc( _SC("_set"), &FeVM::cb_plugin_set );
+	sq_pushobject( vm, plugin.GetObject() );
+	sq_pushobject( vm, plugin_delegate.GetObject() );
+	sq_setdelegate( vm, -2 );
+	sq_pop( vm, 1 );
+	fe.Bind( _SC("plugin"), plugin );
 
 	// Each presentation object gets an instance in the
 	// "obj" array available in Squirrel
@@ -1464,6 +1764,7 @@ bool FeVM::on_new_layout()
 	if ( ps != FeSettings::Intro_Showing )
 	{
 		const std::vector< FePlugInfo > &plugins = m_feSettings->get_plugins();
+		m_plugin_globals.assign( plugins.size(), FePluginGlobals() );
 
 		for ( int i=0; i<(int)plugins.size(); i++ )
 		{
@@ -1566,6 +1867,30 @@ void FeVM::set_for_callback( const FeCallback &c )
 	m_script_id = c.m_sid;
 }
 
+int FeVM::get_plugin_grid() const
+{
+	if (( m_script_id >= 0 ) && ( m_script_id < (int)m_plugin_globals.size() ))
+		return m_plugin_globals[m_script_id].get_grid();
+
+	return GridPixel;
+}
+
+bool FeVM::get_plugin_grid_uniform() const
+{
+	if (( m_script_id >= 0 ) && ( m_script_id < (int)m_plugin_globals.size() ))
+		return m_plugin_globals[m_script_id].get_grid_uniform();
+
+	return true;
+}
+
+bool FeVM::get_plugin_pixel_snap() const
+{
+	if (( m_script_id >= 0 ) && ( m_script_id < (int)m_plugin_globals.size() ))
+		return m_plugin_globals[m_script_id].get_pixel_snap();
+
+	return false;
+}
+
 bool FeVM::process_console_input()
 {
 	if ( !m_process_console_input )
@@ -1597,6 +1922,9 @@ bool FeVM::on_tick()
 	using namespace Sqrat;
 	m_redraw_triggered = process_console_input();
 
+	if ( FeAnimation::tick() )
+		m_redraw_triggered = true;
+
 	if ( m_sort_zorder_triggered )
 	{
 		sort_zorder();
@@ -1616,7 +1944,7 @@ bool FeVM::on_tick()
 		{
 			Function &func = (*itr).get_fn();
 			if ( !func.IsNull() )
-				func.Execute( m_layout_time.getElapsedTime().asMilliseconds() );
+				func.Execute( m_layout_time_old.asMilliseconds() );
 		}
 		catch( const Exception &e )
 		{
@@ -1648,8 +1976,9 @@ void FeVM::on_transition(
 
 	FeDebug() << "[Transition] type=" << get_transition_name( t ) << ", var=" << var << std::endl;
 
-	FeStableClock clk;
+	sf::Time transition_start = m_layout_time_old;
 	int ttime = 0;
+	bool reload_layout = false;
 
 	std::vector<FeCallback *> worklist( m_trans.size() );
 	for ( unsigned int i=0; i < m_trans.size(); i++ )
@@ -1664,6 +1993,16 @@ void FeVM::on_transition(
 		// Assumption: Transition list is empty if no vm is active
 		//
 		ASSERT( DefaultVM::Get() );
+
+		if (( ttime > 0 ) && ( m_window.isOpen() ))
+		{
+			sf::Time current_time = m_layout_time.getElapsedTime();
+			ttime = ( current_time - transition_start ).asMilliseconds();
+			m_frame_time = ( current_time - m_layout_time_old ).asSeconds() * 1000.0f;
+			m_layout_time_old = current_time;
+
+			FeAnimation::tick();
+		}
 
 		//
 		// Call each remaining transition callback on each pass through
@@ -1703,9 +2042,9 @@ void FeVM::on_transition(
 				++itr;
 		}
 
-		// redraw now if we are doing another pass...
+		// redraw while blocked, and once more when a blocked transition releases
 		//
-		if (( !worklist.empty() ) && ( m_window.isOpen() ))
+		if (( !worklist.empty() || ( ttime > 0 )) && ( m_window.isOpen() ))
 		{
 			if ( m_sort_zorder_triggered )
 			{
@@ -1714,23 +2053,32 @@ void FeVM::on_transition(
 			}
 
 			video_tick();
-			clk.tick();
 
 			redraw_surfaces();
 			m_window.clear();
 			m_window.draw( *this );
 			m_window.display();
-			ttime = clk.getElapsedTime().asMilliseconds();
 			m_layout_time.tick();
+			ttime = ( m_layout_time.getElapsedTime() - transition_start ).asMilliseconds();
 
 			//
 			// Empty the event buffer during a blocked transition
 			// - Otherwise keypresses bank up and are dumped on the frontend when the worklist is complete
 			// - Also fixes Linux SFML 2.2-2.3 flicker on multi monitor setup during animated transitions.
 			//
-			while ( const std::optional ev = m_window.pollEvent() ) {}
+			while ( const std::optional ev = m_window.pollEvent() )
+			{
+				if ( const auto* resize = ev->getIf<sf::Event::Resized>() )
+				{
+					m_window.get_win().setView( sf::View( sf::FloatRect({ 0, 0 }, { static_cast<float>( resize->size.x ), static_cast<float>( resize->size.y )})));
+					reload_layout = true;
+				}
+			}
 		}
 	}
+
+	if ( reload_layout )
+		post_command( FeInputMap::ReloadLayout );
 }
 
 bool FeVM::script_handle_event( FeInputMap::Command c )
@@ -1913,16 +2261,17 @@ FePresent *FePresent::script_get_fep()
 	return NULL;
 }
 
-void FePresent::script_process_magic_strings( std::string &str,
+bool FePresent::script_process_magic_strings( std::string &str,
 		int filter_offset,
 		int index_offset )
 {
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
 	if ( !vm )
-		return;
+		return false;
 
 	const char *TOK = "[!";
 	int TOK_LEN = 2;
+	bool processed = false;
 
 	size_t pos = str.find( TOK );
 	while ( pos != std::string::npos )
@@ -1935,7 +2284,7 @@ void FePresent::script_process_magic_strings( std::string &str,
 
 		try
 		{
-			Sqrat::Function func( Sqrat::RootTable(), magic.c_str() );
+			Sqrat::Function func = get_magic_function( magic );
 			if ( !func.IsNull() )
 			{
 				std::string result;
@@ -1955,6 +2304,7 @@ void FePresent::script_process_magic_strings( std::string &str,
 
 				str.replace( pos, end-pos+1, result );
 				pos += result.size();
+				processed = true;
 			}
 			else
 			{
@@ -1976,6 +2326,8 @@ void FePresent::script_process_magic_strings( std::string &str,
 
 		pos = str.find( TOK, pos );
 	}
+
+	return processed;
 }
 
 //
@@ -2025,6 +2377,17 @@ public:
 			.Const( _SC("FeLogLevel"), fe_get_log_level_string() )
 			.Const( _SC("OS"), get_OS_string() )
 			.Const( _SC("ShadersAvailable"), sf::Shader::isAvailable() )
+			.Enum( _SC("Status"), Sqrat::Enumeration()
+				.Const( _SC("Stopped"), FePlaybackStatusStopped )
+				.Const( _SC("Paused"), FePlaybackStatusPaused )
+				.Const( _SC("Playing"), FePlaybackStatusPlaying )
+				.Const( _SC("Ended"), FePlaybackStatusEnded )
+			)
+			.Enum( _SC("Grid"), Sqrat::Enumeration()
+				.Const( _SC("Pixel"), GridPixel )
+				.Const( _SC("Percent"), GridPercent )
+				.Const( _SC("Normalised"), GridNormalised )
+			)
 			.Enum( _SC("PathTest"), Sqrat::Enumeration()
 				.Const( "IsFile", FeVM::IsFile )
 				.Const( "IsDirectory", FeVM::IsDirectory )
@@ -2033,6 +2396,7 @@ public:
 				.Const( "IsSupportedArchive", FeVM::IsSupportedArchive )
 				.Const( "IsSupportedMedia", FeVM::IsSupportedMedia )
 			);
+		register_ease_enum();
 
 		Sqrat::ConstTable().Const( _SC("FeConfigDirectory"), fe_vm->m_feSettings->get_config_dir().c_str() );
 
@@ -2113,6 +2477,7 @@ public:
 			fe.Overload<const char *(*)(const char *, int, int)>(_SC("get_text"), &FeVM::cb_get_text);
 			fe.Overload<const char *(*)(const char *, int)>(_SC("get_text"), &FeVM::cb_get_text);
 			fe.Overload<const char *(*)(const char *)>(_SC("get_text"), &FeVM::cb_get_text);
+			fe.Func<Sqrat::Table (*)()>(_SC("get_general_config"), &FeVM::cb_get_general_config);
 		}
 
 		Sqrat::RootTable().Bind( _SC("fe"), fe );
@@ -2586,17 +2951,33 @@ FeRectangle* FeVM::cb_add_rectangle( float x, float y, float w, float h )
 	return ret;
 }
 
-FeImage* FeVM::cb_add_surface( int w, int h )
+FeImage* FeVM::cb_add_surface( float w, float h )
 {
 	return cb_add_surface( 0, 0, w, h );
 }
 
-FeImage* FeVM::cb_add_surface( float x, float y, int w, int h )
+FeImage* FeVM::cb_add_surface( float x, float y, float w, float h )
 {
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
 	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
 
-	FeImage *ret = fev->add_surface( x, y, w, h, fev->m_mon[0] );
+	FeImage *ret = fev->m_mon[0].add_surface( x, y, w, h );
+
+	// Add the surface to the "fe.obj" array in Squirrel
+	//
+	Sqrat::Object fe ( Sqrat::RootTable().GetSlot( _SC("fe") ) );
+	Sqrat::Array obj( fe.GetSlot( _SC("obj") ) );
+	obj.Append( ret );
+
+	return ret;
+}
+
+FeImage* FeVM::cb_add_surface( float x, float y, float w, float h, int texture_width, int texture_height )
+{
+	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
+	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
+
+	FeImage *ret = fev->add_surface( x, y, w, h, texture_width, texture_height, fev->m_mon[0] );
 
 	// Add the surface to the "fe.obj" array in Squirrel
 	//
@@ -2731,6 +3112,64 @@ void FeVM::cb_remove_signal_handler( const char *n )
 	cb_remove_signal_handler( rt, n );
 }
 
+SQInteger FeVM::cb_plugin_get( HSQUIRRELVM vm )
+{
+	const SQChar *key;
+	if ( SQ_FAILED( sq_getstring( vm, 2, &key ) ) )
+	{
+		sq_pushnull( vm );
+		return 1;
+	}
+
+	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
+	if ( !fev || ( fev->m_script_id < 0 )
+			|| ( fev->m_script_id >= (int)fev->m_plugin_globals.size() ))
+	{
+		sq_pushnull( vm );
+		return 1;
+	}
+
+	int property = FePluginGlobals::get_property( key );
+	if ( property < 0 )
+		sq_pushnull( vm );
+	else
+		fev->m_plugin_globals[fev->m_script_id].push_property( vm, property );
+
+	return 1;
+}
+
+SQInteger FeVM::cb_plugin_set( HSQUIRRELVM vm )
+{
+	const SQChar *key;
+	if ( SQ_SUCCEEDED( sq_getstring( vm, 2, &key ) ) )
+	{
+		int property = FePluginGlobals::get_property( key );
+		if ( property >= 0 )
+		{
+			FeVM *fev = (FeVM *)sq_getforeignptr( vm );
+			if ( !fev || ( fev->m_script_id < 0 )
+					|| ( fev->m_script_id >= (int)fev->m_plugin_globals.size() ))
+				return sq_throwerror( vm, "fe.plugin properties can only be set by a plugin" );
+
+			fev->m_plugin_globals[fev->m_script_id].set_property( vm, property );
+			return 0;
+		}
+	}
+
+	sq_pushroottable( vm );
+	sq_pushstring( vm, "fe", -1 );
+	if ( SQ_FAILED( sq_rawget( vm, -2 ) ) )
+		return SQ_ERROR;
+	sq_pushstring( vm, "plugin", -1 );
+	if ( SQ_FAILED( sq_rawget( vm, -2 ) ) )
+		return SQ_ERROR;
+	sq_push( vm, 2 );
+	sq_push( vm, 3 );
+	SQRESULT result = sq_rawset( vm, -3 );
+	sq_pop( vm, 3 );
+	return result;
+}
+
 bool FeVM::cb_get_input_state( const char *input )
 {
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
@@ -2796,10 +3235,22 @@ bool FeVM::cb_get_input_state( const char *input )
 	return FeInputMapEntry( input ).get_current_state( fev->m_feSettings->get_joy_thresh() );
 }
 
-int FeVM::cb_get_input_pos( const char *input )
+float FeVM::cb_get_input_pos( const char *input )
 {
 	HSQUIRRELVM vm = Sqrat::DefaultVM::Get();
 	FeVM *fev = (FeVM *)sq_getforeignptr( vm );
+	if ( !input )
+		return 0.0f;
+
+	bool mouse_x = ( strcmp( input, "Mouse Left" ) == 0 ) || ( strcmp( input, "Mouse Right" ) == 0 );
+	bool mouse_y = ( strcmp( input, "Mouse Up" ) == 0 ) || ( strcmp( input, "Mouse Down" ) == 0 );
+	if ( mouse_x || mouse_y )
+	{
+		sf::Vector2f pos = fev->window_to_layout_grid_pos(
+			sf::Mouse::getPosition( fev->m_window.get_win() ));
+		return mouse_x ? pos.x : pos.y;
+	}
+
 	return FeInputSingle( input ).get_current_pos( fev->m_window );
 }
 
@@ -2964,6 +3415,23 @@ bool FeVM::cb_set_file_mtime( const char *file, time_t mtime )
 bool FeVM::cb_copy_file( const char *src, const char *dst )
 {
 	return copy_file( src, dst );
+}
+
+const char *FeVM::cb_read_file( const char *src )
+{
+	static std::string content;
+	if ( !read_file_content( src, content ) ) content.clear();
+	return content.c_str();
+}
+
+bool FeVM::cb_write_file( const char *dst, const char *content )
+{
+	return write_file_content( dst, content );
+}
+
+bool FeVM::cb_append_file( const char *dst, const char *content )
+{
+	return append_file_content( dst, content );
 }
 
 Sqrat::Array FeVM::cb_get_dir( const char *path )
@@ -3437,8 +3905,9 @@ const char *FeVM::cb_get_text( const char *t, int index_offset, int filter_offse
 
 	std::string translation = _( t );
 	fes->do_text_substitutions( translation, filter_offset, index_offset);
-	static std::string retval; // must be static to work with Squirrel
-	retval = translation; // static must be re-assigned to update
+
+	static std::string retval;
+	retval = translation;
 	return retval.c_str();
 }
 
@@ -3454,6 +3923,9 @@ const char *FeVM::cb_get_text( const char *t )
 
 const char *FeVM::cb_get_clipboard()
 {
+	// NOTE: squirrel requires "const char *" return types
+	// however, returning a c_str() value is dangerous since the string it points to gets destroyed
+	// the workaround is to use a static string
 	static std::string retval;
 	retval = clipboard_get_content();
 	return retval.c_str();
@@ -3464,9 +3936,29 @@ void FeVM::cb_set_clipboard( const char *value )
 	clipboard_set_content( as_str( value ) );
 }
 
+const char *FeVM::cb_json_stringify( const Sqrat::Object obj )
+{
+	// Use our custom json strigify
+	static std::string json;
+	json = sq_obj_to_json( obj.GetObject() );
+	return json.c_str();
+}
+
+Sqrat::Object FeVM::cb_json_parse( const char *value )
+{
+	// Squirrel accepts JSON, so attempt to assign it to a temp var and return it
+	std::string temp = temp_id();
+	sq_run_code( "try { " + temp + " <- " + value + " } catch (err) { " + temp + " <- null }" );
+	Sqrat::Object obj = Sqrat::RootTable().GetSlot( scsqchar( temp ) );
+	sq_run_code( "try { delete " + temp + " } catch (err) {}" );
+	return obj;
+}
+
 // Draw the default layout when the user layout is empty
 void FeVM::init_with_default_layout()
 {
+	set_layout_grid( GridPixel );
+
 	float flw = m_layoutSize.x;
 	float flh = m_layoutSize.y;
 

@@ -56,6 +56,7 @@
 -  [Objects and Variables](#objects-and-variables)
    -  [`fe.ambient_sound`](#feambient_sound)
    -  [`fe.layout`](#felayout)
+   -  [`fe.plugin`](#feplugin)
    -  [`fe.list`](#felist)
    -  [`fe.image_cache`](#feimage_cache)
    -  [`fe.overlay`](#feoverlay)
@@ -90,12 +91,15 @@
    -  [`fs.get_dir()`](#fsget_dir-) 🔶
    -  [`fs.make_dir()`](#fsmake_dir-) 🔶
    -  [`fs.copy_file()`](#fscopy_file-) 🔶
+   -  [`fs.read_file()`](#fsread_file-) 🔶
+   -  [`fs.write_file()`](#fswrite_file-) 🔶
+   -  [`fs.append_file()`](#fsappend_file-) 🔶
 -  [Constants](#constants)
 -  [Language Extensions](#language-extensions)
    -  [Math](#math-) 🔶
    -  [Vector](#vector-) 🔶
    -  [Easing](#easing-) 🔶
-
+   -  [Animation](#animation-) 🔶
 ---
 
 ## Overview
@@ -104,7 +108,7 @@
 
 Layouts define what gets displayed to the user. They consist of a `layout.nut` file and a collection of related resources (images, other scripts, etc.). Layouts are located in the `layouts/` directory, each in its own separate subdirectory or [archive](#language-extensions).
 
-Layouts can have one or more `layout*.nut` files, which may be cycled between using the "Toggle Layout" command.
+Layouts can have one or more `layout*.nut` files, which may be cycled between using the "Next/Previous Layout" commands.
 
 ```squirrel
 local flw = fe.layout.width
@@ -205,9 +209,11 @@ The following _Magic Tokens_ are supported:
    -  `[TagList]` - The tags attached to the game, formatted with `🏷` icons
 -  Stats
    -  `[PlayedCount]` - The number of times the game has been played
-   -  `[PlayedTime]` - The number of seconds the game has been played
+   -  `[PlayedTime]` - The duration in seconds the game has been played in total
    -  `[PlayedLast]` - The timestamp the game was last played
    -  `[PlayedAgo]` - The last played date formatted relative to now, for example: `5 Minutes Ago`
+   -  `[PlayedSession]` - The duration in seconds the game was played in the last session
+   -  `[PlayedLongest]` - The duration in seconds of the longest play session
    -  `[Score]` - The user score for the game. Range is `[0.0...5.0]`
    -  `[ScoreStar]` - The score displayed as a number of stars, for example: `★★★`
    -  `[ScoreStarAlt]` - The score displayed as a number of stars plus empty slots, for example: `★★★☆☆`
@@ -367,20 +373,24 @@ The default `blend_mode` for artwork is `BlendMode.Alpha`
 ```squirrel
 fe.add_surface( w, h )
 fe.add_surface( x, y, w, h ) 🔶
+fe.add_surface( x, y, w, h, texture_width, texture_height ) 🔶
 ```
 
 Add a surface to the end of the draw list. A surface is an off-screen texture upon which you can draw other [`Image`](#feadd_image), [`Artwork`](#feadd_artwork), [`Text`](#feadd_text), [`Listbox`](#feadd_listbox) and [`Surface`](#feadd_surface) objects. The resulting texture is treated as a static image by Attract-Mode Plus which can in turn have image effects applied to it (`scale`, `position`, `pinch`, `skew`, `shaders`, etc) when it is drawn.
 
 A surface's texture size is fixed upon creation. Later changes to `width` or `height` will not change the texture's dimensions.
+When `texture_width` and `texture_height` are omitted, the texture size is derived from `w` and `h` using the current `grid`.
 
 The default `blend_mode` for surfaces is `BlendMode.Premultiplied`
 
 **Parameters**
 
--  `x` - The x coordinate of the top left corner of the surface (in layout coordinates).
--  `y` - The y coordinate of the top left corner of the surface (in layout coordinates).
--  `w` - The width of the surface texture (in pixels).
--  `h` - The height of the surface texture (in pixels).
+-  `x` 🔶 - The x coordinate of the top left corner of the surface (in layout coordinates).
+-  `y` 🔶 - The y coordinate of the top left corner of the surface (in layout coordinates).
+-  `w` - The width of the surface (in layout coordinates).
+-  `h` - The height of the surface (in layout coordinates).
+-  `texture_width` 🔶 - The width of the surface texture (in pixels).
+-  `texture_height` 🔶 - The height of the surface texture (in pixels).
 
 **Return Value**
 
@@ -768,6 +778,8 @@ Get information about the selected game.
    -  `Info.PlayedCount`
    -  `Info.PlayedTime`
    -  `Info.PlayedLast`
+   -  `Info.PlayedSession`
+   -  `Info.PlayedLongest`
    -  `Info.Score`
    -  `Info.Votes`
    -  `Info.FileIsAvailable`
@@ -827,6 +839,8 @@ Set information about the selected game.
    -  `Info.PlayedCount`
    -  `Info.PlayedTime`
    -  `Info.PlayedLast`
+   -  `Info.PlayedSession`
+   -  `Info.PlayedLongest`
    -  `Info.Score`
    -  `Info.Votes`
 -  `value` - The value to set.
@@ -895,15 +909,45 @@ Check if a specific keyboard key, mouse button, joystick button or joystick dire
 fe.get_input_pos( input_id )
 ```
 
-Return the current position for the specified joystick axis.
+Return the current position for the specified joystick axis, mouse axis, or mouse wheel.
 
 **Parameters**
 
--  `input_id` - [string] the input to test. The format of this string is the same as that used in the `attract.cfg` file. For example, `"Joy0 Up"` is the up direction on the first joystick, `"Mouse Up"` is the y position of the mouse, and `"Mouse WheelUp"` is the delta of an upward mouse wheel scroll.
+-  `input_id` - [string] the input to test. The format of this string is the same as that used in the `attract.cfg` file. Supported input IDs are:
+   -  `Joy0 Up`
+   -  `Joy0 Down`
+   -  `Joy0 Left`
+   -  `Joy0 Right`
+   -  `Joy0 Button0` through `Joy0 Button31`
+   -  `Joy0 Zpos`
+   -  `Joy0 Zneg`
+   -  `Joy0 Rpos`
+   -  `Joy0 Rneg`
+   -  `Joy0 Upos`
+   -  `Joy0 Uneg`
+   -  `Joy0 Vpos`
+   -  `Joy0 Vneg`
+   -  `Joy0 PovXpos`
+   -  `Joy0 PovXneg`
+   -  `Joy0 PovYpos`
+   -  `Joy0 PovYneg`
+   -  `Mouse Up`
+   -  `Mouse Left`
+   -  `Mouse LeftButton`
+   -  `Mouse RightButton`
+   -  `Mouse MiddleButton`
+   -  `Mouse ExtraButton1`
+   -  `Mouse ExtraButton2`
+   -  `Mouse WheelUp`
+   -  `Mouse WheelDown`
+   -  `Touch Up`
+   -  `Touch Left`
+   -  `Touch Tap`
+   -  Joystick IDs range from `Joy0` through `Joy7`. Each joystick supports up to 32 buttons.
 
 **Return Value**
 
--  Current position of the specified axis, in range `[0...100]`.
+-  Current position of the specified axis. Joystick axes return `[0...100]`. Mouse positions return coordinates in the active `fe.layout.grid`. Mouse wheel inputs return the wheel delta.
 
 ---
 
@@ -934,7 +978,8 @@ Signal that a particular frontend action should occur.
    -  `"prev_filter"`
    -  `"next_filter"`
    -  `"filters_menu"`
-   -  `"toggle_layout"`
+   -  `"prev_layout"`
+   -  `"next_layout"`
    -  `"toggle_movie"`
    -  `"toggle_mute"`
    -  `"toggle_rotate_right"`
@@ -1298,6 +1343,35 @@ An instance of the [`fe.Music`](#femusic-) class and can be used to control the 
 
 An instance of the [`fe.LayoutGlobals`](#felayoutglobals) class and is where global layout settings are stored.
 
+### `fe.plugin`
+
+This shared table is available to layouts and plugins. It also exposes the following plugin-specific properties. Each enabled plugin has its own settings.
+
+**Properties**
+
+-  `grid` 🔶 - Get/set the plugin's default coordinate grid. Defaults to `Grid.Pixel`.
+-  `grid_uniform` 🔶 - Get/set whether the plugin's default Percent and Normalised grids use a square grid or are stretched to layout size. Defaults to `true`.
+-  `pixel_snap` 🔶 - Get/set whether drawable geometry created by the plugin snaps to display pixels. Defaults to `false`.
+
+For example:
+
+```squirrel
+class MyPlugin
+{
+   rect = null
+   constructor()
+   {
+      fe.plugin.grid = Grid.Percent
+      fe.plugin.grid_uniform = false
+      rect = fe.add_rectangle( 10, 10, 80, 80 )
+   }
+}
+
+fe.plugin["MyPlugin"] <- MyPlugin()
+```
+
+Plugins register their script instance in this table using the plugin name as the key. Layouts and other plugins can then access the instance and its public members through this entry.
+
 ### `fe.list`
 
 An instance of the [`fe.CurrentList`](#fecurrentlist) class and is where current display settings are stored.
@@ -1354,6 +1428,15 @@ This class is a container for global layout settings. The instance of this class
 
 -  `width` - Get/set the layout width. Default value is `ScreenWidth`.
 -  `height` - Get/set the layout height. Default value is `ScreenHeight`.
+-  `aspect_ratio` 🔶 - Get/set the layout aspect ratio. Default value is `0.0`. Setting `width` or `height` resets it to `0.0`.
+-  `grid` 🔶 - Get/set the default coordinate grid, This can be one of the following values:
+   -  `Grid.Pixel` (default) - `0` to `fe.layout.width/height`, or `surface.texture_width/height`.
+   -  `Grid.Percent` - `0` to `100`.
+   -  `Grid.Normalised` - `0.0` to `1.0`.
+-  `grid_uniform` 🔶 - Get/set whether Percent and Normalised grids use a square grid, or are stretched to layout size. Default value is `true`.
+-  `pixel_snap` 🔶 - Get/set whether drawable geometry snaps to display pixels. Default value is `false`.
+-  `grid_offset_x` - Get/set the layout x offset in `grid` coordinates.
+-  `grid_offset_y` - Get/set the layout y offset in `grid` coordinates.
 -  `font` - Get/set the filename of the font which will be used for text and listbox objects in this layout.
 -  `base_rotation` - Get the base orientation of Attract-Mode Plus which is in Settings. This property cannot be set from the script. This can be one of the following values:
    -  `RotateScreen.None` (default)
@@ -1367,12 +1450,14 @@ This class is a container for global layout settings. The instance of this class
    -  `RotateScreen.Left`
 -  `page_size` - Get/set the number of entries to jump each time the `"Next Page"` or `"Previous Page"` button is pressed.
 -  `preserve_aspect_ratio` - Get/set whether the overall layout aspect ratio should be preserved by the frontend. Default value is `false`.
+-  `crop` 🔶 - Get/set whether the layout is clipped to its monitor and layout bounds. Default value is `true`.
 -  `time` - Get the number of milliseconds that the layout has been showing.
 -  `mouse_pointer` 🔶 - When set to `true` mouse pointer will be visible.
 -  `nv` 🔶 - A table that can be used for persistent data storage, much like [`fe.nv`](#fenv) - but only available to the current Layout.
 
 **Member Functions**
 
+-  `set_grid_offset( x, y )` - Set the layout offset in `grid` coordinates.
 -  `redraw()` 🔶 - Adds the ability to process `tick()` and redraw the screen during computationally intensive loops in transition and signal callbacks. DO NOT call this function inside `tick()` callback. It will result in an infinite loop and the frontend will crash.
 
 **Notes**
@@ -1494,6 +1579,8 @@ This class is a container for information about the available filters. Instances
    -  `Info.PlayedCount`
    -  `Info.PlayedTime`
    -  `Info.PlayedLast`
+   -  `Info.PlayedSession`
+   -  `Info.PlayedLongest`
    -  `Info.Score`
    -  `Info.Votes`
    -  `Info.FileIsAvailable`
@@ -1539,9 +1626,20 @@ The class representing an image in Attract-Mode Plus. Instances of this class ar
 -  `y` - Get/set the y position of the image (in layout coordinates).
 -  `width` - Get/set the width of the image (in layout coordinates). Setting this property will set `auto_width` to `false`. See [Notes](#artwork-notes).
 -  `height` - Get/set the height of the image (in layout coordinates). Setting this property will set `auto_height` to `false`. See [Notes](#artwork-notes).
+-  `grid` 🔶 - Get/set the coordinate grid of the image. If unset, images created by layouts use `fe.layout.grid` coordinates. Images created by plugins default to `Grid.Pixel`. This can be one of the following values:
+   -  `Grid.Pixel` - `0` to `fe.layout.width/height`, or `surface.texture_width/height`.
+   -  `Grid.Percent` - `0` to `100`.
+   -  `Grid.Normalised` - `0.0` to `1.0`.
+-  `grid_uniform` 🔶 - Get/set whether the image's Percent and Normalised grids use a square grid, or are stretched to layout size. Images created by layouts default to `fe.layout.grid_uniform`; images created by plugins default to `true`.
+-  `pixel_snap` 🔶 - Get/set whether the image's geometry snaps to display pixels. Images created by layouts default to `fe.layout.pixel_snap`; images created by plugins default to `false`.
 -  `auto_width` 🔶 - Get/set if using automatic width, which updates `width` to match the current texture. Default is `true`.
 -  `auto_height` 🔶 - Get/set if using automatic height, which updates `height` to match the current texture. Default is `true`.
 -  `visible` - Get/set whether image is visible (boolean). Default value is `true`.
+-  `type` 🔶 - Get the image object type. Images return `Type.Image`, artwork returns `Type.Artwork`, and surfaces return `Type.Surface`.
+-  `magic` 🔶 - Get whether the image object uses [_Magic Tokens_](#magic-tokens) (boolean). For example:
+   ```squirrel
+   if ( image.type == Type.Image && image.magic == true ) { }
+   ```
 -  `rotation` - Get/set rotation of image around its rotation origin. Range is `[0...360]`. Default value is `0`.
 -  `red` - Get/set red colour level for image. Range is `[0...255]`. Default value is `255`.
 -  `green` - Get/set green colour level for image. Range is `[0...255]`. Default value is `255`.
@@ -1607,6 +1705,7 @@ The class representing an image in Attract-Mode Plus. Instances of this class ar
    -  `Origin.TopRight`
    -  `Origin.BottomLeft`
    -  `Origin.BottomRight`
+   -  `Anchor` and `Origin` values are bitmaskable for example `Anchor.Left | Anchor.Top` is equivalent to `Anchor.TopLeft`.
 -  `transform_origin_x` 🔶 - Get/set the x position of the midpoint for position, scale, and rotation. This value will become invalid if `anchor_x` or `rotation_origin_x` is manually changed afterward. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
 -  `transform_origin_y` 🔶 - Get/set the y position of the midpoint for position, scale, and rotation. This value will become invalid if `anchor_y` or `rotation_origin_y` is manually changed afterward. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
 -  `anchor_x` 🔶 - Get/set the x position of the midpoint for position and scale. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
@@ -1635,6 +1734,9 @@ The class representing an image in Attract-Mode Plus. Instances of this class ar
    -  `BlendMode.Overlay`
    -  `BlendMode.Premultiplied` (default for surfaces)
    -  `BlendMode.None`
+   -  `BlendMode.IgnoreAlpha` - Blend source color over the destination while keeping the destination alpha mask unchanged.
+   -  `BlendMode.InvertAlpha` - Use the source alpha to cut into the destination alpha.
+   -  `BlendMode.InvertRGB` - Use the source colour to invert the destination colour.
 -  `mipmap` - Get/set the automatic generation of mipmap for the image/artwork/video. Setting this to `true` greatly improves the quality of scaled down images. The default value is `false`. It's advised to force anisotropic filtering in the display driver settings if the Image with auto generated mipmap is scaled by the ratio that is not isotropic.
 -  `volume` 🔶 - Get/set the volume of played video. Range is `[0...100]`
 -  `pan` 🔶 - Get/set the audio panning, which positions the sound within the stereo field from left to right. Default value is `0.0`, which is centre. Range is `[-1.0...1.0]`.
@@ -1660,7 +1762,7 @@ The class representing an image in Attract-Mode Plus. Instances of this class ar
 
 **Member Functions**
 
--  `set_rgb( r, g, b )` - Set the red, green and blue colour values for the image. Range is `[0...255]`.
+-  `set_rgb( r, g, b, a? )` - Set the red, green, blue, and optionally alpha colour values for the image. Range is `[0...255]`.
 -  `set_pos( x, y )` - Set the image position (in layout coordinates).
 -  `set_pos( x, y, width, height )` - Set the image position and size (in layout coordinates).
 -  `set_fit_anchor( x, y )` 🔶 - Set the texture anchor, x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`
@@ -1721,24 +1823,77 @@ The class representing a text label in Attract-Mode Plus. Instances of this clas
 -  `y` - Get/set y position of top left corner (in layout coordinates).
 -  `width` - Get/set width of text (in layout coordinates).
 -  `height` - Get/set height of text (in layout coordinates).
+-  `grid` 🔶 - Get/set the coordinate grid of the text. If unset, text created by layouts uses `fe.layout.grid`. Text created by plugins defaults to `Grid.Pixel`. This can be one of the following values:
+   -  `Grid.Pixel` - `0` to `fe.layout.width/height`, or `surface.texture_width/height`.
+   -  `Grid.Percent` - `0` to `100`.
+   -  `Grid.Normalised` - `0.0` to `1.0`.
+-  `grid_uniform` 🔶 - Get/set whether the text's Percent and Normalised grids use a square grid, or are stretched to layout size. Text created by layouts defaults to `fe.layout.grid_uniform`; text created by plugins defaults to `true`.
+-  `pixel_snap` 🔶 - Get/set whether the text's geometry snaps to display pixels. Text created by layouts defaults to `fe.layout.pixel_snap`; text created by plugins defaults to `false`.
 -  `visible` - Get/set whether text is visible (boolean). Default value is `true`.
+-  `type` 🔶 - Get the text object type. Text returns `Type.Text`.
+-  `magic` 🔶 - Get whether `msg` used a valid [_Magic Token_](#magic-tokens) during the last text update (boolean).
 -  `rotation` - Get/set rotation of text. Range is `[0...360]`. Default value is `0`.
--  `red` - Get/set red colour level for text. Range is `[0...255]`. Default value is `255`.
--  `green` - Get/set green colour level for text. Range is `[0...255]`. Default value is `255`.
--  `blue` - Get/set blue colour level for text. Range is `[0...255]`. Default value is `255`.
--  `alpha` - Get/set alpha level for text. Range is `[0...255]`. Default value is `255`.
+-  `transform_origin` 🔶 - Get/set the midpoint for position, scale, and rotation. Can be set to one of the following modes:
+   -  `Origin.Left`
+   -  `Origin.Centre`
+   -  `Origin.Right`
+   -  `Origin.Top`
+   -  `Origin.Bottom`
+   -  `Origin.TopLeft` (default)
+   -  `Origin.TopRight`
+   -  `Origin.BottomLeft`
+   -  `Origin.BottomRight`
+-  `anchor` 🔶 - Set the midpoint for position and scale. Can be set to one of the following modes:
+   -  `Anchor.Left`
+   -  `Anchor.Centre`
+   -  `Anchor.Right`
+   -  `Anchor.Top`
+   -  `Anchor.Bottom`
+   -  `Anchor.TopLeft` (default)
+   -  `Anchor.TopRight`
+   -  `Anchor.BottomLeft`
+   -  `Anchor.BottomRight`
+-  `rotation_origin` 🔶 - Set the midpoint for rotation. Can be set to one of the following modes:
+   -  `Origin.Left`
+   -  `Origin.Centre`
+   -  `Origin.Right`
+   -  `Origin.Top`
+   -  `Origin.Bottom`
+   -  `Origin.TopLeft` (default)
+   -  `Origin.TopRight`
+   -  `Origin.BottomLeft`
+   -  `Origin.BottomRight`
+   -  `Anchor` and `Origin` values are bitmaskable for example `Anchor.Left | Anchor.Top` is equivalent to `Anchor.TopLeft`.
+-  `transform_origin_x` 🔶 - Get/set the x position of the midpoint for position, scale, and rotation. This value will become invalid if `anchor_x` or `rotation_origin_x` is manually changed afterward. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `transform_origin_y` 🔶 - Get/set the y position of the midpoint for position, scale, and rotation. This value will become invalid if `anchor_y` or `rotation_origin_y` is manually changed afterward. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `anchor_x` 🔶 - Get/set the x position of the midpoint for position and scale. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `anchor_y` 🔶 - Get/set the y position of the midpoint for position and scale. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `rotation_origin_x` 🔶 - Get/set the x position of the midpoint for rotation. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `rotation_origin_y` 🔶 - Get/set the y position of the midpoint for rotation. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
 -  `index_offset` - Get/set offset from current game selection for text info to display. For example, set to `-1` to show text info for the previous list entry, or `1` for the next list entry. Default value is `0`.
 -  `filter_offset` - Get/set filter offset from current filter for the text info to display. For example, set to `-1` to show text info for a selection in the previous filter, or `1` for the next filter, etc. Default value is `0`.
--  `bg_red` - Get/set red colour level for text background. Range is `[0...255]`. Default value is `0`.
--  `bg_green` - Get/set green colour level for text background. Range is `[0...255]`. Default value is `0`.
--  `bg_blue` - Get/set blue colour level for text background. Range is `[0...255]`. Default value is `0`.
--  `bg_alpha` - Get/set alpha level for text background. Range is `[0...255]`. Default value is `0` (transparent).
--  `char_size` - Get/set the forced character size. If this is `<= 0` then Attract-Mode Plus will auto-size based on `height`. Default value is `-1`.
--  `glyph_size` - Get the height in pixels of the capital letter. Useful if you want to set the textbox height to match the letter height.
+-  `red` - Get/set red colour level for the text. Range is `[0...255]`. Default value is `255`.
+-  `green` - Get/set green colour level for the text. Range is `[0...255]`. Default value is `255`.
+-  `blue` - Get/set blue colour level for the text. Range is `[0...255]`. Default value is `255`.
+-  `alpha` - Get/set alpha level for the text. Range is `[0...255]`. Default value is `255`.
+-  `bg_red` - Get/set red colour level for the text background. Range is `[0...255]`. Default value is `0`.
+-  `bg_green` - Get/set green colour level for the text background. Range is `[0...255]`. Default value is `0`.
+-  `bg_blue` - Get/set blue colour level for the text background. Range is `[0...255]`. Default value is `0`.
+-  `bg_alpha` - Get/set alpha level for the text background. Range is `[0...255]`. Default value is `0` (transparent).
+-  `outline_red` - Get/set red colour level for the text outline. Range is `[0...255]`. Default value is `0`.
+-  `outline_green` - Get/set green colour level for the text outline. Range is `[0...255]`. Default value is `0`.
+-  `outline_blue` - Get/set blue colour level for the text outline. Range is `[0...255]`. Default value is `0`.
+-  `outline_alpha` - Get/set alpha level for the text outline. Range is `[0...255]`. Default value is `255`.
+-  `bg_outline_red` - Get/set red colour level for the text background outline. Range is `[0...255]`. Default value is `0`.
+-  `bg_outline_green` - Get/set green colour level for the text background outline. Range is `[0...255]`. Default value is `0`.
+-  `bg_outline_blue` - Get/set blue colour level for the text background outline. Range is `[0...255]`. Default value is `0`.
+-  `bg_outline_alpha` - Get/set alpha level for the text background outline. Range is `[0...255]`. Default value is `0` (transparent).
+-  `char_size` - Get/set the forced character size in this object's `grid` coordinates. If this is `<= 0` then Attract-Mode Plus will auto-size based on `height`. Default value is `-1`.
+-  `glyph_size` - Get the height of the capital letter in this object's `grid` coordinates. Useful if you want to set the textbox height to match the letter height.
 -  `char_spacing` - Get/set the spacing factor between letters. Default value is `1.0`.
 -  `line_spacing` - Get/set the spacing factor between lines. Default value is `1.0` At values `0.75` or lower letters start to overlap. For uppercase texts it's around `0.5` It's advised to use this property with the new align modes.
--  `outline` 🔶 - Get/set the thickness of the outline applied to the text. Default value is `0.0`.
--  `bg_outline` 🔶 - Get/set the thickness of the outline applied to the background. Default value is `0.0`
+-  `outline` 🔶 - Get/set the thickness of the outline applied to the text in this object's `grid` coordinates. Default value is `0.0`.
+-  `bg_outline` 🔶 - Get/set the thickness of the outline applied to the background in this object's `grid` coordinates. Negative values inset the outline. Default value is `0.0`
 -  `style` - Get/set the text style. Can be a combination of one or more of the following (i.e. `Style.Bold | Style.Italic`):
    -  `Style.Regular` (default)
    -  `Style.Bold`
@@ -1750,40 +1905,45 @@ The class representing a text label in Attract-Mode Plus. Instances of this clas
    -  `Justify.Word` - Increase space between words to fill line.
    -  `Justify.Character` - Increase space between characters to fill line.
 -  `align` - Get/set the text alignment. Can be one of the following values:
-   -  ~~`Align.Centre`~~ (default)
-   -  ~~`Align.Left`~~
-   -  ~~`Align.Right`~~
-   -  `Align.TopCentre`
+   -  `Align.Left`
+   -  `Align.Centre` (default)
+   -  `Align.Right`
+   -  `Align.Top`
+   -  `Align.Bottom`
    -  `Align.TopLeft`
    -  `Align.TopRight`
-   -  `Align.BottomCentre`
    -  `Align.BottomLeft`
    -  `Align.BottomRight`
-   -  `Align.MiddleCentre`
-   -  `Align.MiddleLeft`
-   -  `Align.MiddleRight`
-   -  The last 3 alignment modes have the same function as the first 3, but they are more accurate. The first 3 modes are preserved for compatibility.
+   -  `Align` values are bitmaskable for example `Align.Left | Align.Top` is equivalent to `Align.TopLeft`.
+-  `case` - Get/set the displayed message case. Can be one or more of the following values:
+   -  `Case.None` (default)
+   -  `Case.Uppercase`
+   -  `Case.Lowercase`
+   -  `Case.Capitalize`
 -  `word_wrap` - Get/set whether word wrapping is enabled in this text (boolean). Default is `false`.
--  `msg_width` - Get the width of the text message, in layout coordinates.
--  `msg_height` 🔶 - Get the height of the text message, in layout coordinates.
+-  `msg_width` - Get the width of the text message in this object's `grid` coordinates.
+-  `msg_height` 🔶 - Get the height of the text message in this object's `grid` coordinates.
 -  `lines` 🔶 - Get the maximum line count that can be fitted inside the text box.
 -  `lines_total` 🔶 - Get the total line count of the formatted text message.
--  `line_height` 🔶 - Get the distance between two lines of text in layout coordinates.
+-  `line_height` 🔶 - Get the distance between two lines of text in this object's `grid` coordinates.
 -  `first_line_hint` 🔶 - Get/set the line in the formatted text that is shown as first line in the text object
 -  `font` - Get/set the filename of the font used for this text. If not set default font is used.
--  `margin` - Get/set the margin spacing in pixels to sides of the text. Default value is `-1` which calculates the margin based on the `char_size`.
+-  `margin` - Get/set the margin spacing to sides of the text in this object's `grid` coordinates. Default value is `-1` which calculates the margin based on the `char_size`.
 -  `shader` - Get/set the GLSL shader for this text. This can only be set to an instance of the class [`fe.Shader`](#feshader).
 -  `zorder` - Get/set the Text's order in the applicable draw list. Objects with a lower zorder are drawn first, so that when objects overlap, the one with the higher zorder is drawn on top. Default value is `0`.
 
 **Member Functions**
 
 -  `get_cursor_pos( index )` - Return the cursor `x` position relative to to the object for the given index. Does not work when `word_wrap` is `true`. Range is `[0...msg.len()]`
--  `set_rgb( r, g, b )` - Set the red, green and blue colour values for the text. Range is `[0...255]`.
--  `set_bg_rgb( r, g, b )` - Set the red, green and blue colour values for the text background. Range is `[0...255]`.
--  `set_outline_rgb( r, g, b )` 🔶 - Set the red, green and blue colour values for the text outline. Range is `[0...255]`.
--  `set_bg_outline_rgb( r, g, b )` 🔶 - Set the red, green and blue colour values for the outline of the text background. Range is `[0...255]`.
+-  `set_rgb( r, g, b, a? )` - Set the red, green, blue, and optionally alpha colour values for the text. Range is `[0...255]`.
+-  `set_bg_rgb( r, g, b, a? )` - Set the red, green, blue, and optionally alpha colour values for the text background. Range is `[0...255]`.
+-  `set_outline_rgb( r, g, b, a? )` 🔶 - Set the red, green, blue, and optionally alpha colour values for the text outline. Range is `[0...255]`.
+-  `set_bg_outline_rgb( r, g, b, a? )` 🔶 - Set the red, green, blue, and optionally alpha colour values for the outline of the text background. Range is `[0...255]`.
 -  `set_pos( x, y )` - Set the text position (in layout coordinates).
 -  `set_pos( x, y, width, height )` - Set the text position and size (in layout coordinates).
+-  `set_transform_origin( x, y )` 🔶 - Set the midpoint for position, scale, and rotation, x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`.
+-  `set_anchor( x, y )` 🔶 - Set the midpoint for position and scale, x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`.
+-  `set_rotation_origin( x, y )` 🔶 - Set the midpoint for rotation, x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`.
 
 ---
 
@@ -1797,26 +1957,79 @@ The class representing the listbox in Attract-Mode Plus. Instances of this class
 -  `y` - Get/set y position of top left corner (in layout coordinates).
 -  `width` - Get/set width of listbox (in layout coordinates).
 -  `height` - Get/set height of listbox (in layout coordinates).
+-  `grid` 🔶 - Get/set the coordinate grid of the listbox. If unset, listboxes created by layouts use `fe.layout.grid`. Listboxes created by plugins default to `Grid.Pixel`. This can be one of the following values:
+   -  `Grid.Pixel` - `0` to `fe.layout.width/height`, or `surface.texture_width/height`.
+   -  `Grid.Percent` - `0` to `100`.
+   -  `Grid.Normalised` - `0.0` to `1.0`.
+-  `grid_uniform` 🔶 - Get/set whether the listbox's Percent and Normalised grids use a square grid, or are stretched to layout size. Listboxes created by layouts default to `fe.layout.grid_uniform`; listboxes created by plugins default to `true`.
+-  `pixel_snap` 🔶 - Get/set whether the listbox's geometry snaps to display pixels. Listboxes created by layouts default to `fe.layout.pixel_snap`; listboxes created by plugins default to `false`.
 -  `visible` - Get/set whether listbox is visible (boolean). Default value is `true`.
+-  `type` 🔶 - Get the listbox object type. Listboxes return `Type.Listbox`.
+-  `magic` 🔶 - Get whether the object uses [_Magic Tokens_](#magic-tokens) (boolean). Listboxes return `false`.
 -  `rotation` - Get/set rotation of listbox. Range is `[0...360]`. Default value is `0`.
+-  `transform_origin` 🔶 - Get/set the midpoint for position, scale, and rotation. Can be set to one of the following modes:
+   -  `Origin.Left`
+   -  `Origin.Centre`
+   -  `Origin.Right`
+   -  `Origin.Top`
+   -  `Origin.Bottom`
+   -  `Origin.TopLeft` (default)
+   -  `Origin.TopRight`
+   -  `Origin.BottomLeft`
+   -  `Origin.BottomRight`
+-  `anchor` 🔶 - Set the midpoint for position and scale. Can be set to one of the following modes:
+   -  `Anchor.Left`
+   -  `Anchor.Centre`
+   -  `Anchor.Right`
+   -  `Anchor.Top`
+   -  `Anchor.Bottom`
+   -  `Anchor.TopLeft` (default)
+   -  `Anchor.TopRight`
+   -  `Anchor.BottomLeft`
+   -  `Anchor.BottomRight`
+-  `rotation_origin` 🔶 - Set the midpoint for rotation. Can be set to one of the following modes:
+   -  `Origin.Left`
+   -  `Origin.Centre`
+   -  `Origin.Right`
+   -  `Origin.Top`
+   -  `Origin.Bottom`
+   -  `Origin.TopLeft` (default)
+   -  `Origin.TopRight`
+   -  `Origin.BottomLeft`
+   -  `Origin.BottomRight`
+   -  `Anchor` and `Origin` values are bitmaskable for example `Anchor.Left | Anchor.Top` is equivalent to `Anchor.TopLeft`.
+-  `transform_origin_x` 🔶 - Get/set the x position of the midpoint for position, scale, and rotation. This value will become invalid if `anchor_x` or `rotation_origin_x` is manually changed afterward. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `transform_origin_y` 🔶 - Get/set the y position of the midpoint for position, scale, and rotation. This value will become invalid if `anchor_y` or `rotation_origin_y` is manually changed afterward. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `anchor_x` 🔶 - Get/set the x position of the midpoint for position and scale. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `anchor_y` 🔶 - Get/set the y position of the midpoint for position and scale. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `rotation_origin_x` 🔶 - Get/set the x position of the midpoint for rotation. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `rotation_origin_y` 🔶 - Get/set the y position of the midpoint for rotation. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
 -  `red` - Get/set red colour level for text. Range is `[0...255]`. Default value is `255`.
 -  `green` - Get/set green colour level for text. Range is `[0...255]`. Default value is `255`.
 -  `blue` - Get/set blue colour level for text. Range is `[0...255]`. Default value is `255`.
 -  `alpha` - Get/set alpha level for text. Range is `[0...255]`. Default value is `255`.
 -  `index_offset` - Not used.
 -  `filter_offset` - Get/set filter offset from current filter for the text info to display. For example, set to `-1` to show info for the previous filter, or `1` for the next filter, etc. Default value is `0`.
--  `bg_red` - Get/set red colour level for background. Range is `[0...255]`. Default value is `0`.
--  `bg_green` - Get/set green colour level for background. Range is `[0...255]`. Default value is `0`.
--  `bg_blue` - Get/set blue colour level for background. Range is `[0...255]`. Default value is `0`.
--  `bg_alpha` - Get/set alpha level for background. Range is `[0...255]`. Default value is `0` (transparent).
--  `sel_red` - Get/set red colour level for selection text. Range is `[0...255]`. Default value is `255`.
--  `sel_green` - Get/set green colour level for selection text. Range is `[0...255]`. Default value is `255`.
--  `sel_blue` - Get/set blue colour level for selection text. Range is `[0...255]`. Default value is `0`.
--  `sel_alpha` - Get/set alpha level for selection text. Range is `[0...255]`. Default value is `255`.
--  `selbg_red` - Get/set red colour level for selection background. Range is `[0...255]`. Default value is `0`.
--  `selbg_green` - Get/set green colour level for selection background. Range is `[0...255]`. Default value is `0`.
--  `selbg_blue` - Get/set blue colour level for selection background. Range is `[0...255]`. Default value is `255`.
--  `selbg_alpha` - Get/set alpha level for selection background. Range is `[0...255]`. Default value is `255`.
+-  `bg_red` - Get/set red colour level for the background. Range is `[0...255]`. Default value is `0`.
+-  `bg_green` - Get/set green colour level for the background. Range is `[0...255]`. Default value is `0`.
+-  `bg_blue` - Get/set blue colour level for the background. Range is `[0...255]`. Default value is `0`.
+-  `bg_alpha` - Get/set alpha level for the background. Range is `[0...255]`. Default value is `0` (transparent).
+-  `sel_red` - Get/set red colour level for the selection text. Range is `[0...255]`. Default value is `255`.
+-  `sel_green` - Get/set green colour level for the selection text. Range is `[0...255]`. Default value is `255`.
+-  `sel_blue` - Get/set blue colour level for the selection text. Range is `[0...255]`. Default value is `0`.
+-  `sel_alpha` - Get/set alpha level for the selection text. Range is `[0...255]`. Default value is `255`.
+-  `sel_bg_red` - Get/set red colour level for the selection background. Range is `[0...255]`. Default value is `0`.
+-  `sel_bg_green` - Get/set green colour level for the selection background. Range is `[0...255]`. Default value is `0`.
+-  `sel_bg_blue` - Get/set blue colour level for the selection background. Range is `[0...255]`. Default value is `255`.
+-  `sel_bg_alpha` - Get/set alpha level for the selection background. Range is `[0...255]`. Default value is `255`.
+-  `outline_red` - Get/set red colour level for the text outline. Range is `[0...255]`. Default value is `0`.
+-  `outline_green` - Get/set green colour level for the text outline. Range is `[0...255]`. Default value is `0`.
+-  `outline_blue` - Get/set blue colour level for the text outline. Range is `[0...255]`. Default value is `0`.
+-  `outline_alpha` - Get/set alpha level for the text outline. Range is `[0...255]`. Default value is `255`.
+-  `sel_outline_red` - Get/set red colour level for the selection text outline. Range is `[0...255]`. Default value is `0`.
+-  `sel_outline_green` - Get/set green colour level for the selection text outline. Range is `[0...255]`. Default value is `0`.
+-  `sel_outline_blue` - Get/set blue colour level for the selection text outline. Range is `[0...255]`. Default value is `0`.
+-  `sel_outline_alpha` - Get/set alpha level for the selection text outline. Range is `[0...255]`. Default value is `255`.
 -  `rows` - Get/set the number of listbox rows. Default value is `11`.
 -  `list_align` - Get/set the row alignment for the `Selection.Moving` mode. Only affects listbox's where `list_size` is less than the number of `rows`.
    -  `ListAlign.Top` (default) - Aligns options to the top.
@@ -1824,11 +2037,11 @@ The class representing the listbox in Attract-Mode Plus. Instances of this class
    -  `ListAlign.Bottom` - Aligns options to the bottom.
    -  `ListAlign.Selection` - Aligns options to keep `sel_row` in-place during list change (with respect to `sel_margin` and `list_size`).
 -  `list_size` - Get the size of the list shown by the listbox. When the listbox is assigned as an overlay custom control this property will return the number of options available in the overlay dialog. This property is updated during `Transition.ShowOverlay`
--  `char_size` - Get/set the forced character size. If this is `<= 0` then Attract-Mode Plus will auto-size based on the value of `height`/`rows`. Default value is `-1`.
--  `glyph_size` - Get the height in pixels of the capital letter.
+-  `char_size` - Get/set the forced character size in this object's `grid` coordinates. If this is `<= 0` then Attract-Mode Plus will auto-size based on the value of `height`/`rows`. Default value is `-1`.
+-  `glyph_size` - Get the height of the capital letter in this object's `grid` coordinates.
 -  `char_spacing` - Get/set the spacing factor between letters. Default value is `1.0`.
--  `outline` 🔶 - Get/set the thickness of the outline applied to the text. Default value is `0.0`.
--  `sel_outline` 🔶 - Get/set the thickness of the outline applied to the selection text. Default value is `0.0`.
+-  `outline` 🔶 - Get/set the thickness of the outline applied to the text in this object's `grid` coordinates. Default value is `0.0`.
+-  `sel_outline` 🔶 - Get/set the thickness of the outline applied to the selection text in this object's `grid` coordinates. Default value is `0.0`.
 -  `style` - Get/set the text style. Can be a combination of one or more of the following (i.e. `Style.Bold | Style.Italic`):
    -  `Style.Regular` (default)
    -  `Style.Bold`
@@ -1846,19 +2059,21 @@ The class representing the listbox in Attract-Mode Plus. Instances of this class
    -  `Justify.Word` - Increase space between words to fill line.
    -  `Justify.Character` - Increase space between characters to fill line.
 -  `align` - Get/set the text alignment. Can be one of the following values:
-   -  ~~`Align.Centre`~~ (default)
-   -  ~~`Align.Left`~~
-   -  ~~`Align.Right`~~
-   -  `Align.TopCentre`
+   -  `Align.Left`
+   -  `Align.Centre` (default)
+   -  `Align.Right`
+   -  `Align.Top`
+   -  `Align.Bottom`
    -  `Align.TopLeft`
    -  `Align.TopRight`
-   -  `Align.BottomCentre`
    -  `Align.BottomLeft`
    -  `Align.BottomRight`
-   -  `Align.MiddleCentre`
-   -  `Align.MiddleLeft`
-   -  `Align.MiddleRight`
-   -  The last 3 alignment modes have the same function as the first 3, but they are more accurate. The first 3 modes are preserved for compatibility.
+   -  `Align` values are bitmaskable for example `Align.Left | Align.Top` is equivalent to `Align.TopLeft`.
+-  `case` - Get/set the displayed message case. Can be one or more of the following values:
+   -  `Case.None` (default)
+   -  `Case.Uppercase`
+   -  `Case.Lowercase`
+   -  `Case.Capitalize`
 -  `sel_mode` 🔶 - Get/set the selection mode. Controls how the listbox behaves when navigating. Can be one of the following values:
    -  `Selection.Static` (default) - The selection remains fixed at the `sel_row` (middle by default) while the list scrolls.
    -  `Selection.Moving` - The selection moves freely, and the list scrolls when the `sel_margin` is reached. When the list edge is reached the selection enters the margin.
@@ -1866,22 +2081,27 @@ The class representing the listbox in Attract-Mode Plus. Instances of this class
    -  `Selection.Paged` - The selection moves freely until it reaches the `sel_margin`, at which point the list scrolls _one page_ and the selection resets to the opposite margin.
 -  `sel_margin` 🔶 - Get/set the selection margin for `Selection.Moving` and `Selection.Paged` modes. The list will scroll when the selection is this many rows away from the edges.
 -  `sel_row` 🔶 - Get/set the index of the row that is currently selected, with respect to `sel_margin` and `list_size`. Has no effect in `Selection.Paged` mode. Defaults to the middle row.
+-  `sel_y` 🔶 - Get the y position of the selected row within the listbox.
+-  `row_height` 🔶 - Get the height of a single row in the listbox.
 -  `font` - Get/set the filename of the font used for this listbox. If not set default font is used.
--  `margin` - Get/set the margin spacing in pixels to sides of the text. Default value is `-1` which calculates the margin based on the .char_size.
+-  `margin` - Get/set the margin spacing to sides of the text in this object's `grid` coordinates. Default value is `-1` which calculates the margin based on the `char_size`.
 -  `format_string` - Get/set the format for the text to display in each list entry. [_Magic Tokens_](#magic-tokens) can be used here. If empty, game titles will be displayed (i.e. the same behaviour as if set to `"[Title]"`). Default is an empty value.
 -  `shader` - Get/set the GLSL shader for this listbox. This can only be set to an instance of the class [`fe.Shader`](#feshader).
 -  `zorder` - Get/set the listbox's order in the applicable draw list. Objects with a lower zorder are drawn first, so that when objects overlap, the one with the higher zorder is drawn on top. Default value is `0`.
 
 **Member Functions**
 
--  `set_rgb( r, g, b )` - Set the red, green and blue colour values for the text. Range is `[0...255]`.
--  `set_bg_rgb( r, g, b )` - Set the red, green and blue colour values for the text background. Range is `[0...255]`.
--  `set_sel_rgb( r, g, b )` - Set the red, green and blue colour values for the selection text. Range is `[0...255]`.
--  `set_selbg_rgb( r, g, b )` - Set the red, green and blue colour values for the selection background. Range is `[0...255]`.
--  `set_outline_rgb( r, g, b )` 🔶 - Set the red, green and blue colour values for the text outline. Range is `[0...255]`.
--  `set_sel_outline_rgb( r, g, b )` 🔶 - Set the red, green and blue colour values for the selection text outline. Range is `[0...255]`.
+-  `set_rgb( r, g, b, a? )` - Set the red, green, blue, and optionally alpha colour values for the text. Range is `[0...255]`.
+-  `set_bg_rgb( r, g, b, a? )` - Set the red, green, blue, and optionally alpha colour values for the text background. Range is `[0...255]`.
+-  `set_outline_rgb( r, g, b, a? )` 🔶 - Set the red, green, blue, and optionally alpha colour values for the text outline. Range is `[0...255]`.
+-  `set_sel_rgb( r, g, b, a? )` - Set the red, green, blue, and optionally alpha colour values for the selection text. Range is `[0...255]`.
+-  `set_sel_bg_rgb( r, g, b, a? )` - Set the red, green, blue, and optionally alpha colour values for the selection background. Range is `[0...255]`.
+-  `set_sel_outline_rgb( r, g, b, a? )` 🔶 - Set the red, green, blue, and optionally alpha colour values for the selection text outline. Range is `[0...255]`.
 -  `set_pos( x, y )` - Set the listbox position (in layout coordinates).
 -  `set_pos( x, y, width, height )` - Set the listbox position and size (in layout coordinates).
+-  `set_transform_origin( x, y )` 🔶 - Set the midpoint for position, scale, and rotation, x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`.
+-  `set_anchor( x, y )` 🔶 - Set the midpoint for position and scale, x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`.
+-  `set_rotation_origin( x, y )` 🔶 - Set the midpoint for rotation, x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`.
 
 ---
 
@@ -1895,19 +2115,37 @@ The class representing a rectangle in Attract-Mode Plus. Instances of this class
 -  `y` - Get/set the y position of the rectangle (in layout coordinates).
 -  `width` - Get/set the width of the rectangle (in layout coordinates).
 -  `height` - Get/set the height of the rectangle (in layout coordinates).
+-  `grid` 🔶 - Get/set the coordinate grid of the rectangle. If unset, rectangles created by layouts use `fe.layout.grid`. Rectangles created by plugins default to `Grid.Pixel`. This can be one of the following values:
+   -  `Grid.Pixel` - `0` to `fe.layout.width/height`, or `surface.texture_width/height`.
+   -  `Grid.Percent` - `0` to `100`.
+   -  `Grid.Normalised` - `0.0` to `1.0`.
+-  `grid_uniform` 🔶 - Get/set whether the rectangle's Percent and Normalised grids use a square grid, or are stretched to layout size. Rectangles created by layouts default to `fe.layout.grid_uniform`; rectangles created by plugins default to `true`.
+-  `pixel_snap` 🔶 - Get/set whether the rectangle's geometry snaps to display pixels. Rectangles created by layouts default to `fe.layout.pixel_snap`; rectangles created by plugins default to `false`.
 -  `visible` - Get/set whether the rectangle is visible (boolean). Default value is `true`.
+-  `type` 🔶 - Get the rectangle object type. Rectangles return `Type.Rectangle`.
+-  `magic` 🔶 - Get whether the object uses [_Magic Tokens_](#magic-tokens) (boolean). Rectangles return `false`.
 -  `rotation` - Get/set rotation of the rectangle around its origin. Range is `[0...360]`. Default value is `0`.
 -  `red` - Get/set red colour level for the rectangle. Range is `[0...255]`. Default value is `255`.
 -  `green` - Get/set green colour level for the rectangle. Range is `[0...255]`. Default value is `255`.
 -  `blue` - Get/set blue colour level for the rectangle. Range is `[0...255]`. Default value is `255`.
 -  `alpha` - Get/set alpha level for the rectangle. Range is `[0...255]`. Default value is `255`.
--  `outline` - Get/set the thickness of the outline applied to the rectangle. Default value is `0.0`
+-  `outline` - Get/set the thickness of the outline applied to the rectangle in this object's `grid` coordinates. Negative values inset the outline. Default value is `0.0`
 -  `outline_red` - Get/set red colour level for the rectangle's outline. Range is `[0...255]`. Default value is `255`.
 -  `outline_green` - Get/set green colour level for the rectangle's outline. Range is `[0...255]`. Default value is `255`.
 -  `outline_blue` - Get/set blue colour level for the rectangle's outline. Range is `[0...255]`. Default value is `255`.
 -  `outline_alpha` - Get/set alpha level for the rectangle's outline. Range is `[0...255]`. Default value is `255`.
 -  `origin_x` - (deprecated) Get/set the x position of the local origin for the rectangle. The origin defines the centre point for any positioning or rotation of the rectangle. Default origin in `( 0, 0 )` (top-left corner).
 -  `origin_y` - (deprecated) Get/set the y position of the local origin for the rectangle. The origin defines the centre point for any positioning or rotation of the rectangle. Default origin is `( 0, 0 )` (top-left corner).
+-  `transform_origin` - Get/set the midpoint for position, scale, and rotation. Can be set to one of the following modes:
+   -  `Origin.Left`
+   -  `Origin.Centre`
+   -  `Origin.Right`
+   -  `Origin.Top`
+   -  `Origin.Bottom`
+   -  `Origin.TopLeft` (default)
+   -  `Origin.TopRight`
+   -  `Origin.BottomLeft`
+   -  `Origin.BottomRight`
 -  `anchor` Set the midpoint for position and scale. Can be set to one of the following modes:
    -  `Anchor.Left`
    -  `Anchor.Centre`
@@ -1928,6 +2166,9 @@ The class representing a rectangle in Attract-Mode Plus. Instances of this class
    -  `Origin.TopRight`
    -  `Origin.BottomLeft`
    -  `Origin.BottomRight`
+   -  `Anchor` and `Origin` values are bitmaskable for example `Anchor.Left | Anchor.Top` is equivalent to `Anchor.TopLeft`.
+-  `transform_origin_x` - Get/set the x position of the midpoint for position, scale, and rotation. This value will become invalid if `anchor_x` or `rotation_origin_x` is manually changed afterward. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
+-  `transform_origin_y` - Get/set the y position of the midpoint for position, scale, and rotation. This value will become invalid if `anchor_y` or `rotation_origin_y` is manually changed afterward. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
 -  `anchor_x` - Get/set the x position of the midpoint for position and scale. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
 -  `anchor_y` - Get/set the y position of the midpoint for position and scale. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
 -  `rotation_origin_x` - Get/set the x position of the midpoint for rotation. Range is `[0.0...1.0]`. Default value is `0.0`, centre is `0.5`
@@ -1949,13 +2190,17 @@ The class representing a rectangle in Attract-Mode Plus. Instances of this class
    -  `BlendMode.Overlay`
    -  `BlendMode.Premultiplied`
    -  `BlendMode.None`
+   -  `BlendMode.IgnoreAlpha` - Blend source color over the destination while keeping the destination alpha mask unchanged.
+   -  `BlendMode.InvertAlpha` - Use the source alpha to cut into the destination alpha.
+   -  `BlendMode.InvertRGB` - Use the source colour to invert the destination colour.
 
 **Member Functions**
 
--  `set_rgb( r, g, b )` - Set the red, green and blue colour values for the rectangle. Range is `[0...255]`.
+-  `set_rgb( r, g, b, a? )` - Set the red, green, blue, and optionally alpha colour values for the rectangle. Range is `[0...255]`.
 -  `set_pos( x, y )` - Set the rectangle position (in layout coordinates).
 -  `set_pos( x, y, width, height )` - Set the rectangle position and size (in layout coordinates).
--  `set_outline_rgb( r, g, b )` - Set the red, green and blue colour values for the rectangle outline. Range is `[0...255]`.
+-  `set_outline_rgb( r, g, b, a? )` - Set the red, green, blue, and optionally alpha colour values for the rectangle outline. Range is `[0...255]`.
+-  `set_transform_origin( x, y )` - Set the midpoint for position, scale, and rotation, x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`.
 -  `set_anchor( x, y )` - Set the midpoint for position and scale x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`.
 -  `set_rotation_origin( x, y )` - Set the midpoint for rotation x and y are in `[0.0...1.0]` range, centre is `( 0.5, 0.5 )`.
 -  `set_corner_radius( x, y )` - Set the corner x and y radius (in layout coordinates).
@@ -1973,7 +2218,14 @@ The class representing a sound object. Instances of this class are returned by t
 -  `volume` 🔶 - Get/set the volume of played sound. Range is `[0...100]`.
 -  `pan` 🔶 - Get/set the audio panning, which positions the sound within the stereo field from left to right. Default value is `0.0`, which is centre. Range is `[-1.0...1.0]`.
 -  `playing` - Get/set whether the sound is currently playing (boolean).
--  `loop` - Get/set whether the sound should be looped (boolean).
+-  `rewind` - Get/set how the `playing` property behaves (boolean). If `true`, `playing` behaves as play/stop and setting `playing` to `false` rewinds to the beginning. If `false`, `playing` behaves as play/pause and setting `playing` to `true` resumes from the current position. Default value is `true`.
+-  `status` - Get the current playback status. Can have one of the following values:
+   -  `Status.Stopped`
+   -  `Status.Paused`
+   -  `Status.Playing`
+   -  `Status.Ended`
+-  `status_msg` - Get the current playback status as the translated string for `"Stopped"`, `"Paused"`, `"Playing"` or `"Ended"`.
+-  `loop` - Get/set whether the sound should be looped (boolean). Default value is `false`.
 -  `pitch` - Get/set the sound pitch (float). Default value is `1`.
 -  `x` - Get/set the x position of the sound. Default value is `0`.
 -  `y` - Get/set the y position of the sound. Default value is `0`.
@@ -1993,13 +2245,20 @@ The class representing an audio track. Instances of this class are returned by t
 -  `volume` - Get/set the volume of played audio track. Range is `[0...100]`
 -  `pan` - Get/set the audio panning, which positions the sound within the stereo field from left to right. Default value is `0.0`, which is centre. Range is `[-1.0...1.0]`.
 -  `playing` - Get/set whether the audio track is currently playing (boolean).
--  `loop` - Get/set whether the audio track should be looped (boolean).
+-  `rewind` - Get/set how the `playing` property behaves (boolean). If `true`, `playing` behaves as play/stop and setting `playing` to `false` rewinds to the beginning. If `false`, `playing` behaves as play/pause and setting `playing` to `true` resumes from the current position. Default value is `true`.
+-  `status` - Get the current playback status. Can have one of the following values:
+   -  `Status.Stopped`
+   -  `Status.Paused`
+   -  `Status.Playing`
+   -  `Status.Ended`
+-  `status_msg` - Get the current playback status as the translated string for `"Stopped"`, `"Paused"`, `"Playing"` or `"Ended"`.
+-  `loop` - Get/set whether the audio track should be looped (boolean). Default value is `false`.
 -  `pitch` - Get/set the audio track pitch (float). Default value is `1`.
 -  `x` - Get/set the x position of the audio track. Default value is `0`.
 -  `y` - Get/set the y position of the audio track. Default value is `0`.
 -  `z` - Get/set the z position of the audio track. Default value is `0`.
 -  `duration` - Get the audio track duration (in milliseconds).
--  `time` - Get the time that the audio track is current at (in milliseconds).
+-  `time` - Get/set the time that the audio track is current at (in milliseconds).
 -  `vu` - Get the current VU meter value in mono. Range is `[0.0...1.0]`.
 -  `vu_left` - Get the current VU meter value for the left audio channel. Range is `[0.0...1.0]`.
 -  `vu_right` - Get the current VU meter value for the right audio channel. Range is `[0.0...1.0]`.
@@ -2173,6 +2432,62 @@ Copy file from source to destination.
 
 ---
 
+### `fs.read_file()` 🔶
+
+```squirrel
+fs.read_file( src_file )
+```
+
+Returns the contents of the given file.
+
+**Parameters**
+
+-  `src_file` - Path of the file to be read.
+
+**Return Value**
+
+-  `string` containing the file contents.
+
+---
+
+### `fs.write_file()` 🔶
+
+```squirrel
+fs.write_file( dst_file, contents )
+```
+
+Write the contents to the given file, overwriting any existing content.
+
+**Parameters**
+
+-  `dst_file` - Path of the file to write.
+-  `contents` - String to write to the file.
+
+**Return Value**
+
+-  `true` if succeeded, `false` otherwise.
+
+---
+
+### `fs.append_file()` 🔶
+
+```squirrel
+fs.append_file( dst_file, contents )
+```
+
+Write the contents to the given file, appending any existing content.
+
+**Parameters**
+
+-  `dst_file` - Path of the file to append.
+-  `contents` - String to append to the file.
+
+**Return Value**
+
+-  `true` if succeeded, `false` otherwise.
+
+---
+
 ## Constants
 
 -  `FeVersion` - [string] The current Attract-Mode Plus version.
@@ -2200,6 +2515,8 @@ Attract-Mode Plus includes all [Squirrel Standard Library](https://web.archive.o
 -  `join( arr, delim )` 🔶 - Returns a string containing concatenated array values separated with the given delimiter.
 -  `get_clipboard()` 🔶 - Returns the contents of the OS clipboard.
 -  `set_clipboard( value )` 🔶 - Sets the contents of the OS clipboard.
+-  `json_parse( string )` 🔶 - Convert a JSON string into an object.
+-  `json_stringify( object )` 🔶 - Convert an object into a JSON string.
 
 ---
 
@@ -2354,3 +2671,119 @@ for (local t=0; t<=d; t++)
 ```
 
 The results show the beginning value `b = 0` changing by `c = 1`, using a `cubic` algorithm to decelerate the change as `t` approaches `d`.
+
+---
+
+### Animation 🔶
+
+All objects returned by `fe.add_image()`, `fe.add_artwork()`, `fe.add_surface()`, `fe.add_clone()`, `fe.add_text()`, `fe.add_listbox()` and `fe.add_rectangle()` support the `move()` member function.
+
+**Member Functions**
+
+-  `move( property )` - Returns the animation object for the property.
+-  `move( property, to, duration, ease )` - Animate a property to `to` over `duration` milliseconds. Returns the animation object.
+
+**Parameters**
+
+-  `property` - [string] Case-sensitive property name to animate.
+-  `to` - [number] Final value for the property.
+-  `duration` - [number] Animation duration in milliseconds. Defaults to `1000`.
+-  `ease` - One of the `Ease` constants below. Defaults to `Ease.Inertia`.
+
+**Example**
+
+```squirrel
+local img = fe.add_image( "logo.png", 0, 0, 300, 100 )
+
+// Option 1
+img.move( "y", 10, 1000, Ease.Linear )
+
+// Option 2
+img.move( "y" ).duration = 1000
+img.move( "y" ).ease = Ease.Linear
+img.move( "y" ).to = 10
+
+// Option 3
+local anim = img.move( "y" )
+anim.duration = 1000
+anim.ease = Ease.Linear
+anim.to = 50
+```
+
+-  `to` - [number] Final value. Assigning this sets a new value to animate toward.
+-  `duration` - [number] Animation duration in milliseconds.
+-  `time` - [number] Get/set the animation playhead in milliseconds. Negative values delay the animation start.
+-  `ease` - One of the `Ease` constants below.
+-  `mass` - [number] Inertia filter mass for `Ease.Inertia`. Values are in the range `[0.0...1.0]`.
+-  `period` - [number] Period override for `Ease.*Bounce2`, `Ease.*Elastic` and `Ease.*Elastic2`.
+-  `amplitude` - [number] Amplitude override for `Ease.*Elastic`.
+-  `strength` - [number] Overshoot strength override for `Ease.*Back`.
+-  `x1`, `y1`, `x2`, `y2` - [number] Cubic Bezier control points for `Ease.Bezier`.
+-  `steps` - [number] Number of steps for `Ease.Steps`. Values lower than `1` become `1`.
+-  `jump` - Step position for `Ease.Steps`. May be one of the `Jump` constants.
+-  `play_count` - [number] Number of times to play the animation. May be fractional, or `Infinite`. Default is `1.0`.
+-  `direction` - The direction of the animation. This can be one of the following values:
+   - `Direction.Normal` (default) - Animate from the current value towards the `to` value.
+   - `Direction.Reverse` - Animate from the `to` value towards the current value.
+   - `Direction.Alternate` - Alternate between `Normal` and `Reverse` for each iteration (requires `play_count` > `1.0`).
+   - `Direction.AlternateReverse` - Alternate between `Reverse` and `Normal` for each iteration (requires `play_count` > `1.0`).
+-  `running` - [bool] `true` while the animation is still active.
+
+**Supported Properties**
+
+-  Common: `x`, `y`, `width`, `height`, `rotation`, `red`, `green`, `blue`, `alpha`.
+-  Geometry where present: `origin_x`, `origin_y`, `transform_origin_x`, `transform_origin_y`, `anchor_x`, `anchor_y`, `rotation_origin_x`, `rotation_origin_y`.
+-  Image, artwork and surface: `fit_anchor_x`, `fit_anchor_y`, `skew_x`, `skew_y`, `pinch_x`, `pinch_y`, `subimg_x`, `subimg_y`, `subimg_width`, `subimg_height`, `force_aspect_ratio`, `volume`, `pan`, `padding_left`, `padding_right`, `padding_top`, `padding_bottom`, `border_left`, `border_right`, `border_top`, `border_bottom`, `border_scale`.
+-  Text: `bg_red`, `bg_green`, `bg_blue`, `bg_alpha`, `bg_outline_red`, `bg_outline_green`, `bg_outline_blue`, `bg_outline_alpha`, `outline_red`, `outline_green`, `outline_blue`, `outline_alpha`, `char_spacing`, `line_spacing`, `outline`, `bg_outline`, `margin`.
+-  ListBox: `bg_red`, `bg_green`, `bg_blue`, `bg_alpha`, `sel_red`, `sel_green`, `sel_blue`, `sel_alpha`, `sel_bg_red`, `sel_bg_green`, `sel_bg_blue`, `sel_bg_alpha`, `selbg_red`, `selbg_green`, `selbg_blue`, `selbg_alpha`, `outline_red`, `outline_green`, `outline_blue`, `outline_alpha`, `sel_outline_red`, `sel_outline_green`, `sel_outline_blue`, `sel_outline_alpha`, `char_spacing`, `outline`, `sel_outline`, `margin`.
+-  Rectangle: `outline`, `outline_red`, `outline_green`, `outline_blue`, `outline_alpha`, `corner_radius`, `corner_radius_x`, `corner_radius_y`, `corner_ratio`, `corner_ratio_x`, `corner_ratio_y`.
+
+**Ease Constants**
+
+-  `Ease.Linear`
+-  `Ease.Inertia`
+-  `Ease.InQuad`, `Ease.OutQuad`, `Ease.InOutQuad`, `Ease.OutInQuad`
+-  `Ease.InCubic`, `Ease.OutCubic`, `Ease.InOutCubic`, `Ease.OutInCubic`
+-  `Ease.InQuart`, `Ease.OutQuart`, `Ease.InOutQuart`, `Ease.OutInQuart`
+-  `Ease.InQuint`, `Ease.OutQuint`, `Ease.InOutQuint`, `Ease.OutInQuint`
+-  `Ease.InSine`, `Ease.OutSine`, `Ease.InOutSine`, `Ease.OutInSine`
+-  `Ease.InExpo`, `Ease.OutExpo`, `Ease.InOutExpo`, `Ease.OutInExpo`
+-  `Ease.InExpo2`, `Ease.OutExpo2`, `Ease.InOutExpo2`, `Ease.OutInExpo2`
+-  `Ease.InCirc`, `Ease.OutCirc`, `Ease.InOutCirc`, `Ease.OutInCirc`
+-  `Ease.InBack`, `Ease.OutBack`, `Ease.InOutBack`, `Ease.OutInBack`
+-  `Ease.InBack2`, `Ease.OutBack2`, `Ease.InOutBack2`, `Ease.OutInBack2`
+-  `Ease.InBounce`, `Ease.OutBounce`, `Ease.InOutBounce`, `Ease.OutInBounce`
+-  `Ease.InBounce2`, `Ease.OutBounce2`, `Ease.InOutBounce2`, `Ease.OutInBounce2`
+-  `Ease.InElastic`, `Ease.OutElastic`, `Ease.InOutElastic`, `Ease.OutInElastic`
+-  `Ease.InElastic2`, `Ease.OutElastic2`, `Ease.InOutElastic2`, `Ease.OutInElastic2`
+-  `Ease.Bezier`
+-  `Ease.Steps`
+
+**More examples**
+
+```squirrel
+local img = fe.add_image( "logo.png", 0, 0, 300, 100 )
+img.move( "x", 200, 1000, Ease.OutCubic )
+img.move( "alpha", 100, 500, Ease.Linear )
+
+img.move( "y" ).duration = 2000
+img.move( "y" ).ease = Ease.Inertia
+img.move( "y" ).mass = 0.5
+img.move( "y" ).to = 100
+
+img.move( "rotation", 360, 800, Ease.OutBounce2 )
+img.move( "rotation" ).period = 0.35
+
+img.move( "width", 500, 700, Ease.Bezier )
+img.move( "width" ).x1 = 0.25
+img.move( "width" ).y1 = 0.1
+img.move( "width" ).x2 = 0.25
+img.move( "width" ).y2 = 1.0
+
+img.move( "alpha", 0, 900, Ease.Steps )
+img.move( "alpha" ).steps = 5
+img.move( "alpha" ).jump = Jump.End
+
+img.move( "rotation", 360, 1000 )
+img.move( "rotation" ).repeat = true
+```

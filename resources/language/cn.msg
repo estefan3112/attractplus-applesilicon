@@ -17,6 +17,10 @@ On;在
 OR;或
 True;真的
 Yes;是
+Stopped;已停止
+Paused;已暂停
+Playing;播放中
+Ended;已结束
 Import;进口
 Cancel;取消
 
@@ -104,8 +108,11 @@ Scrape Flyers/Boxart;搜刮传单/手办 (Flyers/Boxart)
 Scrape Game Logos (Wheel Art);搜刮LOGO (Wheel Art)
 Scrape Marquees;搜刮跑马灯 (Marquees)
 Scrape Snaps;搜刮快照 (Snaps)
-Scrape Videos (MAME only);搜刮 Videos (MAME only)
+Scrape Videos;搜刮 Videos
+Scrape Overview;搜刮游戏描述
 Scraper;搜刮器
+ScreenScraper Username;ScreenScraper 用户名
+ScreenScraper Password;ScreenScraper 密码
 Screen Rotation;屏幕旋转
 Screen Saver Timeout;屏保等待时间
 Selection Speed;选择速度
@@ -152,6 +159,8 @@ Tags;标签
 PlayedCount;游戏计数
 PlayedTime;游戏时间
 PlayedLast;上次游玩时间
+PlayedSession;已播放會話
+PlayedLongest;播放時長最長
 FileIsAvailable;文件可用
 Shuffle;随机播放
 
@@ -182,6 +191,8 @@ Displays Menu;显示器菜单
 Previous Filter;上一分类
 Next Filter;下一分类
 Filters Menu;分类管理菜单
+Next Layout;下一个布局
+Previous Layout;上一个布局
 Toggle Layout;切换布局
 Toggle Movie;切换影片
 Toggle Mute;静音
@@ -416,7 +427,8 @@ _help_control_selection_delay;设置按键重复开始前的延迟时间(毫秒)
 _help_control_selection_max_step;设置选择移动的最大步进大小, 默认值为 128
 _help_control_toggle_flip;设置用于切换显示屏是否旋转180度的控件
 _help_control_toggle_fullscreen;在全屏和窗口模式之间切换
-_help_control_toggle_layout;设置切换要使用的布局脚本的控件(是否生效取决于您使用的布局)
+_help_control_prev_layout;设置切换要使用的布局脚本的控件(是否生效取决于您使用的布局)
+_help_control_next_layout;设置切换要使用的布局脚本的控件(是否生效取决于您使用的布局)
 _help_control_toggle_movie;设置切换是否播放视频的控件
 _help_control_toggle_mute;设置用于静音/取消静音前端声音的控件
 _help_control_toggle_rotate_left;设置切换是否将显示屏向左旋转 90 度的控件左
@@ -528,7 +540,10 @@ _help_scraper_flyers;设置是否在抓取游戏宣传单和包装盒封面时�
 _help_scraper_marquees;设置抓取游戏时是否下载游戏标题栏和横幅。
 _help_scraper_snaps;设置抓取游戏快照时是否下载
 _help_scraper_vids;设置抓取游戏视频时是否下载游戏视频
+_help_scraper_overview;设置抓取游戏描述时是否下载
 _help_scraper_wheels;设置是否在抓取游戏时下载游戏图标
+_help_screenscraper_user;可选：您的ScreenScraper.fr账户用户名以获得更高的抓取限制
+_help_screenscraper_pass;可选：您的ScreenScraper.fr账户密码用于身份验证
 _help_shortcut_artwork_name;(可选)提供要与此快捷方式关联的艺术作品名称。前端在显示快捷方式时会尝试加载具有此名称的艺术作品
 _help_shortcut_delete;从 ROM 列表中删除此快捷键
 _help_shortcut_label;编辑此快捷键的标签
