@@ -133,10 +133,47 @@ jobs:
         echo "/opt/local/bin" >> $GITHUB_PATH       # MacPorts tools first in PATH for all later steps
         echo "/opt/local/sbin" >> $GITHUB_PATH
 
+    # MacPorts has no ready-made Intel package for some ports (ffmpeg8 among them),
+    # so it compiles them, which takes long. The packages it built are kept in
+    # GitHub's cache and reused by later runs. The key changes every month, so the
+    # packages are refreshed once a month (or when PORTS/MACPORTS_VERSION change).
+    - name: Cache key for MacPorts packages
+      id: mpcache
+      run: |
+        echo "key=macports-intel-${MACPORTS_VERSION}-$(echo "$PORTS" | shasum | cut -c1-8)-$(date +%Y-%m)" >> $GITHUB_OUTPUT
+
+    - name: Restore MacPorts packages from cache
+      id: restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/macports-archives
+        key: ${{ steps.mpcache.outputs.key }}
+        restore-keys: macports-intel-${{ env.MACPORTS_VERSION }}-
+
     - name: Install dependencies (MacPorts)
       run: |
         sudo port -N selfupdate
+        if [[ -d ~/macports-archives ]]; then
+          echo "Using cached MacPorts packages"
+          sudo mkdir -p /opt/local/var/macports/software
+          sudo cp -R ~/macports-archives/. /opt/local/var/macports/software/
+        fi
         sudo port -N install $PORTS
+
+    - name: Copy MacPorts packages for the cache
+      if: steps.restore.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ~/macports-archives
+        sudo cp -R /opt/local/var/macports/software/. ~/macports-archives/
+        sudo chown -R "$(whoami)" ~/macports-archives
+        du -sh ~/macports-archives
+
+    - name: Save MacPorts packages to cache
+      if: steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ~/macports-archives
+        key: ${{ steps.mpcache.outputs.key }}
 
     - name: Hide the runner's Homebrew from the compiler
       # GitHub's Intel machines come with Homebrew in /usr/local, and the compiler
