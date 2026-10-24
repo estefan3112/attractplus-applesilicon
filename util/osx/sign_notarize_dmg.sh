@@ -160,7 +160,21 @@ if [[ "$status" != "Accepted" ]]; then
 	exit 1
 fi
 
-xcrun stapler staple "$dmg"
+# Fetching the ticket from Apple right after notarization sometimes fails with a
+# network error, or because the ticket isn't available yet - so try a few times.
+stapled=no
+for attempt in 1 2 3 4 5; do
+	if xcrun stapler staple "$dmg"; then
+		stapled=yes
+		break
+	fi
+	echo "Stapling attempt $attempt failed - retrying in 30 seconds"
+	sleep 30
+done
+if [[ "$stapled" != "yes" ]]; then
+	echo "ERROR: could not staple the ticket after 5 attempts"
+	exit 1
+fi
 xcrun stapler validate "$dmg"
 spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
 
