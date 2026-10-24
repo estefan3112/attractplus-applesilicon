@@ -1,0 +1,204 @@
+# Attract-Mode Plus for macOS: build, sign, notarize and package as DMG,
+# for Apple Silicon (with Homebrew) and Intel (with MacPorts).
+#
+# This is the fork's own workflow. The other files in this folder are oomek's,
+# kept exactly as upstream has them (and disabled on the Actions tab), so that
+# syncing with upstream never runs into conflicts here.
+#
+# What starts it:
+#   - a push to master           -> signed + notarized DMGs under "Artifacts" on the run page
+#   - pushing a tag (e.g. 3.2.4) -> the same, plus one draft GitHub Release with both DMGs
+#   - the "Run workflow" button on the Actions tab
+#
+# The two builds run in parallel and independently: if Intel fails, you still get ARM64.
+#
+# Secrets used (Settings -> Secrets and variables -> Actions):
+#   MACOS_CERTIFICATE, MACOS_CERTIFICATE_PWD, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD
+
+name: macOS builds - signed DMGs
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: write                  # allows the release job to create the draft release
+
+env:
+  MACOSX_DEPLOYMENT_TARGET: "15.0" # oldest macOS the apps should run on
+
+
+jobs:
+
+  # ------------------------------------------------------------------
+  #  Apple Silicon: Homebrew still provides ready-made ARM64 packages
+  # ------------------------------------------------------------------
+  arm64:
+    name: Build, sign and notarize (ARM64)
+    # Pinned on purpose: macos-latest is macOS 26, and everything built there
+    # (including the bundled Homebrew libraries) would then require macOS 26.
+    runs-on: macos-15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        path: am
+        fetch-depth: 0             # full history + tags: the app version comes from the latest tag
+
+    - name: Prepare
+      id: vars
+      run: |
+        echo "nbproc=$(getconf _NPROCESSORS_ONLN)" >> $GITHUB_OUTPUT
+        fe_version=
+        [[ ${GITHUB_REF} =~ ^refs/tags/* ]] && fe_version="${GITHUB_REF#refs/*/}"
+        echo "fe_version=${fe_version}" >> $GITHUB_OUTPUT
+
+    - name: Install dependencies (Homebrew)
+      run: |
+        brew update
+        brew install pkgconfig ffmpeg libarchive libvorbis flac jpeg-turbo create-dmg
+
+    - name: Build Attract-Mode Plus
+      run: |
+        make -C am -j${{ steps.vars.outputs.nbproc }} \
+          VERBOSE=1 \
+          FE_VERSION=${{ steps.vars.outputs.fe_version }} \
+          prefix=.. \
+          USE_SYSTEM_SFML=0 \
+          STATIC=0
+
+    - name: Build app bundle
+      run: |
+        mkdir -p artifacts
+        bash am/util/osx/appbuilder.sh
+
+    - name: Sign, notarize and package DMG
+      env:
+        MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      run: bash am/util/osx/sign_notarize_dmg.sh artifacts arm64
+
+    - name: Upload DMG
+      uses: actions/upload-artifact@v7
+      with:
+        name: AttractModePlus-macOS-arm64
+        path: artifacts/*.dmg
+
+
+  # ------------------------------------------------------------------
+  #  Intel: Homebrew no longer provides ready-made Intel packages, so
+  #  this job uses MacPorts, which still does.
+  # ------------------------------------------------------------------
+  intel:
+    name: Build, sign and notarize (Intel)
+    runs-on: macos-15-intel
+    env:
+      MACPORTS_VERSION: "2.12.7"   # bump when MacPorts releases a new version
+      PORTS: pkgconfig cmake ffmpeg8 libarchive libvorbis flac libjpeg-turbo freetype
+      PKG_CONFIG_PATH: /opt/local/libexec/ffmpeg8/lib/pkgconfig:/opt/local/lib/pkgconfig:/opt/local/share/pkgconfig
+      LDFLAGS: -Wl,-headerpad_max_install_names   # room for install_name_tool to rewrite library paths
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        path: am
+        fetch-depth: 0
+
+    - name: Prepare
+      id: vars
+      run: |
+        echo "nbproc=$(getconf _NPROCESSORS_ONLN)" >> $GITHUB_OUTPUT
+        fe_version=
+        [[ ${GITHUB_REF} =~ ^refs/tags/* ]] && fe_version="${GITHUB_REF#refs/*/}"
+        echo "fe_version=${fe_version}" >> $GITHUB_OUTPUT
+
+    - name: Install MacPorts
+      run: |
+        pkg="MacPorts-${MACPORTS_VERSION}-15-Sequoia.pkg"
+        curl -fsSL -o "$pkg" "https://github.com/macports/macports-base/releases/download/v${MACPORTS_VERSION}/$pkg" \
+          || curl -fsSL -o "$pkg" "https://distfiles.macports.org/MacPorts/$pkg"
+        sudo installer -pkg "$pkg" -target /
+        echo "/opt/local/bin" >> $GITHUB_PATH       # MacPorts tools first in PATH for all later steps
+        echo "/opt/local/sbin" >> $GITHUB_PATH
+
+    - name: Install dependencies (MacPorts)
+      run: |
+        sudo port -N selfupdate
+        sudo port -N install $PORTS
+
+    - name: Hide the runner's Homebrew from the compiler
+      # GitHub's Intel machines come with Homebrew in /usr/local, and the compiler
+      # looks there by default. Moving its headers and libraries away makes sure
+      # only MacPorts libraries end up in the app. create-dmg is installed from
+      # Homebrew first: it is only a shell script, so nothing needs compiling.
+      run: |
+        HOMEBREW_NO_AUTO_UPDATE=1 brew install create-dmg
+        for d in include lib; do
+          [[ -d /usr/local/$d ]] && sudo mv /usr/local/$d /usr/local/$d.hidden
+        done
+        which pkg-config cmake
+
+    - name: Build Attract-Mode Plus
+      run: |
+        make -C am -j${{ steps.vars.outputs.nbproc }} \
+          VERBOSE=1 \
+          FE_VERSION=${{ steps.vars.outputs.fe_version }} \
+          prefix=.. \
+          USE_SYSTEM_SFML=0 \
+          STATIC=0
+
+    - name: Build app bundle
+      run: |
+        mkdir -p artifacts
+        bash am/util/osx/appbuilder_intel_mp.sh artifacts am no
+
+    - name: Sign, notarize and package DMG
+      env:
+        MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      run: bash am/util/osx/sign_notarize_dmg.sh artifacts intel
+
+    - name: Upload DMG
+      uses: actions/upload-artifact@v7
+      with:
+        name: AttractModePlus-macOS-intel
+        path: artifacts/*.dmg
+
+
+  # ------------------------------------------------------------------
+  #  Tags only: one draft release with both DMGs
+  # ------------------------------------------------------------------
+  release:
+    name: Create draft release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [arm64, intel]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download both DMGs
+      uses: actions/download-artifact@v8
+      with:
+        path: dmgs
+        merge-multiple: true
+
+    - name: Create draft release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: Attract-Mode Plus ${{ github.ref_name }} for macOS
+        draft: true                # you review and publish it yourself on the Releases page
+        files: dmgs/*.dmg
